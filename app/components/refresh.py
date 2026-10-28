@@ -64,11 +64,13 @@ def available() -> bool:
 def _run_sync() -> tuple[bool, int, str]:
     """(ok, new plays, error message). Library, Excel and long enrichment are left to the
     regular background sync so the button stays quick."""
+    run = lambda *args: subprocess.run([sys.executable, "-m", *args], cwd=ROOT,  # noqa: E731
+                                       capture_output=True, text=True, timeout=180)
     try:
-        res = subprocess.run(
-            [sys.executable, "-m", "scripts.sync", "--no-library", "--no-excel", "--enrich-budget", "20"],
-            cwd=ROOT, capture_output=True, text=True, timeout=180,
-        )
+        run("scripts.cloud_db", "pull")  # latest plays collected by GitHub, local corrections kept
+        res = run("scripts.sync", "--no-library", "--no-excel", "--enrich-budget", "20")
+        if res.returncode == 0:
+            run("scripts.cloud_db", "push")  # publish for the hosted site and the next GitHub run
     except subprocess.TimeoutExpired:
         return False, 0, t("refresh.timeout")
     match = re.search(r"(\d+) new stored", res.stdout)

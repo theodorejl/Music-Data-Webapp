@@ -19,6 +19,13 @@ from core.stats import search_history
 
 ui.header(t("admin.title"), t("admin.kicker"), lead=t("admin.subtitle"), dot="butter")
 
+from core.config import get_setting
+
+if get_settings().data_url and not get_setting("DATABASE_URL"):
+    # Hosted read-only copy: corrections are made from the computer, then published.
+    st.info(t("admin.read_only"))
+    st.stop()
+
 password = get_settings().admin_password
 if not password:
     st.warning(t("admin.no_password"))

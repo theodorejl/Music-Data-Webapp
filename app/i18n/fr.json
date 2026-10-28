@@ -297,7 +297,8 @@
     "kind_album_genre": "Genre forcé",
     "kind_rename_genre": "Genre renommé",
     "kind_hide_play": "Écoute masquée",
-    "kicker": "Administration"
+    "kicker": "Administration",
+    "read_only": "Le site en ligne lit une copie de la base : fais tes corrections depuis l'app sur ton ordinateur, elles seront publiées à la prochaine actualisation."
   },
   "library": {
     "title": "Albums & playlists favoris",

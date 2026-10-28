@@ -36,7 +36,7 @@ TABLES = [
 ]
 
 
-def migrate(source_url: str, target_url: str) -> dict[str, tuple[int, int]]:
+def migrate(source_url: str, target_url: str, quiet: bool = False) -> dict[str, tuple[int, int]]:
     src = get_engine(source_url)
     dst = init_db(get_engine(target_url))
     report = {}
@@ -49,7 +49,8 @@ def migrate(source_url: str, target_url: str) -> dict[str, tuple[int, int]]:
             s_out.commit()
             after = s_out.query(model).count()
             report[model.__tablename__] = (len(rows), after - before)
-            print(f"{model.__tablename__:14} read {len(rows):7}  inserted {after - before:7}")
+            if not quiet:
+                print(f"{model.__tablename__:14} read {len(rows):7}  inserted {after - before:7}")
     return report
 
 

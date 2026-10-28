@@ -16,8 +16,14 @@ if curl -s "$URL/_stcore/health" >/dev/null 2>&1; then
   exit 0
 fi
 
+echo "Récupération de la base publiée sur GitHub…"
+.venv/bin/python -m scripts.cloud_db pull || echo "⚠️  Base GitHub indisponible : on continue avec la base locale."
 echo "Synchro des dernières écoutes Deezer…"
-.venv/bin/python -m scripts.sync --enrich-budget 30 || echo "⚠️  Synchro échouée (l'app s'ouvre quand même)."
+if .venv/bin/python -m scripts.sync --enrich-budget 30; then
+  .venv/bin/python -m scripts.cloud_db push || echo "⚠️  Publication sur GitHub impossible (réessaie plus tard)."
+else
+  echo "⚠️  Synchro échouée (l'app s'ouvre quand même)."
+fi
 
 echo
 echo "Lancement de l'app…"

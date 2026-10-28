@@ -297,7 +297,8 @@
     "kind_album_genre": "Forced genre",
     "kind_rename_genre": "Renamed genre",
     "kind_hide_play": "Hidden play",
-    "kicker": "Administration"
+    "kicker": "Administration",
+    "read_only": "The hosted site reads a copy of the database: make corrections from the app on your computer; they are published at the next refresh."
   },
   "library": {
     "title": "Favorite albums & playlists",

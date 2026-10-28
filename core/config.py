@@ -77,6 +77,7 @@ class Settings:
     musicbrainz_contact: str
     log_dir: Path
     excel_dir: Path | None  # local Excel copies of the data; empty EXCEL_DIR disables them
+    data_url: str | None  # hosted app: URL of the published deezer_stats.db.gz (read-only copy)
 
 
 def get_settings() -> Settings:
@@ -91,6 +92,7 @@ def get_settings() -> Settings:
         musicbrainz_contact=get_setting("MUSICBRAINZ_CONTACT", "personal project"),
         log_dir=Path(get_setting("LOG_DIR", str(ROOT / "logs"))),
         excel_dir=_excel_dir(),
+        data_url=get_setting("DATA_URL"),
     )
 
 

@@ -3,7 +3,7 @@
 Une alternative perso à Last.fm : l'app enregistre **toutes** tes écoutes Deezer, y compris celles que le scrobbling rate, et en tire des statistiques. Tu y trouveras tes tops artistes, albums, titres et genres, l'évolution dans le temps, tes habitudes d'écoute, tes découvertes, un récap du jour, de la semaine, du mois ou de l'année, l'historique complet et des extraits de 30 s.
 
 - **Phase 1 (local)** : l'app tourne sur ton ordinateur, dans ton navigateur.
-- **Phase 2 (en ligne, gratuit)** : un robot GitHub relève tes écoutes toutes les 30 minutes, même ordinateur éteint, et les range dans une base Postgres (Neon). L'app est publiée sur Streamlit Community Cloud.
+- **Phase 2 (en ligne, gratuit)** : un robot GitHub relève tes écoutes toutes les 30 minutes, même ordinateur éteint, et les range dans un fichier SQLite publié dans le dépôt GitHub (branche `data`). L'app est publiée sur Streamlit Community Cloud.
 
 Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le code est le même.
 
@@ -16,7 +16,7 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
                     │ écrit
                     ▼
           ┌──────────────────────┐
-          │ Base de données      │  SQLite (local) ou Postgres/Neon (en ligne)
+          │ Base de données      │  SQLite, partagée via la branche `data` du dépôt
           └─────────┬────────────┘
                     │ lit seulement
                     ▼
@@ -35,7 +35,7 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
 2. [Récupérer ton cookie `arl`](#2-récupérer-ton-cookie-arl)
 3. [Première synchro, puis l'app en local](#3-première-synchro-puis-lapp-en-local)
 4. [(Optionnel) Planifier la synchro en local](#4-optionnel-planifier-la-synchro-en-local)
-5. [Passer en ligne : GitHub + Neon + GitHub Actions](#5-passer-en-ligne--github--neon--github-actions)
+5. [Passer en ligne : la synchro sur GitHub](#5-passer-en-ligne--la-synchro-sur-github-même-ordinateur-éteint)
 6. [Publier l'app sur Streamlit Community Cloud](#6-publier-lapp-sur-streamlit-community-cloud)
 7. [En cas de problème](#7-en-cas-de-problème)
 8. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
@@ -254,95 +254,74 @@ Pour supprimer la tâche : `schtasks /Delete /TN "DeezerStats sync" /F`.
 
 ---
 
-## 5. Passer en ligne : GitHub + Neon + GitHub Actions
+## 5. Passer en ligne : la synchro sur GitHub, même ordinateur éteint
 
-### 5.1 Créer le dépôt GitHub
+La base de données est un fichier SQLite rangé **dans le dépôt GitHub lui-même**, sur une branche à part nommée `data`. Aucun compte de base de données n'est nécessaire.
+- La branche `data` ne contient qu'**un seul commit, remplacé à chaque synchro** : le dépôt ne grossit pas, et la branche `main` ne contient que le code.
+- ⚠️ **Le dépôt étant public, ta base (historique horodaté, favoris, playlists) est lisible par tout le monde**, comme le site lui-même. Pour la rendre privée, passe le dépôt en privé : la synchro marche pareil, mais le site Streamlit devra être configuré autrement (demande-moi).
 
-1. Crée un compte sur <https://github.com> si besoin, puis clique sur **New repository**.
-2. Nom : `deezer-stats`. Visibilité : **Public conseillé**.
-   - En public, les minutes GitHub Actions sont **illimitées**. Ton profil d'écoute est de toute façon public par choix, et les Secrets restent secrets.
-   - En privé, le quota gratuit est de **2 000 minutes par mois**. Chaque synchro dure environ 1 minute (facturée à la minute entamée). À raison de 48 synchros par jour, ça fait environ 1 450 minutes par mois : ça rentre, mais avec peu de marge.
-3. **Ne coche rien** (ni README, ni .gitignore), puis crée le dépôt.
+### 5.1 Le dépôt
 
-Le projet est déjà un dépôt git local avec un premier commit. Envoie-le sur GitHub en remplaçant `TON_PSEUDO` :
+Le code est déjà sur https://github.com/theodorejl/Music-Data-Webapp, et la base y est publiée sur la branche `data`.
 
-```bash
-git remote add origin https://github.com/TON_PSEUDO/deezer-stats.git
-git push -u origin main
-```
+### 5.2 Configurer le secret et le profil
 
-Au premier `push`, GitHub te demande de t'identifier : suis les instructions dans le navigateur. Si l'authentification bloque, installe <https://desktop.github.com> : l'app fait la même chose en quelques clics.
+Sur la page du dépôt : **Settings > Secrets and variables > Actions**.
 
-> ✅ Avant chaque `git push`, `git status` ne doit **jamais** afficher `.env` ni `data/`. Les deux sont exclus par `.gitignore`.
+| Où | Nom | Valeur |
+|---|---|---|
+| onglet **Secrets** | `DEEZER_ARL` | ton cookie arl |
+| onglet **Variables** | `DEEZER_PROFILE` | `TBTC` |
+| onglet **Variables** (optionnel) | `MUSICBRAINZ_CONTACT` | ton e-mail ou l'adresse du dépôt |
 
-### 5.2 Créer la base Postgres gratuite (Neon)
+### 5.3 Activer le robot de synchro
 
-1. Inscris-toi sur <https://neon.tech> (plan Free).
-2. Crée un projet. Choisis une région proche de toi, par exemple *Frankfurt*.
-3. Sur le tableau de bord, clique sur **Connect** et copie la **connection string**. Elle ressemble à :
-   ```
-   postgresql://neondb_owner:xxxx@ep-xxxx.eu-central-1.aws.neon.tech/neondb?sslmode=require
-   ```
-   Elle contient un mot de passe : garde-la secrète.
+1. Onglet **Actions** du dépôt → **Deezer sync** → **Run workflow** pour un premier essai.
+2. Au bout de 1 à 2 minutes, la pastille doit être verte ✅.
 
-### 5.3 Transférer ta base locale vers Neon
+Ensuite, à chaque passage, toutes les 30 minutes, GitHub :
+1. récupère la base publiée ;
+2. ajoute tes nouvelles écoutes ;
+3. complète les pochettes et les genres ;
+4. republie la base.
 
-```bash
-python -m scripts.migrate_sqlite_to_postgres --target "postgresql://…ta connection string…"
-```
+À savoir :
+- Les crons GitHub sont souvent retardés de quelques minutes. Ce n'est pas grave : Deezer garde les 100 dernières écoutes.
+- En cas d'échec, par exemple si le cookie a expiré, **GitHub t'envoie un e-mail**.
+- Sur un dépôt public, GitHub met en pause les synchros planifiées après **60 jours sans commit sur `main`**. Il t'envoie un e-mail avant. Pour relancer : onglet Actions → « Enable workflow ».
 
-Le script crée les tables puis copie tout. **Tu peux le relancer sans risque** : rien n'est dupliqué.
+### 5.4 Et sur ton ordinateur ?
 
-### 5.4 Configurer les secrets GitHub
+« Lancer l'app » et le bouton « Actualiser » font la même chose que GitHub, dans cet ordre :
+1. **récupérer** la base publiée ;
+2. synchroniser ;
+3. **republier**.
 
-Sur la page du dépôt GitHub : **Settings > Secrets and variables > Actions > New repository secret**. Crée :
+La base de ton Mac et celle de GitHub restent donc identiques. La récupération ne remplace pas ta base : elle y fusionne la version publiée, et ce qui n'existe que chez toi (tes corrections admin, par exemple) est conservé.
 
-| Nom | Valeur |
-|---|---|
-| `DEEZER_ARL` | ton cookie arl |
-| `DATABASE_URL` | la connection string Neon |
+Commandes manuelles : `python -m scripts.cloud_db pull` (récupérer) et `python -m scripts.cloud_db push` (publier).
 
-Dans l'onglet **Variables** (même page), ajoute `DEEZER_PROFILE` = `TBTC` (ton profil). Optionnel : ajoute aussi `MUSICBRAINZ_CONTACT`, avec ton e-mail ou l'URL du dépôt. MusicBrainz demande un moyen de contact dans le User-Agent.
-
-### 5.5 Activer le robot de synchro
-
-1. Va dans l'onglet **Actions** du dépôt. Si GitHub le demande, clique sur « I understand my workflows, go ahead and enable them ».
-2. À gauche, clique sur **Deezer sync**, puis **Run workflow** pour un premier essai.
-3. Au bout de 1 à 2 minutes, la pastille doit être verte ✅.
-
-Ensuite, la synchro tourne **toutes les 30 minutes**, même ordinateur éteint.
-- Les crons GitHub sont souvent **retardés de quelques minutes**, parfois plus aux heures chargées. Ce n'est pas grave : il faudrait plus de 100 écoutes entre deux passages pour perdre quelque chose.
-- Si un passage échoue, par exemple parce que le cookie a expiré, **GitHub t'envoie un e-mail**.
-- Sur un dépôt **public**, GitHub met en pause les workflows planifiés après **60 jours sans aucun commit**. Il t'envoie un e-mail avant. Pour relancer, retourne dans l'onglet Actions et clique sur « Enable workflow », ou fais n'importe quel commit.
-
-### 5.6 Après le passage en ligne
-
-- Désactive la planification locale de l'étape 4, si tu l'avais mise en place.
-- Pour que l'app **locale** affiche les données en ligne, remplace `DATABASE_URL` dans ton `.env` par la connection string Neon.
-
----
+La synchro automatique locale (`Activer la synchro automatique.command`) devient facultative.
 
 ## 6. Publier l'app sur Streamlit Community Cloud
 
 1. Va sur <https://share.streamlit.io> et connecte-toi avec GitHub.
 2. Clique sur **Create app**, puis **Deploy a public app from GitHub**.
-   - Repository : `TON_PSEUDO/deezer-stats`
+   - Repository : `theodorejl/Music-Data-Webapp`
    - Branch : `main`
    - Main file path : **`app/Home.py`**
 3. Ouvre **Advanced settings** :
    - Python version : **3.12**
-   - Secrets : colle ceci, avec tes valeurs.
+   - Secrets : colle ceci.
      ```toml
-     DATABASE_URL = "postgresql://…ta connection string Neon…"
-     ADMIN_PASSWORD = "un_mot_de_passe_solide"
+     DATA_URL = "https://raw.githubusercontent.com/theodorejl/Music-Data-Webapp/data/deezer_stats.db.gz"
      TIMEZONE = "Europe/Zurich"
      ```
-     🚫 **Ne mets jamais `DEEZER_ARL` ici.** L'app n'en a pas besoin, et c'est voulu.
-4. Clique sur **Deploy**. Au bout de quelques minutes, ton app a une adresse en `….streamlit.app`.
+     🚫 **Ne mets jamais `DEEZER_ARL` ici.**
+4. Clique sur **Deploy**.
 
-Si personne ne visite l'app pendant quelques jours, Streamlit la met en veille. Le premier visiteur la réveille en un clic : c'est normal. La collecte, elle, continue sur GitHub Actions.
+Le site lit une copie de la base publiée et la rafraîchit toutes les 10 minutes. Il est en lecture seule : les corrections (page admin) se font depuis l'app sur ton ordinateur, et sont publiées à la prochaine actualisation.
 
----
 
 ## 7. En cas de problème
 
@@ -351,7 +330,7 @@ Si personne ne visite l'app pendant quelques jours, Streamlit la met en veille. 
 **Symptômes** : tu reçois un e-mail d'échec de GitHub Actions, ou la synchro locale affiche `DEEZER COOKIE PROBLEM`. La barre latérale de l'app indique aussi « La dernière synchro a échoué ».
 
 1. Reconnecte-toi sur deezer.com et récupère le nouveau `arl` (étape 2).
-2. Remplace-le dans `.env` (local) **et** dans le secret GitHub `DEEZER_ARL` (Settings > Secrets > Actions > `DEEZER_ARL` > Update).
+2. Remplace-le dans `.env` (local) **et** dans le secret GitHub `DEEZER_ARL` (Settings > Secrets and variables > Actions > `DEEZER_ARL` > Update).
 3. Relance : `python -m scripts.sync`, ou « Run workflow » sur GitHub.
 
 Si tu penses que ton cookie a fuité, déconnecte-toi de Deezer, change ton mot de passe Deezer, puis récupère un nouveau cookie.
@@ -360,7 +339,7 @@ Si tu penses que ton cookie a fuité, déconnecte-toi de Deezer, change ton mot 
 
 - **En ligne** : onglet **Actions**, clique sur le passage en échec, puis sur l'étape « Sync Deezer history » pour lire le message. Si Deezer a renvoyé une réponse inattendue, elle est jointe au passage, dans **Artifacts > sync-logs**. Le cookie y est masqué.
 - **En local** : le message s'affiche dans le terminal. Les réponses inattendues sont enregistrées dans le dossier `logs/`.
-- `DATABASE_URL secret is missing` : le secret `DATABASE_URL` n'est pas configuré sur GitHub (étape 5.4).
+- `No storage configured` : le workflow a été modifié ; il doit garder `DEEZER_STATS_STORAGE: git`.
 
 ### Deezer a changé son API interne
 

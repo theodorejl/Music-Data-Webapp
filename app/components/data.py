@@ -10,7 +10,7 @@ import streamlit as st
 
 from app.i18n import fmt_date, t
 from core import stats
-from core.config import get_settings
+from core.config import get_setting, get_settings
 from core.db import get_engine, init_db
 
 STATS_TTL = 120  # seconds
@@ -19,7 +19,18 @@ STATS_TTL = 120  # seconds
 def _engine():
     # Creating missing tables on an empty database is harmless; the app never
     # writes data (except the admin page).
-    return init_db(get_engine(get_settings().database_url))
+    settings = get_settings()
+    if settings.data_url and not get_setting("DATABASE_URL"):
+        # Hosted app: a read-only copy of the database published on the repo's data branch,
+        # refreshed every 10 minutes.
+        import tempfile
+        from pathlib import Path
+
+        from core.cloud_db import download_copy
+
+        path = download_copy(settings.data_url, Path(tempfile.gettempdir()) / "deezer-stats")
+        return get_engine(f"sqlite:///{path}")
+    return init_db(get_engine(settings.database_url))
 
 
 def timezone_name() -> str:

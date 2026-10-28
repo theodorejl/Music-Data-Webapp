@@ -41,9 +41,11 @@ def main(argv: list[str] | None = None) -> int:
 
     setup_logging()
     settings = get_settings()
-    if os.environ.get("GITHUB_ACTIONS") and settings.database_url.startswith("sqlite"):
+    if (os.environ.get("GITHUB_ACTIONS") and settings.database_url.startswith("sqlite")
+            and os.environ.get("DEEZER_STATS_STORAGE") != "git"):
         # The runner's disk is wiped after each run: writing to SQLite there would lose everything.
-        log.error("DATABASE_URL secret is missing: refusing to write to a throwaway SQLite file.")
+        log.error("No storage configured: set DEEZER_STATS_STORAGE=git (database kept in the repo) "
+                  "or a DATABASE_URL secret. Refusing to write to a throwaway SQLite file.")
         return 1
     engine = init_db(get_engine(settings.database_url))
     log.info("Database: %s", engine.url.render_as_string(hide_password=True))
