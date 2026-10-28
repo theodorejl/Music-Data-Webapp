@@ -22,3 +22,6 @@ venv/
 # Personal data exported by the sync
 Exports Excel/
 *.xlsx
+
+# Conversation log with Claude (personal)
+Journal.md

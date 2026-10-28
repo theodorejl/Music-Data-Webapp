@@ -153,6 +153,17 @@ def csv_download(df: pd.DataFrame, filename: str, key: str) -> None:
                        file_name=filename, mime="text/csv", key=key, icon=":material/download:")
 
 
+def excel_download(df: pd.DataFrame, filename: str, sheet: str, title: str, key: str,
+                   formats: dict[str, str] | None = None) -> None:
+    """Download button producing the same styled workbook as the Excel exports."""
+    from app.i18n import get_lang
+    from core.excel import table_sheet, to_xlsx
+
+    st.download_button(t("common.download_excel"), to_xlsx([table_sheet(df, sheet, title, formats)], get_lang()),
+                       file_name=filename, key=key, icon=":material/table_view:",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+
 def export_plays(df: pd.DataFrame) -> pd.DataFrame:
     """Plays in a flat, readable shape for CSV export."""
     return pd.DataFrame({

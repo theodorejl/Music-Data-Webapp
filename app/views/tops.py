@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 
 from app.components import charts, data, ui
@@ -38,6 +39,17 @@ for tab, dim in zip(tabs, stats.DIMENSIONS):
             ui.cover_grid(items, kind, ui.value_formatter(metric), columns=5, key=f"tg_{dim}")
         else:
             ui.ranked_table(items, kind, key=f"tl_{dim}_{metric}_{n}")
-        export = items.drop(columns=["image"]).rename(columns={"key": "id"})
-        ui.csv_download(export, f"top_{dim}_{metric}.csv", key=f"dl_{dim}")
+        export = pd.DataFrame({
+            "#": items["rank"], t("common.name"): items["label"],
+            **({t("common.artist"): items["sublabel"]} if dim in ("album", "track") else {}),
+            t("common.plays"): items["plays"], t("common.minutes"): items["minutes"].round(1),
+        })
+        tab_name = {"artist": t("common.artists"), "album": t("common.albums"), "track": t("common.tracks"),
+                    "genre": t("common.genres")}[dim]
+        c_xl, c_csv = st.columns([1, 1])
+        with c_xl:
+            ui.excel_download(export, f"top_{dim}_{metric}.xlsx", tab_name, f"{t('tops.title')} — {tab_name} ({f.label})",
+                              key=f"xl_{dim}", formats={"#": "int", t("common.plays"): "int", t("common.minutes"): "dec"})
+        with c_csv:
+            ui.csv_download(export, f"top_{dim}_{metric}.csv", key=f"dl_{dim}")
 ui.estimated_note(df)

@@ -153,7 +153,7 @@ def playlist_tracks() -> pd.DataFrame:
 def library_xlsx(lang: str) -> bytes:
     from core.excel import library_sheets, to_xlsx
 
-    return to_xlsx(library_sheets(favorite_albums(), playlists(), playlist_tracks(), lang))
+    return to_xlsx(library_sheets(favorite_albums(), playlists(), playlist_tracks(), lang), lang)
 
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=8)
@@ -161,7 +161,7 @@ def history_xlsx(lang: str, play_ids: tuple[int, ...]) -> bytes:
     from core.excel import history_sheets, to_xlsx
 
     plays = all_plays()
-    return to_xlsx(history_sheets(plays[plays["play_id"].isin(play_ids)], lang))
+    return to_xlsx(history_sheets(plays[plays["play_id"].isin(play_ids)], lang), lang)
 
 
 @st.cache_data(ttl=3600, show_spinner=False, max_entries=4)

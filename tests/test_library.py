@@ -64,16 +64,25 @@ def test_library_store_and_views(engine, history_response):
     book = openpyxl.load_workbook(io.BytesIO(to_xlsx(library_sheets(
         fav, pl, stats.playlist_tracks_view(lib, plays)))))
     assert book.sheetnames == ["Albums favoris", "Playlists", "Titres des playlists"]
-    assert book["Titres des playlists"].max_row == 3
+    ws = book["Titres des playlists"]
+    assert ws.max_row == 4 + 2  # title block, header on row 4, 2 tracks
+    table = next(iter(ws.tables.values()))
+    assert table.ref.startswith("A4:") and table.tableStyleInfo.showRowStripes
 
 
 def test_history_workbook(engine, history_response):
     run_sync(engine, type("S", (), {"fetch_recent": lambda self: parse_history(history_response)})(), enrich=False)
     plays = stats.assemble(stats.load_raw(engine))
     for lang, first in (("fr", "Écoutes"), ("en", "Plays")):
-        book = openpyxl.load_workbook(io.BytesIO(to_xlsx(history_sheets(plays, lang))))
+        book = openpyxl.load_workbook(io.BytesIO(to_xlsx(history_sheets(plays, lang), lang)))
         assert book.sheetnames[0] == first
-        assert book[first].max_row == 7  # header + 6 plays
+        ws = book[first]
+        assert ws.max_row == 4 + 6  # title block + header + 6 plays
+        headers = [c.value for c in ws[4]]
+        assert headers[:5] == (["Date", "Heure", "Jour", "Mois", "Année"] if lang == "fr"
+                               else ["Date", "Time", "Weekday", "Month", "Year"])
+        assert ws["A5"].number_format in ("dd/mm/yyyy", "yyyy-mm-dd") and ws["B5"].number_format == "hh:mm"
+        assert len(ws.tables) == 1 and not ws.sheet_view.showGridLines
     assert to_xlsx(history_sheets(plays.iloc[0:0]))  # empty history still gives a workbook
 
 
