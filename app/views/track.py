@@ -38,7 +38,7 @@ ui.stat_tiles([
     (t("common.plays"), fmt_int(len(mine)), t("detail.first_play", date=fmt_date(mine["played_local"].min().date())), family, None),
     (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_short"), "sky", None),
     (t("habits.avg_listen"), fmt_seconds(mine["listened_seconds"].mean()), None, "butter", None),
-    (t("habits.skip_rate"), fmt_pct(stats.skip_rate(mine, 30)), t("habits.skip_rate_short", s=30), "rose", None),
+    (t("rhythms.skip_rate"), fmt_pct(stats.skip_rate(mine)), t("rhythms.skip_rate_cap"), "rose", None),
 ])
 theme.gap()
 

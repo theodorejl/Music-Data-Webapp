@@ -1,4 +1,4 @@
-# Deezer Stats
+# DatAtlaSonore
 
 Une alternative perso à Last.fm : l'app enregistre **toutes** tes écoutes Deezer, y compris celles que le scrobbling rate, et en tire des statistiques. Tu y trouveras tes tops artistes, albums, titres et genres, l'évolution dans le temps, tes habitudes d'écoute, tes découvertes, un récap du jour, de la semaine, du mois ou de l'année, l'historique complet et des extraits de 30 s.
 
@@ -441,7 +441,7 @@ Comme Deezer ne fournit pas le temps écouté, l'app l'estime :
 
 > **durée écoutée ≈ min(durée du titre, début de l'écoute suivante − début de cette écoute)**
 
-La dernière écoute d'une session reçoit la durée complète du titre. Ces durées sont marquées comme estimées : astérisque `*` dans les tableaux et note sous les chiffres. Elles servent au seuil « titre passé » de la page Rythmes, qui repère les écoutes très courtes. Si une future source fournit la vraie durée, elle sera utilisée telle quelle.
+La dernière écoute d'une session reçoit la durée complète du titre. Ces durées sont marquées comme estimées : astérisque `*` dans les tableaux et note sous les chiffres. Elles servent aussi à repérer les **titres zappés** (page Rythmes) : un titre compte comme zappé dès qu'il s'arrête avant sa fin, quel que soit le moment. Deezer n'inscrit dans son historique que les écoutes d'environ 30 s ou plus, donc les zappings plus rapides n'y apparaissent pas. Si une future source fournit la vraie durée, elle sera utilisée telle quelle.
 
 ### Genres
 
@@ -488,7 +488,7 @@ tests/               pytest
 
 - **API non officielle.** L'app lit ton historique via l'API interne du lecteur web Deezer. Elle peut changer ou casser à tout moment (voir l'étape 7). Cet usage **n'est pas prévu par les conditions d'utilisation de Deezer** : utilise-la pour toi seul, avec modération (une requête toutes les 30 minutes).
 - **Fenêtre d'historique limitée par Deezer** aux 100 dernières écoutes : des pertes sont possibles si la synchro ne tourne pas assez souvent (ordinateur éteint en phase 1). Pour le passé, voir l'import de l'export Deezer ci-dessus.
-- **Durées d'écoute estimées**, voir plus haut. Le seuil « titre passé » de la page Rythmes permet de repérer les écoutes très courtes. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
+- **Durées d'écoute estimées**, voir plus haut. Les titres zappés de la page Rythmes reposent sur cette estimation. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
 - **Titres passés très vite** : il n'est pas encore confirmé que Deezer inscrive dans l'historique les titres passés au bout de quelques secondes.
   - Pour le vérifier : écoute un titre 5 secondes puis passe au suivant, lance `python -m scripts.sync`, puis regarde la page Historique.
   - Si le titre n'apparaît pas, c'est Deezer qui ne l'enregistre pas : aucun outil basé sur cet historique ne pourra le voir.

@@ -148,19 +148,48 @@ def get_filters() -> Filters:
     return st.session_state.get("filters") or current_filters()
 
 
-def period_pills(key: str) -> tuple[pd.Timestamp | None, pd.Timestamp | None, str]:
-    """Period buttons shown above a data table. Defaults to the page period;
-    returns (start, end, label) for that table only."""
+def period_pills(key: str, short: bool = False, default: str | None = None) -> tuple[pd.Timestamp | None, pd.Timestamp | None, str]:
+    """Period buttons shown with a table or under a chart. Defaults to the page period (or to
+    `default` on pages without one); returns (start, end, label) for that block only."""
     f = get_filters()
     options = TABLE_PERIODS if f.period in TABLE_PERIODS else ["page"] + TABLE_PERIODS
-    default = f.period if f.period in TABLE_PERIODS else "page"
+    default = default or (f.period if f.period in TABLE_PERIODS else "page")
+    names = "period_short" if short else "period"
     choice = st.segmented_control(t("filters.table_period"), options, default=default, required=True,
-                                  key=f"tp_{key}_{f.period}", label_visibility="collapsed",
-                                  format_func=lambda p: f.label if p == "page" else t(f"period.{p}"))
+                                  key=f"tp_{key}_{f.period}", label_visibility="collapsed", width="content",
+                                  format_func=lambda p: f.label if p == "page" else t(f"{names}.{p}"))
     if choice == "page":
         return f.start, f.end, f.label
     start, end = period_bounds(choice, timezone_name())
     return start, end, t(f"period.{choice}")
+
+
+@dataclass
+class Scope:
+    df: pd.DataFrame
+    dim: str | None
+    start: pd.Timestamp | None
+    end: pd.Timestamp | None
+    label: str
+
+
+def scope_bar(key: str, dims: list[str] | None = None, default: str | None = None, periods: bool = True,
+              base: pd.DataFrame | None = None) -> Scope:
+    """Chips under a chart: its own time range (the page's by default) and what it counts
+    (artists, albums, tracks, genres). Draw the chart in a container created before this call."""
+    f = get_filters()
+    start, end, label, dim = f.start, f.end, f.label, None
+    # One flowing row: the chips sit side by side and only wrap when the panel is narrow.
+    with st.container(key=f"scope-{key}", horizontal=True, horizontal_alignment="distribute",
+                      vertical_alignment="center", gap="small"):
+        if periods:
+            start, end, label = period_pills(key, short=True)
+        if dims:
+            dim = st.segmented_control(t("scope.what"), dims, default=default or dims[0], required=True,
+                                       key=f"dim_{key}", format_func=lambda d: t(f"scope.{d}"),
+                                       label_visibility="collapsed", width="content")
+    frame = base if base is not None else all_plays()
+    return Scope(stats.filter_frame(frame, start, end), dim, start, end, label)
 
 
 def scoped_plays(key: str) -> tuple[pd.DataFrame, str]:
@@ -169,9 +198,9 @@ def scoped_plays(key: str) -> tuple[pd.DataFrame, str]:
     return stats.filter_frame(all_plays(), start, end), label
 
 
-def scope_frame(df: pd.DataFrame, key: str, col: str) -> pd.DataFrame:
+def scope_frame(df: pd.DataFrame, key: str, col: str, short: bool = False, default: str | None = None) -> pd.DataFrame:
     """Any frame restricted by period buttons on a datetime column (tz-aware or local naive)."""
-    start, end, _ = period_pills(key)
+    start, end, _ = period_pills(key, short=short, default=default)
     if start is None and end is None:
         return df
     values = pd.to_datetime(df[col], errors="coerce")

@@ -107,9 +107,8 @@ p, li { text-wrap: pretty; }
 .ds-brand { display: flex; align-items: center; gap: 12px; height: 56px; }
 .ds-brand b { font-size: 24px; font-weight: 400; letter-spacing: -0.02em; color: var(--text); white-space: nowrap; }
 .ds-brand b span { color: var(--faint); }
-.ds-mark { width: 30px; height: 30px; border-radius: 50%; flex: none; position: relative; overflow: hidden;
-  background: conic-gradient(from 200deg, #1e9fd8, #8b6cf0, #e8558e, #ff6f4d, #d39a06, #4fae2c, #119f86, #1e9fd8); }
-.ds-mark::after { content: ""; position: absolute; inset: 9px; border-radius: 50%; background: #fff; }
+.ds-mark { width: 38px; height: 38px; flex: none; display: block; }
+.ds-brand b i { font-style: normal; }
 .st-key-topbar { margin-bottom: 8px; }
 .st-key-topbar [data-baseweb="select"] > div { min-height: 56px; border-radius: 999px !important; background: var(--rail) !important;
   border: 0 !important; padding-left: 44px; font-size: 16px; }
@@ -122,7 +121,11 @@ p, li { text-wrap: pretty; }
 
 /* ---------- mesh panels: hero headers and data panels ---------- */
 [class*="st-key-hero-"], [class*="st-key-p-"], .ds-panel {
-  position: relative; isolation: isolate; overflow: hidden; color: var(--text); }
+  position: relative; isolation: isolate; overflow: hidden; color: var(--text);
+  /* a thin white rim sets each block into the page, a soft shadow lifts it off the field */
+  border: 2px solid rgba(255, 255, 255, .9);
+  box-shadow: 0 1px 2px rgba(31, 31, 31, .05), 0 26px 50px -34px rgba(40, 46, 90, .42); }
+.ds-panel { border-width: 1.5px; }
 [class*="st-key-hero-"] { border-radius: var(--r-hero); padding: 52px 56px 44px; min-height: 330px; margin-bottom: 18px; }
 [class*="st-key-p-"] { border-radius: var(--r-panel); padding: 28px 32px 26px; }
 .ds-panel { border-radius: var(--r-inner); padding: 18px 20px; }
@@ -149,8 +152,9 @@ p, li { text-wrap: pretty; }
 [class*="st-key-p-night"] .ds-h, [class*="st-key-p-night"] .ds-meta, [class*="st-key-p-night"] p { color: #f2f0ff !important; }
 
 /* plain white card (tables, long lists) */
-[class*="st-key-w-"] { background: rgba(255, 255, 255, .86); border: 1px solid var(--line); border-radius: var(--r-panel);
-  padding: 26px 30px; backdrop-filter: blur(18px); }
+[class*="st-key-w-"] { background: rgba(255, 255, 255, .86); border: 2px solid #ffffff; border-radius: var(--r-panel);
+  padding: 26px 30px; backdrop-filter: blur(18px);
+  box-shadow: 0 1px 2px rgba(31, 31, 31, .05), 0 26px 50px -34px rgba(40, 46, 90, .42); }
 
 /* hero typography */
 .ds-kicker { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 500; color: var(--ink);
@@ -314,6 +318,53 @@ button[data-variant="segmented_control"][aria-checked="true"] p { color: #fff !i
 [data-testid="stTab"][aria-selected="true"] p { color: #fff !important; }
 [data-testid="stTabs"] .react-aria-SelectionIndicator, [data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none !important; }
 [data-testid="stTabPanel"] { padding-top: 22px; }
+
+/* ---------- chips under a chart: its own time range and what it counts ---------- */
+[class*="st-key-scope-"] { margin-top: 2px; padding-top: 12px; border-top: 1.5px dashed rgba(255, 255, 255, .85); }
+[class*="st-key-scope-"] [data-testid="stButtonGroup"] [role="radiogroup"] { gap: 6px; }
+[class*="st-key-scope-"] [data-testid="stButtonGroup"] [role="radiogroup"] { flex-wrap: nowrap; gap: 4px; }
+[class*="st-key-scope-"] button[data-variant="segmented_control"] { min-height: 30px; padding: 0 10px; background: rgba(255,255,255,.5) !important;
+  border-color: rgba(31,31,31,.14) !important; }
+[class*="st-key-scope-"] button[data-variant="segmented_control"] p { font-size: 12.5px; white-space: nowrap; }
+[class*="st-key-scope-"] button[data-variant="segmented_control"][aria-checked="true"] { background: var(--text) !important; }
+
+/* chips on the night panel: light on dark */
+[class*="st-key-p-night"] [class*="st-key-scope-"] { border-top-color: rgba(255,255,255,.22); }
+[class*="st-key-p-night"] button[data-variant="segmented_control"] { background: rgba(255,255,255,.1) !important; border-color: rgba(255,255,255,.28) !important; }
+[class*="st-key-p-night"] button[data-variant="segmented_control"] p { color: #f2f0ff !important; }
+[class*="st-key-p-night"] button[data-variant="segmented_control"][aria-checked="true"] { background: #ffffff !important; }
+[class*="st-key-p-night"] button[data-variant="segmented_control"][aria-checked="true"] p { color: #1f1f1f !important; }
+
+/* ---------- covers on a timeline (one column per day / week / month) ---------- */
+.ds-ctl { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(46px, 1fr); gap: 8px; align-items: end;
+  overflow-x: auto; padding: 8px 2px 4px; min-height: 230px; }
+.ds-ctl-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 5px; min-width: 0; }
+.ds-ctl-col img, .ds-ctl-col i { width: 100%; max-width: 54px; aspect-ratio: 1; border-radius: 10px; object-fit: cover; display: block;
+  background: rgba(255,255,255,.6); box-shadow: 0 8px 16px -10px rgba(0,0,0,.55); transition: transform .25s var(--ease); }
+.ds-ctl.round .ds-ctl-col img { border-radius: 50%; }
+@media (hover: hover) and (pointer: fine) { .ds-ctl-col img:hover { transform: scale(1.5); position: relative; z-index: 4; } }
+.ds-ctl-more { font-size: 12px; font-weight: 600; color: var(--ink); }
+.ds-ctl-lab { width: 100%; border-top: 2px solid rgba(255,255,255,.8); padding-top: 6px; font-size: 12px; color: var(--ink);
+  font-weight: 500; text-align: center; white-space: nowrap; }
+.ds-ctl-lab b { display: block; font-size: 15px; color: var(--text); font-weight: 500; }
+
+/* ---------- a week in covers (weekday × hour) ---------- */
+.ds-wk { display: grid; gap: 3px; }
+.ds-wk-row { display: grid; grid-template-columns: 44px repeat(24, minmax(0, 1fr)); gap: 3px; align-items: center; }
+.ds-wk-d { font-size: 13px; font-weight: 500; color: var(--ink); }
+.ds-wk-h { font-size: 11px; color: var(--ink); text-align: left; }
+.ds-wk-c { aspect-ratio: 1; display: grid; place-items: center; min-width: 0; }
+.ds-wk-c img, .ds-wk-c b { border-radius: 6px; object-fit: cover; display: block; transition: transform .2s var(--ease); }
+.ds-wk-c i { width: 4px; height: 4px; border-radius: 50%; background: rgba(31,31,31,.18); }
+@media (hover: hover) and (pointer: fine) { .ds-wk-c img:hover { transform: scale(2.2); position: relative; z-index: 5; } }
+
+/* ---------- moments of the day ---------- */
+.ds-moments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 8px; }
+.ds-moment { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; align-items: center; padding: 10px 12px !important; border-radius: 18px; }
+.ds-moment img, .ds-moment .ds-noart { width: 56px; height: 56px; border-radius: 12px; object-fit: cover; box-shadow: 0 10px 18px -12px rgba(0,0,0,.6); }
+.ds-moment b { display: block; font-size: 14px; font-weight: 600; color: var(--ink); }
+.ds-moment span { display: block; font-size: 18px; letter-spacing: -0.01em; }
+.ds-moment em { display: block; font-style: normal; font-size: 12px; color: rgba(31,31,31,.68); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ds-gap { height: 18px; }
 .ds-gap-l { height: 36px; }

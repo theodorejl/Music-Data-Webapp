@@ -141,16 +141,20 @@ with left:
     with theme.panel("lime", "wr-rhythm"):
         theme.head(t("wrapped.rhythm"), period_name)
         if mode == "day":
-            per_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum().reindex(range(24), fill_value=0)
-            charts.show(charts.bars([f"{h} h" for h in per_hour.index], per_hour.round(0).tolist(), "minutes", height=280,
-                                    colors=[charts.hour_color(h + 0.5) for h in per_hour.index]), key="wr_tl")
+            hours = df["played_local"].dt.hour
+            per_hour = df.groupby(hours)["minutes"].sum().reindex(range(24), fill_value=0)
+            covers = stats.top_cover_by(df, hours)
+            charts.show(charts.bars([f"{h} h" for h in per_hour.index], per_hour.round(0).tolist(), "minutes", height=320,
+                                    colors=[charts.hour_color(h + 0.5) for h in per_hour.index],
+                                    covers=[covers.get(h, (None,))[0] for h in per_hour.index]), key="wr_tl")
         else:
             freq = "M" if mode == "year" else "D"
             tl_ = stats.timeline(df, freq)
             if mode == "week":  # always show the 7 days, even silent ones
                 full = pd.date_range(start.tz_localize(None), periods=7, freq="D")
                 tl_ = tl_.set_index("period").reindex(full, fill_value=0).rename_axis("period").reset_index()
-            charts.show(charts.bar_timeline(tl_, "minutes", freq, t("common.minutes"), height=280), key="wr_tl")
+            covers = stats.top_cover_by(df, stats.period_of(df, freq))
+            charts.show(charts.bar_timeline(tl_, "minutes", freq, t("common.minutes"), height=320, covers=covers), key="wr_tl")
 with right:
     with theme.panel("teal", "wr-facts"):
         theme.head(t("wrapped.facts"), period_name)

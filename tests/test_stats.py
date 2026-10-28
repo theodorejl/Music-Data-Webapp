@@ -112,9 +112,10 @@ def test_heatmap_streaks_skips():
     assert hm.shape == (7, 24) and hm.values.sum() == 5 and hm.loc[0, 9] == 2
     s = stats.streaks(df, today=date(2026, 3, 20))
     assert s["longest"] == 3 and s["current"] == 0 and s["active_days"] == 4
-    assert stats.skip_rate(df, 30) == pytest.approx(0.2)
-    ms = stats.most_skipped(df, 30)
-    assert ms.iloc[0]["track_title"] == "Song A" and ms.iloc[0]["skips"] == 1
+    # every play stopped before the end of its 240 s track counts, however early (only Song C is complete)
+    assert stats.skip_rate(df) == pytest.approx(0.8)
+    ms = stats.most_skipped(df)
+    assert ms.iloc[0]["track_title"] == "Song A" and ms.iloc[0]["skips"] == 2
 
 
 def test_share_over_time_sums_to_one():
@@ -148,3 +149,15 @@ def test_empty_frames():
     assert stats.top(df, "artist").empty
     assert stats.timeline(df).empty
     assert stats.kpis(df)["plays"] == 0
+
+
+def test_top_cover_by_week_matrix_and_moments():
+    df = stats.assemble(make_raw())
+    covers = stats.top_cover_by(df, pd.Series(0, index=df.index))
+    album_10 = df[df["album_id"] == 10]["album_title"].iloc[0]
+    assert covers[0][1] == album_10  # album 10 holds three of the five plays
+    wm = stats.week_matrix(df)
+    assert wm["value"].sum() == 5 and set(wm.columns) >= {"weekday", "hour", "cover"}
+    parts = stats.moments(df)
+    assert [m["name"] for m in parts] == ["night", "morning", "afternoon", "evening"]
+    assert sum(m["plays"] for m in parts) == 5

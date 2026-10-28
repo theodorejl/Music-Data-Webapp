@@ -100,7 +100,7 @@ def _top_bar(pages: dict[str, st.Page]) -> None:
     with st.container(key="topbar"):
         brand, search, action = st.columns([1.05, 3.2, 1.1], gap="large", vertical_alignment="center")
         with brand:
-            st.html("<div class='ds-brand'><span class='ds-mark'></span><b>Deezer <span>Stats</span></b></div>")
+            st.html(theme.brand_html())
         with search:
             index = data.search_index()
             labels = dict(index)

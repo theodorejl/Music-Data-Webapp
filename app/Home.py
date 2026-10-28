@@ -19,7 +19,7 @@ import streamlit as st  # noqa: E402
 
 from app.devreload import watch  # noqa: E402
 
-st.set_page_config(page_title="Deezer Stats", page_icon="🎧", layout="wide")
+st.set_page_config(page_title="DatAtlaSonore", page_icon=str(ROOT / "app" / "assets" / "mark.svg"), layout="wide")
 watch()  # before anything that could fail mid-edit, so the next save always repairs the page
 
 from app import shell  # noqa: E402

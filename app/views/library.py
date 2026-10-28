@@ -56,44 +56,86 @@ with tab_albums:
             (t("library.listened_share"), fmt_pct(listened / len(fav)), t("library.listened_share_short")),
         ])
 
+        def fav_scope(key: str) -> pd.DataFrame:
+            """Chips under a chart: favourites added in that time range."""
+            with st.container(key=f"scope-{key}"):
+                return data.scope_frame(fav, key, "added_at", short=True, default="all")
+
+        def best_album(frame: pd.DataFrame) -> pd.Series:
+            return frame.sort_values(["plays", "added_at"], ascending=False).iloc[0]
+
+        def album_counts(frame: pd.DataFrame, by: str) -> pd.DataFrame:
+            """One row per artist or genre: its albums, and the cover of its most played one."""
+            rows = []
+            for name, g in frame.dropna(subset=[by]).groupby(by):
+                b = best_album(g)
+                rows.append({"key": None, "label": name, "albums": len(g), "image": b["cover_medium"],
+                             "sublabel": b["title"] if by == "artist_name" else f"{b['artist_name']} · {b['title']}"})
+            out = pd.DataFrame(rows, columns=["key", "label", "albums", "image", "sublabel"])
+            return out.sort_values("albums", ascending=False).reset_index(drop=True)
+
+        albums_fmt = lambda r: t("library.n_albums" if r.albums > 1 else "library.n_album", n=fmt_int(r.albums))  # noqa: E731
         theme.gap()
         left, right = st.columns(2, gap="medium")
         with left:
             with theme.panel("butter", "decades"):
-                theme.head(t("library.by_decade"), t("library.albums"))
-                dec = (years // 10 * 10).astype(int).value_counts().sort_index()
-                charts.show(charts.bars([f"{d}s" for d in dec.index], dec.tolist(), height=340), key="lib_dec")
+                slot = st.container()
+                scoped = fav_scope("lib_dec")
+                with slot:
+                    theme.head(t("library.by_decade"), t("library.albums"), t("library.decade_note"))
+                    yrs = scoped.dropna(subset=["release_year"])
+                    if yrs.empty:
+                        ui.empty_state()
+                    else:
+                        dec = (yrs["release_year"] // 10 * 10).astype(int)
+                        counts = dec.value_counts().sort_index()
+                        covers = [best_album(yrs[dec == d])["cover_medium"] for d in counts.index]
+                        charts.show(charts.bars([f"{d}s" for d in counts.index], counts.tolist(), height=360, covers=covers),
+                                    key="lib_dec")
         with right:
             with theme.panel("coral", "fav-artists"):
-                theme.head(t("library.top_artists"), t("library.albums"))
-                top_art = fav.groupby("artist_name").size().sort_values(ascending=False).head(10)
-                charts.show(charts.hbar(top_art.index.tolist(), top_art.tolist(), t("library.albums"), height=340,
-                                        colors=[theme.PALETTE[i % 7] for i in range(len(top_art))]), key="lib_art")
+                slot = st.container()
+                scoped = fav_scope("lib_art")
+                with slot:
+                    theme.head(t("library.top_artists"), t("library.albums"))
+                    arts = album_counts(scoped, "artist_name")
+                    if arts.empty:
+                        ui.empty_state()
+                    else:
+                        ui.rank_list(arts, albums_fmt, "albums", colors=[theme.PALETTE[i % 7] for i in range(8)], limit=8)
         theme.gap()
         left, right = st.columns(2, gap="medium")
         with left:
             with theme.panel("lilac", "fav-genres"):
-                theme.head(t("library.genres"), t("library.albums"))
-                g = fav["genre"].dropna().value_counts().head(10)
-                if g.empty:
-                    ui.empty_state(t("tops.no_genre"))
-                else:
-                    cmap = charts.category_colors(g.index.tolist())
-                    charts.show(charts.hbar(g.index.tolist(), g.tolist(), t("library.albums"), height=340,
-                                            colors=[cmap[x] for x in g.index]), key="lib_genre")
+                slot = st.container()
+                scoped = fav_scope("lib_genre")
+                with slot:
+                    theme.head(t("library.genres"), t("library.albums"))
+                    gen = album_counts(scoped, "genre")
+                    if gen.empty:
+                        ui.empty_state(t("tops.no_genre"))
+                    else:
+                        cmap = charts.category_colors(gen["label"].tolist()[:8])
+                        ui.rank_list(gen, albums_fmt, "albums", colors=[cmap[x] for x in gen["label"].tolist()[:8]], limit=8)
         with right:
             with theme.panel("sky", "fav-added"):
-                theme.head(t("library.added_per_month"), t("library.albums"))
-                added = pd.to_datetime(fav["added_at"], errors="coerce").dropna()
-                if added.empty:
-                    ui.empty_state()
-                else:
-                    per_month = added.dt.to_period("M").dt.to_timestamp().value_counts().sort_index()
-                    full = pd.date_range(per_month.index.min(), per_month.index.max(), freq="MS")
-                    per_month = per_month.reindex(full, fill_value=0)
-                    tl = pd.DataFrame({"period": per_month.index, "albums": per_month.values})
-                    charts.show(charts.bar_timeline(tl, "albums", "M", t("library.albums"), height=340, scale=charts.LAGOON),
-                                key="lib_added")
+                slot = st.container()
+                scoped = fav_scope("lib_added")
+                with slot:
+                    theme.head(t("library.added_per_month"), t("library.albums"))
+                    added = pd.to_datetime(scoped["added_at"], errors="coerce").dropna()
+                    if added.empty:
+                        ui.empty_state()
+                    else:
+                        months = added.dt.to_period("M").dt.to_timestamp()
+                        per_month = months.value_counts().sort_index()
+                        full = pd.date_range(per_month.index.min(), per_month.index.max(), freq="MS")
+                        per_month = per_month.reindex(full, fill_value=0)
+                        tl = pd.DataFrame({"period": per_month.index, "albums": per_month.values})
+                        with_month = scoped.assign(_m=months.reindex(scoped.index))
+                        covers = {m: (best_album(g)["cover_medium"],) for m, g in with_month.dropna(subset=["_m"]).groupby("_m")}
+                        charts.show(charts.bar_timeline(tl, "albums", "M", t("library.albums"), height=360,
+                                                        scale=charts.LAGOON, covers=covers), key="lib_added")
 
         theme.section(t("library.all_favorites"))
         c1, c2, c3 = st.columns([2, 2, 2])
@@ -166,16 +208,21 @@ with tab_playlists:
         with left:
             with theme.panel("rose", "pl-top"):
                 theme.head(t("library.most_played_playlists"), t("common.plays"))
-                top_pl = shown.sort_values("plays", ascending=False).head(10)
-                charts.show(charts.hbar(top_pl["title"].tolist(), top_pl["plays"].tolist(), t("common.plays"), height=380,
-                                        scale=charts.BLOOM), key="pl_top")
+                top_pl = shown.sort_values("plays", ascending=False).head(8)
+                pl_items = pd.DataFrame({"key": top_pl["id"], "label": top_pl["title"], "image": top_pl["picture"],
+                                         "sublabel": top_pl["creator_name"], "plays": top_pl["plays"]})
+                ui.rank_list(pl_items, lambda r: t("common.n_plays", n=fmt_int(r.plays)), "plays",
+                             colors=[theme.PALETTE[(i + 4) % 7] for i in range(8)], limit=8)
         with right:
             with theme.panel("teal", "pl-art"):
                 theme.head(t("library.artists_in_playlists"), t("library.tracks"))
-                in_shown = tracks_all[tracks_all["playlist_id"].isin(shown["id"])]
-                arts = in_shown.dropna(subset=["artist_name"]).groupby("artist_name").size()
-                arts = arts.sort_values(ascending=False).head(10)
-                charts.show(charts.hbar(arts.index.tolist(), arts.tolist(), t("library.tracks"), height=380), key="pl_art")
+                in_shown = tracks_all[tracks_all["playlist_id"].isin(shown["id"])].dropna(subset=["artist_name"])
+                arts = (in_shown.groupby("artist_name").agg(tracks=("track_id", "count"), image=("cover", "first"))
+                        .sort_values("tracks", ascending=False).head(8).reset_index())
+                art_items = pd.DataFrame({"key": None, "label": arts["artist_name"], "image": arts["image"],
+                                          "sublabel": None, "tracks": arts["tracks"]})
+                ui.rank_list(art_items, lambda r: t("library.n_tracks" if r.tracks > 1 else "library.n_track", n=fmt_int(r.tracks)), "tracks",
+                             colors=[theme.PALETTE[i % 7] for i in range(8)], limit=8)
 
         theme.section(t("library.all_playlists"))
         event = st.dataframe(

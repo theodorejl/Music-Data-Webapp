@@ -130,8 +130,8 @@ def publish(db_path: Path, repo: Path, remote: str = "origin", message: str = "U
         blob_file.write_bytes(data)
         blob = _git(repo, "hash-object", "-w", str(blob_file))
     tree = _git(repo, "mktree", input_=f"100644 blob {blob}\t{FILE}\n".encode())
-    who = {"GIT_AUTHOR_NAME": "Deezer Stats", "GIT_AUTHOR_EMAIL": "deezer-stats@users.noreply.github.com",
-           "GIT_COMMITTER_NAME": "Deezer Stats", "GIT_COMMITTER_EMAIL": "deezer-stats@users.noreply.github.com"}
+    who = {"GIT_AUTHOR_NAME": "DatAtlaSonore", "GIT_AUTHOR_EMAIL": "deezer-stats@users.noreply.github.com",
+           "GIT_COMMITTER_NAME": "DatAtlaSonore", "GIT_COMMITTER_EMAIL": "deezer-stats@users.noreply.github.com"}
     commit = _git(repo, "commit-tree", tree, "-m", message, env=who)
     _git(repo, "push", "--force", remote, f"{commit}:refs/heads/{BRANCH}")
     return f"published {len(data) / 1e6:.1f} MB"

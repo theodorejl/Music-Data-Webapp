@@ -30,7 +30,7 @@ log = logging.getLogger("sync")
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Deezer Stats sync")
+    parser = argparse.ArgumentParser(description="DatAtlaSonore sync")
     parser.add_argument("--no-enrich", action="store_true", help="skip metadata/genre enrichment")
     parser.add_argument("--enrich-only", action="store_true", help="only run enrichment")
     parser.add_argument("--enrich-budget", type=float, default=120, help="max seconds spent enriching")

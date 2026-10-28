@@ -223,6 +223,11 @@ def _period(df: pd.DataFrame, freq: str) -> pd.Series:
     return local.dt.to_period("M").dt.to_timestamp()
 
 
+def period_of(df: pd.DataFrame, freq: str) -> pd.Series:
+    """The day, week (Monday) or month each play belongs to, as used by timeline()."""
+    return _period(df, freq)
+
+
 def timeline(df: pd.DataFrame, freq: str = "D") -> pd.DataFrame:
     """Plays and minutes per period, with empty periods filled with 0."""
     if df.empty:
@@ -263,12 +268,12 @@ def share_over_time(df: pd.DataFrame, dim: str, freq: str = "M", top_n: int = 6,
 
 def ranks_over_time(df: pd.DataFrame, dim: str = "artist", freq: str = "M", n: int = 6,
                     metric: str = "minutes", depth: int = 10) -> pd.DataFrame:
-    """Rank per period of the n overall leaders: period, label, rank (ranks deeper than
+    """Rank per period of the n overall leaders: period, label, image, rank (ranks deeper than
     `depth` are left out, so a line breaks when the leader drops out of sight)."""
     key, _, _, _ = _DIM_COLS[dim]
     data = df.dropna(subset=[key])
     if data.empty:
-        return pd.DataFrame(columns=["period", "label", "rank"])
+        return pd.DataFrame(columns=["period", "label", "image", "rank"])
     leaders = top(data, dim, metric, n)
     names = dict(zip(leaders["key"], leaders["label"]))
     value = data["minutes"] if metric == "minutes" else 1
@@ -276,7 +281,47 @@ def ranks_over_time(df: pd.DataFrame, dim: str = "artist", freq: str = "M", n: i
     g["rank"] = g.groupby("period")["value"].rank(ascending=False, method="first")
     g = g[g[key].isin(list(names)) & (g["rank"] <= depth)].copy()
     g["label"] = g[key].map(names)
-    return g[["period", "label", "rank"]].reset_index(drop=True)
+    g["image"] = g[key].map(dict(zip(leaders["key"], leaders["image"])))
+    return g[["period", "label", "image", "rank"]].reset_index(drop=True)
+
+
+def top_cover_by(df: pd.DataFrame, groups: pd.Series) -> dict:
+    """For each group (a period, an hour...), the most played album: {group: (cover, title, artist)}."""
+    d = df.assign(grp=groups).dropna(subset=["album_id"])
+    if d.empty:
+        return {}
+    g = (d.groupby(["grp", "album_id"]).agg(n=("play_id", "count"), cover=("cover", "first"),
+                                           title=("album_title", "first"), artist=("artist_name", "first"))
+         .reset_index().sort_values("n", ascending=False).drop_duplicates("grp"))
+    return {r.grp: (r.cover, r.title, r.artist) for r in g.itertuples(index=False)}
+
+
+MOMENTS = (("night", 0, 6), ("morning", 6, 12), ("afternoon", 12, 18), ("evening", 18, 24))
+
+
+def moments(df: pd.DataFrame) -> list[dict]:
+    """The four moments of the day: minutes and most played album of each."""
+    hour = df["played_local"].dt.hour
+    out = []
+    for name, h0, h1 in MOMENTS:
+        part = df[(hour >= h0) & (hour < h1)]
+        cover = top_cover_by(part, pd.Series(0, index=part.index)).get(0, (None, None, None))
+        out.append({"name": name, "minutes": float(part["minutes"].sum()), "plays": int(len(part)),
+                    "cover": cover[0], "title": cover[1], "artist": cover[2]})
+    return out
+
+
+def week_matrix(df: pd.DataFrame, metric: str = "plays") -> pd.DataFrame:
+    """One row per weekday × hour with plays: weekday, hour, value, cover, title, artist."""
+    cols = ["weekday", "hour", "value", "cover", "title", "artist"]
+    if df.empty:
+        return pd.DataFrame(columns=cols)
+    local = df["played_local"]
+    slot = local.dt.weekday * 24 + local.dt.hour
+    vals = (df["minutes"] if metric == "minutes" else pd.Series(1, index=df.index)).groupby(slot).sum()
+    covers = top_cover_by(df, slot)
+    rows = [(int(k) // 24, int(k) % 24, float(v), *covers.get(k, (None, None, None))) for k, v in vals.items()]
+    return pd.DataFrame(rows, columns=cols)
 
 
 # --- habits -------------------------------------------------------------------------
@@ -322,17 +367,27 @@ def streaks(df: pd.DataFrame, today=None) -> dict:
             "longest_end": best_end, "active_days": len(days)}
 
 
-def skip_rate(df: pd.DataFrame, threshold: float = 30) -> float:
+SKIP_MARGIN = 8  # seconds of tolerance for crossfades and rounding between two plays
+
+
+def skipped(df: pd.DataFrame) -> pd.Series:
+    """A play is skipped when it stopped before the end of the track, however early or late.
+    (Deezer's history itself never lists plays shorter than about 30 s.)"""
+    duration = pd.to_numeric(df["track_duration"], errors="coerce")
+    return duration.notna() & (df["listened_seconds"] < duration - SKIP_MARGIN)
+
+
+def skip_rate(df: pd.DataFrame) -> float:
     if df.empty:
         return 0.0
-    return float((df["listened_seconds"] < threshold).mean())
+    return float(skipped(df).mean())
 
 
-def most_skipped(df: pd.DataFrame, threshold: float = 30, n: int = 10) -> pd.DataFrame:
+def most_skipped(df: pd.DataFrame, n: int = 10) -> pd.DataFrame:
     cols = ["track_id", "track_title", "artist_name", "cover", "skips", "plays", "skip_rate"]
     if df.empty:
         return pd.DataFrame(columns=cols)
-    d = df.assign(skipped=df["listened_seconds"] < threshold)
+    d = df.assign(skipped=skipped(df))
     g = d.groupby("track_id").agg(track_title=("track_title", "first"), artist_name=("artist_name", "first"),
                                   cover=("cover", "first"), skips=("skipped", "sum"), plays=("play_id", "count"))
     g = g[g["skips"] > 0]

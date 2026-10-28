@@ -48,13 +48,15 @@ left, right = st.columns([1.5, 1], gap="medium")
 with left:
     with theme.panel(family, "curve"):
         theme.head(t("detail.listening_curve"), t("period.all"))
-        charts.show(charts.flow(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), family, height=300,
-                                avg_label=t("home.average"), peak_label=t("home.record")), key="ar_curve")
+        charts.show(charts.flow(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), family, height=320,
+                                avg_label=t("home.average"), peak_label=t("home.record"),
+                                covers=stats.top_cover_by(mine, stats.period_of(mine, "M"))), key="ar_curve")
 with right:
     with theme.panel("butter", "clock"):
         theme.head(t("home.clock_title"), t("home.clock_meta"))
-        charts.show(charts.radial_clock(mine.groupby(mine["played_local"].dt.hour)["minutes"].sum(), "minutes", height=330),
+        charts.show(charts.radial_clock(mine.groupby(mine["played_local"].dt.hour)["minutes"].sum(), "minutes", height=260),
                     key="ar_clock")
+        ui.moments(stats.moments(mine))
 
 theme.gap()
 left, right = st.columns([1, 1.2], gap="medium")

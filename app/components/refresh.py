@@ -15,7 +15,7 @@ from html import escape
 
 import streamlit as st
 
-from app.components import data
+from app.components import data, theme
 from app.i18n import t
 from core.config import ROOT, get_setting, redact
 
@@ -25,11 +25,7 @@ LOADER = """
 <style>
 .ds-load{position:relative;overflow:hidden;display:flex;align-items:center;gap:14px;padding:8px 18px 8px 8px;
   border-radius:999px;background:linear-gradient(120deg,#c4e9f9,#ddd2ff 45%,#ffd0bd);min-height:56px}
-.ds-vinyl{flex:none;width:40px;height:40px;border-radius:50%;
-  background:radial-gradient(circle,#FBFAF8 0 13%,#17171A 14% 20%,transparent 21%),
-  repeating-radial-gradient(circle,rgba(255,255,255,.16) 0 1px,transparent 1px 3px),
-  conic-gradient(#1e9fd8,#8b6cf0,#e8558e,#ff6f4d,#d39a06,#4fae2c,#119f86,#1e9fd8);
-  box-shadow:0 8px 18px -10px rgba(23,23,26,.55);animation:ds-spin 1.5s linear infinite}
+.ds-load .ds-mark{width:42px;height:42px;animation:ds-spin 2.4s linear infinite}
 .ds-body{flex:1;min-width:0}
 .ds-eq{display:none}
 .ds-eq i{width:4px;height:100%;border-radius:2px;transform-origin:bottom;animation:ds-eq .8s ease-in-out infinite alternate}
@@ -46,7 +42,7 @@ LOADER = """
 @keyframes ds-eq{from{transform:scaleY(.25)}to{transform:scaleY(1)}}
 @keyframes ds-step{0%{opacity:0;transform:translateY(8px)}8%,30%{opacity:1;transform:none}38%,100%{opacity:0;transform:translateY(-8px)}}
 @keyframes ds-sweep{from{background-position:-60% 0}to{background-position:160% 0}}
-@media (prefers-reduced-motion: reduce){.ds-vinyl,.ds-eq i,.ds-sweep{animation:none}
+@media (prefers-reduced-motion: reduce){.ds-load .ds-mark,.ds-eq i,.ds-sweep{animation:none}
   .ds-steps span{animation:none}.ds-steps span:first-child{opacity:1}}
 </style>
 <div class="ds-load"><div class="ds-vinyl"></div><div class="ds-body">
@@ -89,7 +85,7 @@ def refresh_button() -> None:
     if slot.button(t("refresh.button"), icon=":material/sync:", key="refresh_btn", type="primary", width="stretch",
                    help=t("refresh.help")):
         steps = [escape(t(f"refresh.step{i}")) for i in (1, 2, 3)]
-        html = LOADER
+        html = LOADER.replace('<div class="ds-vinyl"></div>', theme.mark_img(42))
         for i, step in enumerate(steps, start=1):
             html = html.replace(f"STEP{i}", step)
         slot.html(html)

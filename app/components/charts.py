@@ -148,6 +148,15 @@ def _category_x(fig: go.Figure, labels: list[str]) -> None:
     fig.update_xaxes(type="category", tickmode="array", tickvals=labels[::step], ticktext=labels[::step])
 
 
+def _covers_on(fig: go.Figure, points: list[tuple[float, float, str]], sizex: float, sizey: float,
+               yanchor: str = "middle") -> None:
+    """Album covers / artist photos placed on the chart in data units: (x, y, url)."""
+    for x, y, url in points:
+        if isinstance(url, str) and url:
+            fig.add_layout_image(source=url, xref="x", yref="y", x=x, y=y, sizex=sizex, sizey=sizey,
+                                 xanchor="center", yanchor=yanchor, sizing="contain", layer="above")
+
+
 def _hours_minutes(v: float) -> str:
     v = float(v)
     if v >= 60:
@@ -162,8 +171,9 @@ def _value_text(v: float, unit: str) -> str:
 # --- time ----------------------------------------------------------------------------------
 
 def flow(df: pd.DataFrame, y: str, freq: str, y_label: str, family: str = "sky", height: int = 280,
-         avg_label: str | None = None, peak_label: str | None = None) -> go.Figure:
-    """Smooth area with a vertical gradient fill, its peak marked and named, the average dotted."""
+         avg_label: str | None = None, peak_label: str | None = None, covers: dict | None = None) -> go.Figure:
+    """Smooth area with a vertical gradient fill, the average dotted, and its peak marked with the
+    cover of what played most then (covers: {period: (url, title, artist)})."""
     c, deep = theme.mid(family), theme.ink(family)
     labels = _short_labels(df["period"], freq)
     hover = _period_labels(df["period"], freq)
@@ -178,9 +188,15 @@ def flow(df: pd.DataFrame, y: str, freq: str, y_label: str, family: str = "sky",
         i = max(range(len(vals)), key=vals.__getitem__)
         fig.add_trace(go.Scatter(x=[labels[i]], y=[vals[i]], mode="markers", hoverinfo="skip",
                                  marker=dict(size=16, color="#ffffff", line=dict(color=deep, width=4))))
-        fig.add_annotation(x=labels[i], y=vals[i], showarrow=False, yshift=30, align="center",
-                           text=f"<b>{_value_text(vals[i], y)}</b>" + (f"<br>{peak_label}" if peak_label else ""),
-                           font=dict(color=deep, size=13))
+        peak_cover = (covers or {}).get(df["period"].iloc[i], (None,))[0]
+        top = max(vals)
+        text = f"<b>{_value_text(vals[i], y)}</b>" + (f" {peak_label}" if peak_label else "")
+        if isinstance(peak_cover, str) and peak_cover:  # the record wears the cover of what played most then
+            _covers_on(fig, [(i, top * 1.08, peak_cover)], sizex=max(0.8, len(vals) * 0.09), sizey=top * 0.3, yanchor="bottom")
+            fig.add_annotation(x=i, y=top * 1.4, text=text, showarrow=False, yanchor="bottom", font=dict(color=deep, size=13))
+        else:
+            fig.add_annotation(x=i, y=vals[i], text=text.replace(" ", "<br>", 1) if peak_label else text,
+                               showarrow=False, yshift=30, font=dict(color=deep, size=13))
         if avg_label and len(vals) > 2:
             avg = sum(vals) / len(vals)
             fig.add_hline(y=avg, line=dict(color=rgba(deep, 0.55), width=1.5, dash="dot"),
@@ -188,13 +204,14 @@ def flow(df: pd.DataFrame, y: str, freq: str, y_label: str, family: str = "sky",
                                           xanchor="right", x=1, yanchor="bottom", showarrow=False))
     style(fig, height, legend=False)
     _category_x(fig, labels)
-    fig.update_yaxes(showticklabels=False, showgrid=False, range=[0, max(vals + [1]) * 1.35])
+    fig.update_yaxes(showticklabels=False, showgrid=False, range=[0, max(vals + [1]) * (1.62 if covers else 1.35)])
     return fig
 
 
 def bar_timeline(df: pd.DataFrame, y: str, freq: str, y_label: str, height: int = 280,
-                 highlight_last: bool = True, scale: list[str] | None = None) -> go.Figure:
-    """Rounded columns coloured along a multi-hue scale by their own value (taller = deeper)."""
+                 highlight_last: bool = True, scale: list[str] | None = None, covers: dict | None = None) -> go.Figure:
+    """Rounded columns coloured along a multi-hue scale by their own value (taller = deeper);
+    with up to 16 columns, each wears the cover of what played most in it."""
     labels = _short_labels(df["period"], freq)
     vals = df[y].astype(float).tolist()
     colors = scale_colors(vals, scale or SUNSET)
@@ -207,7 +224,15 @@ def bar_timeline(df: pd.DataFrame, y: str, freq: str, y_label: str, height: int 
         hovertemplate=f"%{{customdata[0]}}<br><b>%{{customdata[1]}}</b> {unit}<extra></extra>"))
     style(fig, height)
     _category_x(fig, labels)
-    fig.update_yaxes(showticklabels=False, showgrid=False, range=[0, max(vals + [1]) * 1.2])
+    top = max(vals + [1])
+    if covers and len(vals) <= 16:
+        _covers_on(fig, [(i, v + top * 0.13, covers.get(p, (None,))[0]) for i, (p, v) in enumerate(zip(df["period"], vals)) if v],
+                   sizex=0.8, sizey=top * 0.2, yanchor="bottom")
+        fig.update_traces(textposition="inside", insidetextanchor="end", textfont=dict(color="#ffffff", size=11))
+        fig.update_yaxes(range=[0, top * 1.42])
+    else:
+        fig.update_yaxes(range=[0, top * 1.2])
+    fig.update_yaxes(showticklabels=False, showgrid=False)
     return fig
 
 
@@ -245,35 +270,39 @@ def stacked_share(df: pd.DataFrame, freq: str, other_label: str, height: int = 3
     return stream(df, freq, other_label, height, normalized=True)
 
 
-def bump(ranks: pd.DataFrame, freq: str, height: int = 380) -> go.Figure:
-    """Rank of each leader per period (1 at the top), one coloured line each, names at the end."""
+def bump(ranks: pd.DataFrame, freq: str, height: int = 400) -> go.Figure:
+    """Rank of each leader per period (1 at the top): one coloured line each, and at every point
+    the artist's photo or the album cover, so you see who climbs and who falls."""
     names = list(dict.fromkeys(ranks.sort_values(["period", "rank"], ascending=[False, True])["label"]))
     colors = {n: PALETTE[i % len(PALETTE)] for i, n in enumerate(names)}
     periods = sorted(ranks["period"].unique())
     x = _short_labels(periods, freq)
+    hover = _period_labels(periods, freq)
     fig = go.Figure()
     max_rank = int(ranks["rank"].max()) if not ranks.empty else 5
+    images = []
     for n in names:
-        d = ranks[ranks["label"] == n].set_index("period").reindex(periods)
+        d = ranks[ranks["label"] == n].groupby("period").first().reindex(periods)
         ys = d["rank"].tolist()
+        img = next((u for u in d["image"] if isinstance(u, str) and u), None) if "image" in d else None
         fig.add_trace(go.Scatter(
-            x=x, y=ys, mode="lines+markers+text", name=n, connectgaps=False,
+            x=list(range(len(x))), y=ys, mode="lines+markers", name=n, connectgaps=False,
             line=dict(color=colors[n], width=5, shape="spline", smoothing=0.6),
-            marker=dict(size=26, color=colors[n], line=dict(color="#ffffff", width=3)),
-            text=[f"{int(v)}" if v == v else "" for v in ys], textfont=dict(color="#ffffff", size=12, family=FONT),
-            textposition="middle center",
-            hovertemplate=f"<b>{n}</b><br>%{{x}} : n° %{{y}}<extra></extra>"))
+            marker=dict(size=34 if img else 24, color=colors[n], line=dict(color="#ffffff", width=2)),
+            customdata=hover, hovertemplate=f"<b>{n}</b><br>%{{customdata}} : n° %{{y}}<extra></extra>"))
+        if img:
+            images += [(i, v, img) for i, v in enumerate(ys) if v == v]
         last = [(i, v) for i, v in enumerate(ys) if v == v]
         if last:
             i, v = last[-1]
-            fig.add_annotation(x=x[i], y=v, text=f"<b>{n}</b>", showarrow=False, xanchor="left", xshift=20,
+            fig.add_annotation(x=i, y=v, text=f"<b>{n}</b>", showarrow=False, xanchor="left", xshift=24,
                                font=dict(color=INK, size=13))
+    _covers_on(fig, images, sizex=0.62, sizey=0.62)
     style(fig, height)
-    _category_x(fig, x)
-    fig.update_xaxes(showgrid=True, gridcolor=GRID, griddash="dot", tickangle=0)
-    if len(x) > 6:  # keep one label in two so they never collide in a half-width panel
-        fig.update_xaxes(tickvals=x[::2], ticktext=x[::2])
-    fig.update_yaxes(autorange=False, range=[max_rank + 0.6, 0.4], showgrid=False, showticklabels=False, rangemode=None)
+    step = 2 if len(x) > 6 else 1
+    fig.update_xaxes(tickmode="array", tickvals=list(range(0, len(x), step)), ticktext=x[::step], showgrid=True,
+                     gridcolor=GRID, griddash="dot", tickangle=0, range=[-0.5, len(x) - 0.5])
+    fig.update_yaxes(autorange=False, range=[max_rank + 0.7, 0.3], showgrid=False, showticklabels=False, rangemode=None)
     fig.update_layout(margin=dict(l=8, r=170, t=20, b=8))
     return fig
 
@@ -281,8 +310,9 @@ def bump(ranks: pd.DataFrame, freq: str, height: int = 380) -> go.Figure:
 # --- shapes ----------------------------------------------------------------------------------
 
 def bars(labels: list[str], values: list[float], unit: str = "", height: int = 260,
-         colors: list[str] | None = None, scale: list[str] = SUNSET) -> go.Figure:
-    """Vertical rounded columns, coloured per item (given colours or along a scale), values on top."""
+         colors: list[str] | None = None, scale: list[str] = SUNSET, covers: list | None = None) -> go.Figure:
+    """Vertical rounded columns, coloured per item (given colours or along a scale), values on top,
+    and, when given, a cover above each column (covers: one url per column)."""
     vals = [float(v) for v in values]
     cols = colors or scale_colors(vals, scale)
     shown = [_value_text(v, unit) if v else "" for v in vals]
@@ -292,7 +322,15 @@ def bars(labels: list[str], values: list[float], unit: str = "", height: int = 2
         customdata=shown, hovertemplate="%{x}: <b>%{customdata}</b><extra></extra>"))
     style(fig, height)
     fig.update_xaxes(type="category", tickfont=dict(color=INK, size=12))
-    fig.update_yaxes(showticklabels=False, showgrid=False, range=[0, max(vals + [1]) * 1.22])
+    top = max(vals + [1])
+    if covers and len(vals) <= 24:
+        _covers_on(fig, [(i, v + top * 0.13, c) for i, (v, c) in enumerate(zip(vals, covers)) if v],
+                   sizex=0.85, sizey=top * 0.2, yanchor="bottom")
+        fig.update_traces(textposition="inside", insidetextanchor="end", textfont=dict(color="#ffffff", size=11))
+        fig.update_yaxes(range=[0, top * 1.42])
+    else:
+        fig.update_yaxes(range=[0, top * 1.22])
+    fig.update_yaxes(showticklabels=False, showgrid=False)
     return fig
 
 

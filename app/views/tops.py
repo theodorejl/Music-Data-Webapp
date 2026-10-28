@@ -35,72 +35,88 @@ def controls() -> None:
 
 
 theme.hero("coral", t("rail.tops"), lead, f.label, controls=controls, art=ui.art_fan(albums["image"].tolist()))
+# --- the podium and what follows -----------------------------------------------------------------
+theme.section(t("tops.podium_section"), t("tops.artists_note"))
+with theme.panel("butter", "podium"):
+    slot = st.container()
+    sc = data.scope_bar("tops_pod", ["artist", "album", "track", "genre"])
+    with slot:
+        items = ui.ranking(sc.df, sc.dim, metric, 12)
+        if items.empty:
+            ui.empty_state()
+        else:
+            round_art = sc.dim == "artist"
+            left, right = st.columns([1.1, 1], gap="large")
+            with left:
+                theme.head(t("tops.podium_of", what=t(f"scope.{sc.dim}").lower()), sc.label)
+                ui.podium(items, fmt, None if sc.dim == "genre" else sc.dim, key=f"pod_{sc.dim}", round_art=round_art)
+            with right:
+                theme.head(t("tops.next"), t(f"tops.by_{metric}"))
+                rest = items.iloc[3:12]
+                ui.rank_list(rest, fmt, metric, colors=ui.item_colors(rest, sc.dim, sc.df), round_art=round_art, limit=9, start=4,
+                             scale_max=float(items[metric].max()))
 
-genre_of = data.artist_genres()
-
-
-def genre_colors(keys) -> list[str]:
-    genres = [genre_of.get(int(k)) for k in keys]
-    cmap = charts.category_colors([g for g in genres if g])
-    return [cmap.get(g, charts.OTHER) for g in genres]
-
-
-# --- artists ----------------------------------------------------------------------------------
-theme.section(t("common.artists"), t("tops.artists_note"))
-left, right = st.columns([1.1, 1], gap="medium")
-with left:
-    with theme.panel("butter", "podium"):
-        theme.head(t("tops.podium"), f.label)
-        ui.podium(artists, fmt, "artist", key="pod_ar", round_art=True)
-with right:
-    with theme.panel("coral", "artists"):
-        theme.head(t("tops.next"), t(f"tops.by_{metric}"))
-        rest = artists.iloc[3:12]
-        ui.rank_list(rest, fmt, metric, colors=genre_colors(rest["key"]), round_art=True, limit=9, start=4)
-
-# --- albums -----------------------------------------------------------------------------------
-theme.section(t("common.albums"), t("tops.albums_note"))
+# --- mosaic -----------------------------------------------------------------------------------
+theme.section(t("tops.mosaic_section"), t("tops.albums_note"))
 with theme.panel("sky", "mosaic"):
-    theme.head(t("tops.mosaic_title"), f.label)
-    ui.mosaic(albums, metric, fmt, ratio=2.4, limit=24)
+    slot = st.container()
+    sc = data.scope_bar("tops_mosaic", ["album", "artist", "track"])
+    with slot:
+        theme.head(t("home.mosaic_title", what=t(f"scope.{sc.dim}").lower()), sc.label)
+        ui.mosaic(stats.top(sc.df, sc.dim, metric, 24), metric, fmt, ratio=2.4, limit=24)
 
-# --- tracks -----------------------------------------------------------------------------------
-theme.section(t("common.tracks"))
+# --- two columns of a ranking ---------------------------------------------------------------------
+theme.section(t("tops.list_section"))
 with theme.panel("lilac", "tracks"):
-    theme.head(t("tops.tracks_title"), t(f"tops.by_{metric}"))
-    a, b = st.columns(2, gap="large")
-    track_colors = [theme.PALETTE[(i + 2) % len(theme.PALETTE)] for i in range(12)]
-    with a:
-        ui.rank_list(tracks.iloc[:6], fmt, metric, colors=track_colors[:6], limit=6)
-    with b:
-        ui.rank_list(tracks.iloc[6:12], fmt, metric, colors=track_colors[6:12], limit=6, start=7)
+    slot = st.container()
+    sc = data.scope_bar("tops_list", ["track", "album", "artist", "genre"])
+    with slot:
+        theme.head(t("tops.list_title", what=t(f"scope.{sc.dim}").lower()), sc.label)
+        items = ui.ranking(sc.df, sc.dim, metric, 12)
+        if items.empty:
+            ui.empty_state()
+        else:
+            colors = ui.item_colors(items, sc.dim, sc.df)
+            top_value = float(items[metric].max())
+            a, b = st.columns(2, gap="large")
+            with a:
+                ui.rank_list(items.iloc[:6], fmt, metric, colors=colors[:6], limit=6, round_art=sc.dim == "artist")
+            with b:
+                ui.rank_list(items.iloc[6:12], fmt, metric, colors=colors[6:12], limit=6, start=7,
+                             round_art=sc.dim == "artist", scale_max=top_value)
 
 # --- genres -----------------------------------------------------------------------------------
 theme.section(t("common.genres"), t("tops.genres_note"))
-with_genre = df.dropna(subset=["genre"])
-if with_genre.empty:
-    ui.empty_state(t("tops.no_genre"))
-else:
-    left, right = st.columns([1.25, 1], gap="medium")
-    with left:
-        with theme.panel("teal", "sunburst"):
-            theme.head(t("tops.sunburst_title"), t("tops.sunburst_meta"))
-            ga = with_genre.groupby(["genre", "artist_name"])["minutes"].sum().reset_index()
-            keep = ga.sort_values("minutes", ascending=False).groupby("genre").head(8)
-            top_genres = with_genre.groupby("genre")["minutes"].sum().nlargest(7).index
-            keep = keep[keep["genre"].isin(top_genres)].rename(columns={"artist_name": "artist"})
-            charts.show(charts.sunburst(keep, height=470), key="tops_sun")
-    with right:
-        with theme.panel("rose", "genres"):
-            theme.head(t("tops.genre_bars"), t(f"tops.by_{metric}"))
-            g = stats.top(df, "genre", metric, 10)
-            cmap = charts.category_colors(g["label"].tolist())
-            values = g["minutes"].round(0) if metric == "minutes" else g["plays"]
-            charts.show(charts.hbar(g["label"], values, t(f"common.{metric}").lower(),
-                                    colors=[cmap[x] for x in g["label"]]), key="tops_gbar")
-            unknown = int(df["genre"].isna().sum())
-            if unknown:
-                st.caption(t("tops.unknown_genre", n=unknown))
+left, right = st.columns([1.25, 1], gap="medium")
+with left:
+    with theme.panel("teal", "sunburst"):
+        slot = st.container()
+        sc = data.scope_bar("tops_sun")
+        with slot:
+            theme.head(t("tops.sunburst_title"), sc.label, t("tops.sunburst_meta"))
+            with_genre = sc.df.dropna(subset=["genre"])
+            if with_genre.empty:
+                ui.empty_state(t("tops.no_genre"))
+            else:
+                ga = with_genre.groupby(["genre", "artist_name"])["minutes"].sum().reset_index()
+                keep = ga.sort_values("minutes", ascending=False).groupby("genre").head(8)
+                top_genres = with_genre.groupby("genre")["minutes"].sum().nlargest(7).index
+                keep = keep[keep["genre"].isin(top_genres)].rename(columns={"artist_name": "artist"})
+                charts.show(charts.sunburst(keep, height=470), key="tops_sun")
+with right:
+    with theme.panel("rose", "genres"):
+        slot = st.container()
+        sc = data.scope_bar("tops_genres")
+        with slot:
+            theme.head(t("tops.genre_bars"), sc.label, t("tops.genre_covers_note"))
+            g = ui.ranking(sc.df, "genre", metric, 8)
+            if g.empty:
+                ui.empty_state(t("tops.no_genre"))
+            else:
+                ui.rank_list(g, fmt, metric, colors=ui.item_colors(g, "genre", sc.df), limit=8)
+                unknown = int(sc.df["genre"].isna().sum())
+                if unknown:
+                    st.caption(t("tops.unknown_genre", n=unknown))
 
 # --- full tables ------------------------------------------------------------------------------
 theme.section(t("tops.tables_title"), t("tops.tables_note"))

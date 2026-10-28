@@ -108,7 +108,8 @@
     "db_error": "Cannot read the database ({error}). Check DATABASE_URL.",
     "play_short": "play",
     "download_excel": "Download Excel",
-    "estimated_short": "estimated durations"
+    "estimated_short": "estimated durations",
+    "n_plays": "{n} plays"
   },
   "status": {
     "never": "No sync yet.",
@@ -170,7 +171,13 @@
     "genre_bars": "Your genres",
     "tables_title": "Every chart",
     "tables_note": "Full tables, sortable, exportable to Excel or CSV.",
-    "total": "{n} plays · {time}"
+    "total": "{n} plays · {time}",
+    "podium_section": "The podium",
+    "podium_of": "The {what} podium",
+    "mosaic_section": "The mosaic",
+    "list_section": "The chart",
+    "list_title": "Your {what}",
+    "genre_covers_note": "With the album that carries each genre."
   },
   "evolution": {
     "title": "Trends",
@@ -230,7 +237,10 @@
     "split_note": "Each square is 0.5% of your listening time.",
     "fresh": "Discoveries",
     "known": "Already known",
-    "lists_title": "The lists"
+    "lists_title": "The lists",
+    "timeline_note": "Each cover is a discovery, placed on the day, week or month of its first play; the most played since sit at the bottom. Hover a cover for its name.",
+    "timeline_title": "{n} {what} discovered",
+    "plays_since_n": "{n} plays since"
   },
   "detail": {
     "choose_artist": "Artist",
@@ -405,7 +415,12 @@
     "poster_download": "Download the poster (A3 PDF)",
     "kicker": "Deezer library",
     "listened_share_short": "at least one track in the history",
-    "hero_lead": "{albums} favourite albums by {artists} artists and {playlists} playlists, analysed, exportable to Excel or as an A3 poster."
+    "hero_lead": "{albums} favourite albums by {artists} artists and {playlists} playlists, analysed, exportable to Excel or as an A3 poster.",
+    "n_albums": "{n} albums",
+    "n_tracks": "{n} tracks",
+    "decade_note": "Above each decade, your most played favourite album.",
+    "n_album": "{n} album",
+    "n_track": "{n} track"
   },
   "explore": {
     "title": "Explorations",
@@ -433,7 +448,8 @@
     "fingerprint_help": "One ring per hour of the day, midnight in the centre, 11 pm outside. The more you listen at that hour, the more the ring waves; its colour is the dominant genre. Every period gives a unique print.",
     "download_svg": "Download the fingerprint (SVG)",
     "hero_lead": "{plays} plays, {artists} artists, {genres} genres: your music, drawn differently.",
-    "fingerprint_story": "A one-of-a-kind print: one ring per hour of the day, midnight at the centre, 11 pm at the edge. The more you listen at that hour, the more the ring ripples; its colour is the leading genre. Download it, print it, share it."
+    "fingerprint_story": "A one-of-a-kind print: one ring per hour of the day, midnight at the centre, 11 pm at the edge. The more you listen at that hour, the more the ring ripples; its colour is the leading genre. Download it, print it, share it.",
+    "orbit_title_of": "The {what} orbit"
   },
   "chart_words": [
     "avg"
@@ -478,14 +494,17 @@
     "albums": "across {n} albums",
     "active_days": "Listening days",
     "avg_listen": "{time} per play on average",
-    "bar_colour_note": "Each bar wears the colour of the artist's main genre.",
+    "bar_colour_note": "Each bar wears the colour of its main genre.",
     "genres_center": "genres",
     "average": "average",
     "record": "record",
     "clock_title": "The clock of your listening",
     "clock_meta": "minutes per hour",
     "albums_title": "Your albums as a mosaic",
-    "albums_meta": "area = listening time"
+    "albums_meta": "area = listening time",
+    "favourites": "Your favourite {what}",
+    "pick_day": "Day",
+    "mosaic_title": "The {what} mosaic"
   },
   "rhythms": {
     "lead": "You mostly listen on {day}s, around {hour}. Current streak: {streak} days (record: {best}).",
@@ -494,9 +513,9 @@
     "streak_cap": "days in a row with at least one play",
     "time_section": "Over time",
     "time_note": "Each bar takes a deeper colour when you listened more.",
-    "bars_note": "From yellow (little) to violet (a lot).",
-    "bump_title": "The artists' race",
-    "bump_note": "The rank of your 6 favourite artists, period after period (1 = leading).",
+    "bars_note": "From yellow (little) to violet (a lot); above, the most played album.",
+    "bump_title": "The {what} race",
+    "bump_note": "The rank of your top 6, period after period (top = no. 1).",
     "too_short": "Pick a longer period to see a change.",
     "stream_note": "Each genre's share of your listening.",
     "week_section": "Your typical week",
@@ -505,6 +524,36 @@
     "ridge_meta": "minutes per hour",
     "matrix_meta": "day × hour",
     "matrix_note": "Size = amount, colour = time of day (violet night, golden morning, blue evening).",
-    "skip_section": "Skipped tracks"
+    "skip_section": "Skipped tracks",
+    "skip_rate": "Skipped tracks",
+    "skip_rate_cap": "stopped before the end, at any moment",
+    "stream_title": "The share of {what}",
+    "week_covers_title": "Your week in covers",
+    "week_covers_note": "For each day and hour, the most played album; the bigger, the more you listened. The ring gives the time of day.",
+    "moments_title": "The moments of the day",
+    "skip_note": "A track counts as skipped as soon as it stops before the end, even very early. Deezer only lists plays of about 30 s or more in its history: faster skips are not in it.",
+    "skips_summary": "{n} skipped plays, {share} of your plays.",
+    "skips_of": "{skips} skipped / {plays}"
+  },
+  "scope": {
+    "what": "What",
+    "artist": "Artists",
+    "album": "Albums",
+    "track": "Tracks",
+    "genre": "Genres"
+  },
+  "period_short": {
+    "today": "Day",
+    "week": "Week",
+    "month": "Month",
+    "year": "Year",
+    "all": "All",
+    "custom": "Dates"
+  },
+  "moments": {
+    "night": "At night",
+    "morning": "In the morning",
+    "afternoon": "In the afternoon",
+    "evening": "In the evening"
   }
 }

@@ -108,7 +108,8 @@
     "db_error": "Impossible de lire la base de données ({error}). Vérifie DATABASE_URL.",
     "play_short": "écoute",
     "download_excel": "Télécharger en Excel",
-    "estimated_short": "durées estimées"
+    "estimated_short": "durées estimées",
+    "n_plays": "{n} écoutes"
   },
   "status": {
     "never": "Aucune synchro pour l'instant.",
@@ -170,7 +171,13 @@
     "genre_bars": "Tes genres",
     "tables_title": "Tous les classements",
     "tables_note": "Tableaux complets, triables, exportables en Excel ou CSV.",
-    "total": "{n} écoutes · {time}"
+    "total": "{n} écoutes · {time}",
+    "podium_section": "Le podium",
+    "podium_of": "Le podium des {what}",
+    "mosaic_section": "La mosaïque",
+    "list_section": "Le classement",
+    "list_title": "Tes {what}",
+    "genre_covers_note": "Avec l'album qui porte chaque genre."
   },
   "evolution": {
     "title": "Évolution",
@@ -230,7 +237,10 @@
     "split_note": "Chaque carré vaut 0,5 % de ton temps d'écoute.",
     "fresh": "Découvertes",
     "known": "Déjà connus",
-    "lists_title": "Les listes"
+    "lists_title": "Les listes",
+    "timeline_note": "Chaque pochette est une découverte, rangée au jour, à la semaine ou au mois de sa première écoute ; les plus écoutées depuis sont en bas. Survole une pochette pour son nom.",
+    "timeline_title": "{n} {what} découverts",
+    "plays_since_n": "{n} écoutes depuis"
   },
   "detail": {
     "choose_artist": "Artiste",
@@ -405,7 +415,12 @@
     "poster_download": "Télécharger l'affiche (PDF A3)",
     "kicker": "Bibliothèque Deezer",
     "listened_share_short": "au moins un titre dans l'historique",
-    "hero_lead": "{albums} albums favoris de {artists} artistes et {playlists} playlists, analysés, exportables en Excel ou en affiche A3."
+    "hero_lead": "{albums} albums favoris de {artists} artistes et {playlists} playlists, analysés, exportables en Excel ou en affiche A3.",
+    "n_albums": "{n} albums",
+    "n_tracks": "{n} titres",
+    "decade_note": "Au-dessus de chaque décennie, ton album favori le plus écouté.",
+    "n_album": "{n} album",
+    "n_track": "{n} titre"
   },
   "explore": {
     "title": "Explorations",
@@ -433,7 +448,8 @@
     "fingerprint_help": "Un anneau par heure de la journée, de minuit au centre à 23 h à l'extérieur. Plus tu écoutes à cette heure-là, plus l'anneau ondule ; sa couleur est le genre dominant. Chaque période donne une empreinte unique.",
     "download_svg": "Télécharger l'empreinte (SVG)",
     "hero_lead": "{plays} écoutes, {artists} artistes, {genres} genres : ta musique dessinée autrement.",
-    "fingerprint_story": "Une empreinte unique : un anneau par heure de la journée, de minuit au centre à 23 h au bord. Plus tu écoutes à cette heure, plus l'anneau ondule ; sa couleur est le genre dominant. À télécharger, imprimer, partager."
+    "fingerprint_story": "Une empreinte unique : un anneau par heure de la journée, de minuit au centre à 23 h au bord. Plus tu écoutes à cette heure, plus l'anneau ondule ; sa couleur est le genre dominant. À télécharger, imprimer, partager.",
+    "orbit_title_of": "L'orbite des {what}"
   },
   "chart_words": [
     "moy."
@@ -478,14 +494,17 @@
     "albums": "sur {n} albums",
     "active_days": "Jours d'écoute",
     "avg_listen": "{time} par écoute en moyenne",
-    "bar_colour_note": "La couleur de chaque barre est celle du genre principal de l'artiste.",
+    "bar_colour_note": "Chaque barre prend la couleur du genre principal.",
     "genres_center": "genres",
     "average": "moyenne",
     "record": "record",
     "clock_title": "L'horloge de tes écoutes",
     "clock_meta": "minutes par heure",
     "albums_title": "Tes albums, en mosaïque",
-    "albums_meta": "surface = temps d'écoute"
+    "albums_meta": "surface = temps d'écoute",
+    "favourites": "Tes {what} préférés",
+    "pick_day": "Jour",
+    "mosaic_title": "La mosaïque des {what}"
   },
   "rhythms": {
     "lead": "Tu écoutes surtout le {day}, vers {hour}. Série en cours : {streak} jours (record : {best}).",
@@ -494,9 +513,9 @@
     "streak_cap": "jours d'affilée avec au moins une écoute",
     "time_section": "Au fil du temps",
     "time_note": "Chaque barre prend une couleur plus profonde quand tu as écouté davantage.",
-    "bars_note": "Du jaune (peu) au violet (beaucoup).",
-    "bump_title": "La course des artistes",
-    "bump_note": "Le rang de tes 6 artistes favoris, période après période (1 = en tête).",
+    "bars_note": "Du jaune (peu) au violet (beaucoup) ; au-dessus, l'album le plus écouté.",
+    "bump_title": "La course des {what}",
+    "bump_note": "Le rang de tes 6 favoris, période après période (en haut = n° 1).",
     "too_short": "Choisis une période plus longue pour voir une évolution.",
     "stream_note": "La part de chaque genre dans ton écoute.",
     "week_section": "Ta semaine type",
@@ -505,6 +524,36 @@
     "ridge_meta": "minutes par heure",
     "matrix_meta": "jour × heure",
     "matrix_note": "Taille = quantité, couleur = moment de la journée (nuit violette, matin doré, soirée bleue).",
-    "skip_section": "Les titres zappés"
+    "skip_section": "Les titres zappés",
+    "skip_rate": "Titres zappés",
+    "skip_rate_cap": "arrêtés avant la fin, à n'importe quel moment",
+    "stream_title": "La part des {what}",
+    "week_covers_title": "Ta semaine en pochettes",
+    "week_covers_note": "Pour chaque jour et chaque heure, l'album le plus écouté ; plus il est grand, plus tu as écouté. Le liseré donne le moment de la journée.",
+    "moments_title": "Les moments de la journée",
+    "skip_note": "Un titre compte comme zappé dès qu'il s'arrête avant la fin, même très tôt. Deezer n'inscrit dans son historique que les écoutes d'environ 30 s ou plus : les zappings plus rapides n'y figurent pas.",
+    "skips_summary": "{n} écoutes zappées, soit {share} de tes écoutes.",
+    "skips_of": "{skips} zappés / {plays}"
+  },
+  "scope": {
+    "what": "Quoi",
+    "artist": "Artistes",
+    "album": "Albums",
+    "track": "Titres",
+    "genre": "Genres"
+  },
+  "period_short": {
+    "today": "Jour",
+    "week": "Semaine",
+    "month": "Mois",
+    "year": "Année",
+    "all": "Tout",
+    "custom": "Dates"
+  },
+  "moments": {
+    "night": "La nuit",
+    "morning": "Le matin",
+    "afternoon": "L'après-midi",
+    "evening": "Le soir"
   }
 }

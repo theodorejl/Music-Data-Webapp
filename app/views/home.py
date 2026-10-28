@@ -1,6 +1,5 @@
 """Home: what did I listen to in this period, and what dominates it?
-A mosaic of colour panels: the headline in the sky header, then key figures, leaders,
-genres, the flow of time, the clock of the day, the last day in covers, recent plays."""
+A mosaic of colour panels; under each chart, chips choose its own time range and what it counts."""
 
 from html import escape
 
@@ -17,13 +16,17 @@ if df.empty:
     theme.hero("sky", t("home.title"), escape(t("overview.empty")), f.label, controls=data.period_control)
     st.stop()
 
+
+def freq_for(frame) -> str:
+    span = (frame["played_local"].max() - frame["played_local"].min()).days if not frame.empty else 0
+    return "D" if span <= 45 else ("W" if span <= 400 else "M")
+
+
 k = stats.kpis(df)
-artists = stats.top(df, "artist", "minutes", 8)
+leader = stats.top(df, "artist", "minutes", 1).iloc[0]
 busiest = stats.busiest_day(df)
-span_days = (df["played_local"].max() - df["played_local"].min()).days
-freq = "D" if span_days <= 45 else ("W" if span_days <= 400 else "M")
+freq = freq_for(df)
 timeline = stats.timeline(df, freq)
-leader = artists.iloc[0]
 
 lead = t("home.lead", time=f"<b>{escape(fmt_duration(k['minutes']))}</b>",
          share=f"<b>{fmt_pct(leader['minutes'] / k['minutes']) if k['minutes'] else '–'}</b>",
@@ -49,67 +52,100 @@ ui.stat_tiles([
 ])
 theme.gap()
 
-# --- leaders and genres -------------------------------------------------------------------------
-genre_of = data.artist_genres()
+# --- favourites and genres ----------------------------------------------------------------------
 left, right = st.columns([1.25, 1], gap="medium")
 with left:
-    with theme.panel("rose", "artists"):
-        theme.head(t("overview.top_artists"), t("overview.by_minutes"))
-        cmap = charts.category_colors([genre_of.get(int(a)) for a in artists["key"] if genre_of.get(int(a))])
-        colors = [cmap.get(genre_of.get(int(a)), charts.OTHER) for a in artists["key"]]
-        ui.rank_list(artists, lambda r: fmt_duration(r.minutes), "minutes", colors=colors, round_art=True, limit=7)
-        st.caption(t("home.bar_colour_note"))
+    with theme.panel("rose", "favourites"):
+        slot = st.container()
+        sc = data.scope_bar("home_fav", ["artist", "album", "track", "genre"])
+        with slot:
+            theme.head(t("home.favourites", what=t(f"scope.{sc.dim}").lower()), sc.label)
+            items = ui.ranking(sc.df, sc.dim, "minutes", 7)
+            if items.empty:
+                ui.empty_state()
+            else:
+                ui.rank_list(items, lambda r: fmt_duration(r.minutes), "minutes", colors=ui.item_colors(items, sc.dim, sc.df),
+                             round_art=sc.dim == "artist", limit=7)
+                st.caption(t("home.bar_colour_note"))
 with right:
     with theme.panel("lilac", "genres"):
-        genres = stats.top(df, "genre", "minutes", 6)
-        theme.head(t("overview.genres_title"), t("overview.genres_meta"))
-        if genres.empty:
-            ui.empty_state(t("tops.no_genre"))
-        else:
-            other = t("common.other")
-            rest = df["minutes"].sum() - genres["minutes"].sum()
-            labels = genres["label"].tolist() + ([other] if rest > 1 else [])
-            values = genres["minutes"].tolist() + ([rest] if rest > 1 else [])
-            charts.show(charts.donut(labels, values, fmt_int(len(df["genre"].dropna().unique())), t("home.genres_center"),
-                                     height=330, other_label=other), key="home_donut")
-            cmap = charts.category_colors(labels, other)
-            ui.legend([(lab, cmap[lab]) for lab in labels])
+        slot = st.container()
+        sc = data.scope_bar("home_genres")
+        with slot:
+            theme.head(t("overview.genres_title"), sc.label)
+            genres = stats.top(sc.df, "genre", "minutes", 6)
+            if genres.empty:
+                ui.empty_state(t("tops.no_genre"))
+            else:
+                other = t("common.other")
+                rest = sc.df["minutes"].sum() - genres["minutes"].sum()
+                labels = genres["label"].tolist() + ([other] if rest > 1 else [])
+                values = genres["minutes"].tolist() + ([rest] if rest > 1 else [])
+                charts.show(charts.donut(labels, values, fmt_int(sc.df["genre"].dropna().nunique()), t("home.genres_center"),
+                                         height=310, other_label=other), key="home_donut")
+                cmap = charts.category_colors(labels, other)
+                ui.legend([(lab, cmap[lab]) for lab in labels])
 
+# --- time and the clock ---------------------------------------------------------------------------
 theme.gap()
 left, right = st.columns([1.6, 1], gap="medium")
 with left:
     with theme.panel("lime", "flow"):
-        theme.head(t("overview.time_title"), f.label)
-        theme.figure(escape(fmt_duration(k["minutes"])), t("overview.time_sub", plays=fmt_int(k["plays"]), artists=fmt_int(k["artists"]),
-                                                             tracks=fmt_int(k["tracks"]), avg=fmt_seconds(k["avg_seconds"])))
-        charts.show(charts.flow(timeline, "minutes", freq, t("common.minutes"), "lime", height=270,
-                                avg_label=t("home.average"), peak_label=t("home.record")), key="home_flow")
+        slot = st.container()
+        sc = data.scope_bar("home_flow")
+        with slot:
+            fq = freq_for(sc.df)
+            ks = stats.kpis(sc.df)
+            theme.head(t("overview.time_title"), sc.label)
+            theme.figure(escape(fmt_duration(ks["minutes"])), t("overview.time_sub", plays=fmt_int(ks["plays"]),
+                                                                  artists=fmt_int(ks["artists"]), tracks=fmt_int(ks["tracks"]),
+                                                                  avg=fmt_seconds(ks["avg_seconds"])))
+            if sc.df.empty:
+                ui.empty_state()
+            else:
+                covers = stats.top_cover_by(sc.df, stats.period_of(sc.df, fq))
+                charts.show(charts.flow(stats.timeline(sc.df, fq), "minutes", fq, t("common.minutes"), "lime", height=290,
+                                        avg_label=t("home.average"), peak_label=t("home.record"), covers=covers), key="home_flow")
 with right:
     with theme.panel("butter", "clock"):
-        theme.head(t("home.clock_title"), t("home.clock_meta"))
-        by_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum()
-        charts.show(charts.radial_clock(by_hour, "minutes", height=360), key="home_clock")
+        slot = st.container()
+        sc = data.scope_bar("home_clock")
+        with slot:
+            theme.head(t("home.clock_title"), sc.label)
+            charts.show(charts.radial_clock(sc.df.groupby(sc.df["played_local"].dt.hour)["minutes"].sum(), "minutes", height=300),
+                        key="home_clock")
+            ui.moments(stats.moments(sc.df))
 
+# --- one day in covers ----------------------------------------------------------------------------
 theme.gap()
-last_day = df["played_local"].max().date()
-day = df[df["played_local"].dt.date == last_day]
 with theme.panel("teal", "day"):
-    theme.head(t("overview.day_title"), fmt_date(last_day),
-               t("overview.day_sub", plays=fmt_plays(len(day)), time=fmt_duration(day["minutes"].sum()),
-                 first=day["played_local"].min().strftime("%H:%M"), last=day["played_local"].max().strftime("%H:%M")))
-    ui.day_in_covers(day)
+    slot = st.container()
+    days = sorted(set(data.all_plays()["played_local"].dt.date), reverse=True)[:60]
+    with st.container(key="scope-home_day"):
+        day = st.selectbox(t("home.pick_day"), days, index=0, format_func=fmt_date, key="home_day", width=300,
+                           label_visibility="collapsed")
+    with slot:
+        everything = data.all_plays()
+        one = everything[everything["played_local"].dt.date == day]
+        theme.head(t("overview.day_title"), fmt_date(day),
+                   t("overview.day_sub", plays=fmt_plays(len(one)), time=fmt_duration(one["minutes"].sum()),
+                     first=one["played_local"].min().strftime("%H:%M"), last=one["played_local"].max().strftime("%H:%M")))
+        ui.day_in_covers(one)
 
+# --- recent plays and the mosaic -------------------------------------------------------------------
 theme.gap()
 left, right = st.columns([1, 1.5], gap="medium")
 with left:
     with theme.panel("sky", "recent"):
         theme.head(t("overview.recent"), t("overview.recent_kicker"))
-        ui.short_rows(df, limit=7)
+        ui.short_rows(data.all_plays(), limit=8)
         st.page_link(ui.PAGES["history"], label=t("overview.see_history"), icon=":material/arrow_forward:")
 with right:
-    with theme.panel("coral", "albums"):
-        theme.head(t("home.albums_title"), t("home.albums_meta"))
-        ui.mosaic(stats.top(df, "album", "minutes", 18), "minutes", lambda r: fmt_duration(r.minutes), ratio=1.55)
-        st.page_link(ui.PAGES["tops"], label=t("overview.see_tops"), icon=":material/arrow_forward:")
+    with theme.panel("coral", "mosaic"):
+        slot = st.container()
+        sc = data.scope_bar("home_mosaic", ["album", "artist", "track"])
+        with slot:
+            theme.head(t("home.mosaic_title", what=t(f"scope.{sc.dim}").lower()), t("home.albums_meta"))
+            ui.mosaic(stats.top(sc.df, sc.dim, "minutes", 18), "minutes", lambda r: fmt_duration(r.minutes), ratio=1.55)
 
 ui.estimated_note(df)

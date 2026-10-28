@@ -170,13 +170,13 @@ def kpi_row(items: list[tuple[str, str, str | None]]) -> None:
 
 
 def rank_list(items: pd.DataFrame, value_fmt, metric: str = "plays", colors: list[str] | None = None,
-              round_art: bool = False, limit: int = 8, start: int = 1) -> None:
+              round_art: bool = False, limit: int = 8, start: int = 1, scale_max: float | None = None) -> None:
     """Ranking rows: big rank number, artwork, name and detail, and a gradient bar in the item's
     own colour (genre colour when given, else the palette in order)."""
     rows = list(items.head(limit).itertuples(index=False))
     if not rows:
         return
-    top = max(float(getattr(r, metric)) for r in rows) or 1
+    top = scale_max or max(float(getattr(r, metric)) for r in rows) or 1
     html = []
     for i, r in enumerate(rows):
         color = (colors[i] if colors and i < len(colors) else theme.PALETTE[i % len(theme.PALETTE)])
@@ -288,6 +288,134 @@ def waffle(parts: list[tuple[str, float]], colors: dict[str, str], cells: int = 
 
 def legend(items: list[tuple[str, str]]) -> None:
     st.html("<div class='ds-legend'>" + "".join(f"<span><i style='background:{c}'></i>{escape(lab)}</span>" for lab, c in items) + "</div>")
+
+
+# --- covers instead of dots ---------------------------------------------------------------------
+
+def _bucket(dates: pd.Series) -> tuple[pd.Series, str]:
+    span = (dates.max() - dates.min()).days if len(dates) else 0
+    if span <= 21:
+        return dates.dt.normalize(), "day"
+    if span <= 140:
+        return (dates - pd.to_timedelta(dates.dt.weekday, unit="D")).dt.normalize(), "week"
+    return dates.dt.to_period("M").dt.to_timestamp(), "month"
+
+
+def _bucket_label(d: pd.Timestamp, kind: str) -> str:
+    from app.i18n import tl
+
+    months = tl("months_short")
+    if kind == "month":
+        return f"{months[d.month - 1]} {str(d.year)[2:]}"
+    return f"{d.day} {months[d.month - 1]}"
+
+
+def cover_timeline(items: pd.DataFrame, date_col: str, value_fmt, per_col: int = 5, max_cols: int = 18,
+                   round_art: bool = False) -> None:
+    """Things grouped by day, week or month of `date_col`: each group is a column of covers (the
+    most played at the bottom, "+n" when there are more), so every item stays readable."""
+    d = items.dropna(subset=[date_col]).copy()
+    if d.empty:
+        return
+    dates = pd.to_datetime(d[date_col])
+    if getattr(dates.dt, "tz", None) is not None:
+        dates = dates.dt.tz_localize(None)
+    d["_b"], kind = _bucket(dates)
+    groups = sorted(d["_b"].unique())[-max_cols:]
+    cols = []
+    for b in groups:
+        g = d[d["_b"] == b].sort_values("plays", ascending=False)
+        cells = []
+        for r in g.head(per_col).itertuples(index=False):
+            tip = escape(f"{r.label}{' — ' + r.sublabel if isinstance(r.sublabel, str) and r.sublabel else ''} · {value_fmt(r)}")
+            cells.append(f"<img src='{escape(r.image)}' alt='{tip}' title='{tip}'>" if isinstance(r.image, str) and r.image
+                         else f"<i title='{tip}'></i>")
+        more = f"<span class='ds-ctl-more num'>+{len(g) - per_col}</span>" if len(g) > per_col else ""
+        cols.append(f"<div class='ds-ctl-col'>{more}{''.join(reversed(cells))}"
+                    f"<span class='ds-ctl-lab'>{escape(_bucket_label(pd.Timestamp(b), kind))}<b class='num'>{len(g)}</b></span></div>")
+    st.html(f"<div class='ds-ctl{' round' if round_art else ''}'>{''.join(cols)}</div>")
+
+
+def week_covers(matrix: pd.DataFrame, value_fmt) -> None:
+    """Weekday × hour, each slot showing the cover of what played most there, sized by how much
+    you listened, ringed with the colour of the moment of the day."""
+    from app.components.charts import hour_color
+    from app.i18n import tl
+
+    days = tl("weekdays_short")
+    top = float(matrix["value"].max()) if not matrix.empty else 1.0
+    cells = {(int(r.weekday), int(r.hour)): r for r in matrix.itertuples(index=False)}
+    head = "<span></span>" + "".join(f"<span class='ds-wk-h num'>{h if h % 3 == 0 else ''}</span>" for h in range(24))
+    rows = [f"<div class='ds-wk-row'>{head}</div>"]
+    for wd in range(7):
+        out = [f"<span class='ds-wk-d'>{escape(days[wd])}</span>"]
+        for h in range(24):
+            r = cells.get((wd, h))
+            if r is None or not r.value:
+                out.append("<span class='ds-wk-c'><i></i></span>")
+                continue
+            size = 38 + 62 * math.sqrt(float(r.value) / top)
+            tip = escape(f"{days[wd]} {h} h · {value_fmt(r.value)} · {r.title or ''} — {r.artist or ''}")
+            ring = hour_color(h + 0.5)
+            look = f"width:{size:.0f}%;height:{size:.0f}%;box-shadow:0 0 0 2px {ring}"
+            if isinstance(r.cover, str) and r.cover:
+                inner = f"<img src='{escape(r.cover)}' alt='' title='{tip}' style='{look}'>"
+            else:
+                inner = f"<b title='{tip}' style='{look};background:{ring}'></b>"
+            out.append(f"<span class='ds-wk-c'>{inner}</span>")
+        rows.append(f"<div class='ds-wk-row'>{''.join(out)}</div>")
+    st.html(f"<div class='ds-wk'>{''.join(rows)}</div>")
+
+
+def moments(parts: list[dict]) -> None:
+    """Night, morning, afternoon, evening: minutes and the album that played most in each."""
+    from app.i18n import t as tr
+
+    fams = {"night": "lilac", "morning": "butter", "afternoon": "coral", "evening": "sky"}
+    cards = []
+    for m in parts:
+        cover = _img(m["cover"])
+        what = escape(f"{m['title']} — {m['artist']}") if m["title"] else "–"
+        cards.append(f"<div class='ds-panel ds-moment ds-fam-{fams[m['name']]}'>{cover}<div><b>{escape(tr('moments.' + m['name']))}</b>"
+                     f"<span class='num'>{escape(fmt_duration(m['minutes']))}</span><em>{what}</em></div></div>")
+    st.html(f"<div class='ds-moments'>{''.join(cards)}</div>")
+
+
+def item_colors(items: pd.DataFrame, dim: str, df: pd.DataFrame) -> list[str]:
+    """Each ranked item in the colour of its genre (a genre keeps its colour everywhere)."""
+    from app.components import charts, data
+
+    if dim == "genre":
+        genres = list(items["label"])
+    elif dim == "artist":
+        by = data.artist_genres()
+        genres = [by.get(int(k)) for k in items["key"]]
+    else:
+        col = "album_id" if dim == "album" else "track_id"
+        by = df.dropna(subset=["genre"]).drop_duplicates(col).set_index(col)["genre"].to_dict()
+        genres = [by.get(k) for k in items["key"]]
+    cmap = charts.category_colors([g for g in dict.fromkeys(genres) if g])
+    return [cmap.get(g, charts.OTHER) for g in genres]
+
+
+def ranking(df: pd.DataFrame, dim: str, metric: str, n: int) -> pd.DataFrame:
+    """stats.top() with covers for every kind, genres included."""
+    from core import stats
+
+    items = stats.top(df, dim, metric, n)
+    return with_genre_covers(items, df) if dim == "genre" and not items.empty else items
+
+
+def with_genre_covers(items: pd.DataFrame, df: pd.DataFrame) -> pd.DataFrame:
+    """Give genre rows the cover of their most played album, and their leading artist."""
+    from core import stats
+
+    data = df.dropna(subset=["genre"])
+    covers = stats.top_cover_by(data, data["genre"])
+    out = items.copy()
+    out["image"] = [covers.get(g, (None,))[0] for g in out["label"]]
+    out["sublabel"] = [f"{covers[g][2]} · {covers[g][1]}" if g in covers else None for g in out["label"]]
+    return out
 
 
 # --- lists of plays -----------------------------------------------------------------------------

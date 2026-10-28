@@ -1,5 +1,5 @@
-"""Discoveries: artists, albums and tracks played for the first time in the period, how much
-of the listening went to them, and how the collection grows month after month."""
+"""Discoveries: artists, albums and tracks played for the first time, shown as their covers on a
+timeline, how much of the listening went to them, and how the collection grows."""
 
 from html import escape
 
@@ -12,33 +12,37 @@ from core import stats
 f = data.get_filters()
 
 # "New" means first play ever, so first plays are computed on the whole history,
-# then restricted to the selected period.
+# then restricted to the chosen period.
 everything = stats.filter_frame(data.all_plays(), min_seconds=f.min_seconds)
 if everything.empty:
     theme.hero("rose", t("rail.discoveries"), escape(t("common.no_data")), f.label, controls=data.period_control)
     st.stop()
 
 firsts = {dim: stats.first_listens(everything, dim) for dim in ("artist", "album", "track")}
+KEY = {"artist": "artist_id", "album": "album_id", "track": "track_id"}
 
 
-def in_period(frame):
+def in_range(frame, start, end):
     out = frame
-    if f.start is not None:
-        out = out[out["first_played"] >= f.start]
-    if f.end is not None:
-        out = out[out["first_played"] < f.end]
+    if start is not None:
+        out = out[out["first_played"] >= start]
+    if end is not None:
+        out = out[out["first_played"] < end]
     return out
 
 
-new = {dim: in_period(frame) for dim, frame in firsts.items()}
-df = stats.filter_frame(everything, f.start, f.end)
-new_ids = set(new["artist"]["key"])
-fresh_minutes = float(df[df["artist_id"].isin(new_ids)]["minutes"].sum()) if not df.empty else 0.0
-total_minutes = float(df["minutes"].sum()) if not df.empty else 0.0
-star = new["artist"].sort_values("plays", ascending=False).head(1)
+def fresh_minutes(dim: str, start, end) -> tuple[float, float]:
+    """Minutes spent in the range on things discovered in that range, and all minutes."""
+    plays = stats.filter_frame(everything, start, end)
+    new_keys = set(in_range(firsts[dim], start, end)["key"])
+    return float(plays[plays[KEY[dim]].isin(new_keys)]["minutes"].sum()), float(plays["minutes"].sum())
 
+
+new = {dim: in_range(frame, f.start, f.end) for dim, frame in firsts.items()}
+fresh, total = fresh_minutes("artist", f.start, f.end)
+star = new["artist"].sort_values("plays", ascending=False).head(1)
 lead = t("discoveries.hero_lead", artists=f"<b>{fmt_int(len(new['artist']))}</b>", albums=f"<b>{fmt_int(len(new['album']))}</b>",
-         share=f"<b>{fmt_pct(fresh_minutes / total_minutes) if total_minutes else '–'}</b>")
+         share=f"<b>{fmt_pct(fresh / total) if total else '–'}</b>")
 if not star.empty:
     lead += " " + t("discoveries.hero_star", artist=f"<b>{escape(str(star.iloc[0]['label']))}</b>",
                     plays=fmt_int(int(star.iloc[0]["plays"])))
@@ -49,45 +53,50 @@ ui.stat_tiles([
     (t("discoveries.new_artists"), fmt_int(len(new["artist"])), t("discoveries.since_note"), "rose", None),
     (t("discoveries.new_albums"), fmt_int(len(new["album"])), None, "sky", None),
     (t("discoveries.new_tracks"), fmt_int(len(new["track"])), None, "lime", None),
-    (t("discoveries.fresh_share"), fmt_pct(fresh_minutes / total_minutes) if total_minutes else "–",
-     t("discoveries.fresh_share_cap", time=fmt_duration(fresh_minutes)), "butter", None),
+    (t("discoveries.fresh_share"), fmt_pct(fresh / total) if total else "–",
+     t("discoveries.fresh_share_cap", time=fmt_duration(fresh)), "butter", None),
 ])
 
-theme.section(t("discoveries.swarm_section"), t("discoveries.swarm_note"))
-with theme.panel("lilac", "swarm"):
-    swarm = new["artist"] if len(new["artist"]) >= 3 else firsts["artist"]
-    genre_of = data.artist_genres()
-    swarm = swarm.assign(genre=[genre_of.get(int(k)) for k in swarm["key"]])
-    theme.head(t("discoveries.swarm_title"), f.label if swarm is not firsts["artist"] else t("period.all"))
-    other = t("common.other")
-    charts.show(charts.beeswarm(swarm, t("common.plays_short"), height=380, other_label=other), key="disc_swarm")
-    shown = swarm["genre"].fillna(other).value_counts().index.tolist()[:7]
-    cmap = charts.category_colors(shown, other)
-    ui.legend([(g, cmap[g]) for g in shown])
+theme.section(t("discoveries.swarm_section"), t("discoveries.timeline_note"))
+with theme.panel("lilac", "timeline"):
+    slot = st.container()
+    sc = data.scope_bar("disc_tl", ["artist", "album", "track"])
+    with slot:
+        found = in_range(firsts[sc.dim], sc.start, sc.end)
+        theme.head(t("discoveries.timeline_title", n=fmt_int(len(found)), what=t(f"scope.{sc.dim}").lower()), sc.label)
+        if found.empty:
+            ui.empty_state(t("discoveries.none"))
+        else:
+            ui.cover_timeline(found, "first_played", lambda r: t("discoveries.plays_since_n", n=fmt_int(r.plays)),
+                              per_col=6, round_art=sc.dim == "artist")
 
 theme.gap()
-per_month = stats.discoveries_per_month(everything)
 left, right = st.columns([1, 1], gap="medium")
 with left:
     with theme.panel("teal", "growth"):
         theme.head(t("discoveries.growth_title"), t("period.all"), t("discoveries.growth_note"))
+        per_month = stats.discoveries_per_month(everything)
         charts.show(charts.cumulative_lines(per_month, [("new_artists", t("common.artists"), "teal"),
-                                                        ("new_albums", t("common.albums"), "sky")], height=330), key="disc_growth")
+                                                        ("new_albums", t("common.albums"), "sky")], height=340), key="disc_growth")
 with right:
     with theme.panel("coral", "split"):
-        theme.head(t("discoveries.split_title"), f.label, t("discoveries.split_note"))
-        known = max(0.0, total_minutes - fresh_minutes)
-        parts = [(t("discoveries.fresh"), fresh_minutes), (t("discoveries.known"), known)]
-        ui.waffle(parts, {t("discoveries.fresh"): "#e8558e", t("discoveries.known"): "#1e9fd8"})
-        theme.gap()
-        charts.show(charts.grouped_bars(per_month.tail(12), "period", [("new_artists", t("common.artists")),
-                                                                      ("new_albums", t("common.albums"))], height=240),
-                    key="disc_month")
+        slot = st.container()
+        sc = data.scope_bar("disc_split", ["artist", "album", "track"])
+        with slot:
+            new_min, all_min = fresh_minutes(sc.dim, sc.start, sc.end)
+            theme.head(t("discoveries.split_title"), sc.label, t("discoveries.split_note"))
+            parts = [(t("discoveries.fresh"), new_min), (t("discoveries.known"), max(0.0, all_min - new_min))]
+            ui.waffle(parts, {t("discoveries.fresh"): "#e8558e", t("discoveries.known"): "#1e9fd8"})
+            stars = in_range(firsts[sc.dim], sc.start, sc.end).sort_values("plays", ascending=False).head(4)
+            if not stars.empty:
+                theme.gap()
+                ui.rank_list(stars, lambda r: t("discoveries.plays_since_n", n=fmt_int(r.plays)), "plays",
+                             colors=["#e8558e", "#ff6f4d", "#8b6cf0", "#1e9fd8"], round_art=sc.dim == "artist", limit=4)
 
 theme.section(t("discoveries.lists_title"))
 with theme.white("lists"):
-    tab_ar, tab_al = st.tabs([t("discoveries.new_artists"), t("discoveries.new_albums")])
-    for tab, dim in ((tab_ar, "artist"), (tab_al, "album")):
+    tab_ar, tab_al, tab_tr = st.tabs([t("discoveries.new_artists"), t("discoveries.new_albums"), t("discoveries.new_tracks")])
+    for tab, dim in ((tab_ar, "artist"), (tab_al, "album"), (tab_tr, "track")):
         with tab:
             frame = data.scope_frame(firsts[dim], f"disc_{dim}", "first_played")
             if frame.empty:
@@ -97,7 +106,7 @@ with theme.white("lists"):
                 {
                     "": frame["image"].tolist(),
                     t("common.name"): frame["label"].tolist(),
-                    **({t("common.artist"): frame["sublabel"].tolist()} if dim == "album" else {}),
+                    **({t("common.artist"): frame["sublabel"].tolist()} if dim != "artist" else {}),
                     t("discoveries.first_play"): [fmt_datetime_short(x) for x in frame["first_played"]],
                     t("discoveries.plays_since"): frame["plays"].tolist(),
                 },

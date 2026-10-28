@@ -16,6 +16,7 @@ from pathlib import Path
 import streamlit as st
 
 ASSETS = Path(__file__).resolve().parents[1] / "assets"
+APP_NAME = "DatAtlaSonore"
 
 # Colour families of the panels: vivid mid tone (data), deep ink (line art, figures), soft tint.
 FAMILIES = {
@@ -69,6 +70,24 @@ def inject() -> None:
 
 def brand() -> None:
     st.logo(str(ASSETS / "mark.svg"), size="large", icon_image=str(ASSETS / "mark.svg"))
+
+
+@lru_cache(maxsize=2)
+def _mark_uri(mtime: float) -> str:
+    return "data:image/svg+xml;base64," + base64.b64encode((ASSETS / "mark.svg").read_bytes()).decode("ascii")
+
+
+def mark_img(size: int = 38) -> str:
+    """The spinning record (its grooves turn inside the SVG itself)."""
+    uri = _mark_uri((ASSETS / "mark.svg").stat().st_mtime)
+    return f"<img class='ds-mark' src='{uri}' width='{size}' height='{size}' alt=''>"
+
+
+def brand_html() -> str:
+    """DatAtlaSonore: Data · Atlas · Sonore, the three capitals in the first three chart colours."""
+    word = "".join(f"<i style='color:{PALETTE[i]}'>{c}</i>" if c.isupper() else c
+                   for i, c in zip([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2], APP_NAME))
+    return f"<div class='ds-brand'>{mark_img()}<b>{word}</b></div>"
 
 
 def html(content: str) -> None:

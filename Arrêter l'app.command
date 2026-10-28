@@ -1,5 +1,5 @@
 #!/bin/bash
-# Double-click to stop the Deezer Stats app.
+# Double-click to stop the DatAtlaSonore app.
 cd "$(dirname "$0")" || exit 1
 
 pkill -f "scripts.dev_server" 2>/dev/null  # the supervisor first, so it does not restart the app
