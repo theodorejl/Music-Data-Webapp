@@ -42,7 +42,7 @@ charts.show(charts.grouped_bars(per_month, "period", [("new_artists", t("common.
 tab_ar, tab_al = st.tabs([t("discoveries.new_artists"), t("discoveries.new_albums")])
 for tab, dim in ((tab_ar, "artist"), (tab_al, "album")):
     with tab:
-        frame = new[dim]
+        frame = data.scope_frame(firsts[dim], f"disc_{dim}", "first_played")
         if frame.empty:
             ui.empty_state(t("discoveries.none"))
             continue

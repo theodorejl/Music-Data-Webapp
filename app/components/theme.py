@@ -13,7 +13,6 @@ import json
 from html import escape
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 PASTELS = {  # tint (surfaces) / edge (button depth) / strong (charts, validated order)
     "periwinkle": ("#DDE2FB", "#AEB9F2", "#6C7FE8"),
@@ -46,13 +45,19 @@ CSS = """
 }
 
 /* ---------- ground & grain ---------- */
-.stApp { background: var(--bg); }
+html, body { background: var(--bg); }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { background: transparent !important; }
 .stApp::before {
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0; opacity: .07;
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 1; opacity: .11;
   background-image: url("GRAIN"); mix-blend-mode: multiply;
 }
+#ds-bg { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none;
+  transition: opacity 1.2s var(--ease-out); }
+.stApp > * { position: relative; z-index: 2; }
 [data-testid="stHeader"] { background: transparent; }
-[data-testid="stMainBlockContainer"] { max-width: 1240px; padding: 2.4rem 2.6rem 6rem; }
+.stElementContainer:has(> [data-testid="stHtml"] > script:only-child) { display: none; }
+[data-testid="stMainBlockContainer"] { max-width: none; padding: 2.2rem clamp(1.4rem, 3.2vw, 3.6rem) 6rem; }
+:root { --glass: rgba(251, 250, 248, .74); --glass-2: rgba(251, 250, 248, .58); }
 @media (max-width: 640px) { [data-testid="stMainBlockContainer"] { padding: 1.2rem 1rem 4rem; } }
 
 /* ---------- type ---------- */
@@ -74,7 +79,9 @@ p, li { text-wrap: pretty; }
 .ds-section { margin-top: 3.2rem; }
 
 /* ---------- sidebar ---------- */
-[data-testid="stSidebar"] { background: var(--surface); }
+[data-testid="stSidebar"] { background: var(--glass-2) !important; backdrop-filter: blur(26px) saturate(1.2);
+  -webkit-backdrop-filter: blur(26px) saturate(1.2); }
+[data-testid="stSidebar"] > div { background: transparent !important; }
 [data-testid="stSidebarHeader"] { padding-top: 1.4rem; }
 [data-testid="stSidebarHeader"] img { height: 2rem !important; max-width: 13rem; }
 [data-testid="stNavSectionHeader"] { font-family: "Geist Mono", monospace; font-size: .68rem !important;
@@ -89,7 +96,8 @@ p, li { text-wrap: pretty; }
 
 /* ---------- cards ---------- */
 [data-testid="stMetric"] {
-  background: var(--surface); border-radius: var(--r-card); padding: 1.15rem 1.35rem 1.25rem; position: relative;
+  background: var(--glass); backdrop-filter: blur(22px) saturate(1.15); -webkit-backdrop-filter: blur(22px) saturate(1.15);
+  border-radius: var(--r-card); padding: 1.15rem 1.35rem 1.25rem; position: relative;
   overflow: hidden; border: 0 !important; box-shadow: none !important;
 }
 [data-testid="stMetric"]::after { content: ""; position: absolute; right: -2.2rem; top: -2.2rem; width: 6.5rem; height: 6.5rem;
@@ -104,12 +112,14 @@ p, li { text-wrap: pretty; }
 [data-testid="stColumn"]:nth-child(6n+4) [data-testid="stMetric"] { --tint: var(--lav); }
 [data-testid="stColumn"]:nth-child(6n+5) [data-testid="stMetric"] { --tint: var(--butter); }
 [data-testid="stColumn"]:nth-child(6n+6) [data-testid="stMetric"] { --tint: var(--rose); }
-[data-testid="stPlotlyChart"] { background: var(--surface); border-radius: var(--r-card); padding: 6px 14px; overflow: visible; }
-[data-testid="stDataFrame"] { border-radius: 20px; overflow: hidden; background: var(--surface); }
+[data-testid="stPlotlyChart"] { background: var(--glass); backdrop-filter: blur(22px) saturate(1.15);
+  -webkit-backdrop-filter: blur(22px) saturate(1.15); border-radius: var(--r-card); padding: 6px 14px; overflow: visible; }
+[data-testid="stDataFrame"] { border-radius: 20px; overflow: hidden; background: var(--surface);
+  box-shadow: 0 0 0 6px var(--glass-2); }
 [data-testid="stImage"] img { border-radius: 16px; }
 [data-testid="stExpander"] details { border: 0 !important; background: var(--surface); border-radius: 18px; }
 [data-testid="stAlert"] > div { border-radius: 18px; border: 0; background: var(--surface) !important; color: var(--ink-2); }
-[class*="st-key-card"] { background: var(--surface); border-radius: var(--r-card); padding: 1.4rem 1.5rem; }
+[class*="st-key-card"] { background: var(--glass); backdrop-filter: blur(22px); border-radius: var(--r-card); padding: 1.4rem 1.5rem; }
 [data-testid="stIFrame"], iframe[title*="components"] { border-radius: var(--r-card); }
 
 /* ---------- fields ---------- */
@@ -120,7 +130,7 @@ p, li { text-wrap: pretty; }
 [data-testid="stSlider"] [role="slider"] { box-shadow: 0 0 0 6px rgba(108,127,232,.15); }
 
 /* ---------- tabs as pills ---------- */
-[data-testid="stTabs"] [role="tablist"] { background: var(--surface); border-radius: 999px; padding: 5px; gap: 2px;
+[data-testid="stTabs"] [role="tablist"] { background: var(--glass); backdrop-filter: blur(18px); border-radius: 999px; padding: 5px; gap: 2px;
   width: fit-content; max-width: 100%; overflow-x: auto; }
 [data-testid="stTab"] { border-radius: 999px; padding: .45rem 1.05rem !important; transition: background var(--t-ui) var(--ease-out), color var(--t-ui); }
 [data-testid="stTab"] p { font-size: .9rem; }
@@ -130,7 +140,7 @@ p, li { text-wrap: pretty; }
 [data-testid="stTabPanel"] { padding-top: 1.6rem; }
 
 /* ---------- segmented controls ---------- */
-[data-testid="stButtonGroup"] [role="radiogroup"] { background: var(--surface); border-radius: 999px; padding: 4px; gap: 2px; width: fit-content; }
+[data-testid="stButtonGroup"] [role="radiogroup"] { background: var(--glass); backdrop-filter: blur(18px); border-radius: 999px; padding: 4px; gap: 2px; width: fit-content; }
 button[data-variant="segmented_control"] { border: 0 !important; border-radius: 999px !important; background: transparent;
   transition: background var(--t-ui) var(--ease-out), color var(--t-ui); }
 button[data-variant="segmented_control"][aria-checked="true"] { background: var(--ink) !important; }
@@ -138,9 +148,9 @@ button[data-variant="segmented_control"][aria-checked="true"] p { color: #fff !i
 
 /* ---------- pushable buttons (uiverse-like, kept elegant) ---------- */
 [data-testid="stBaseButton-primary"], [data-testid="stBaseButton-secondary"] {
-  --face: var(--surface); --depth: var(--edge);
+  --face: rgba(251,250,248,.85); --depth: var(--edge);
   position: relative; overflow: hidden; border: 0 !important; border-radius: 999px !important;
-  background: var(--face) !important; color: var(--ink) !important; padding: .62rem 1.35rem !important;
+  background: var(--face) !important; color: var(--ink) !important; backdrop-filter: blur(12px); padding: .62rem 1.35rem !important;
   box-shadow: 0 4px 0 var(--depth), inset 0 1px 0 rgba(255,255,255,.8) !important;
   transform: translateY(0); transition: transform var(--t-press) var(--ease-out), box-shadow var(--t-press) var(--ease-out);
 }
@@ -225,7 +235,7 @@ HERO_HTML = """<!doctype html><html><head><meta charset="utf-8">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..600&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
-html,body{margin:0;height:100%;overflow:hidden;background:#EFEEEA;font-family:Geist,system-ui,sans-serif;color:#17171A;
+html,body{margin:0;height:100%;overflow:hidden;background:transparent;font-family:Geist,system-ui,sans-serif;color:#17171A;
   font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
 .wrap{position:absolute;inset:0;border-radius:30px;overflow:hidden}
 canvas{position:absolute;inset:0;width:100%;height:100%}
@@ -287,4 +297,78 @@ def hero(title: str, kicker: str, stats: list[tuple[str, str]], palette: tuple[s
         f"<div class='l'>{escape(label)}</div></div>" for i, (label, v) in enumerate(stats))
     html = (HERO_HTML.replace("GRAIN", _GRAIN).replace("KICKER", escape(kicker)).replace("TITLE", escape(title))
             .replace("STATS", stat_html).replace("COLORS", json.dumps(list(palette))))
-    components.html(html, height=height)
+    st.iframe(html, height=height)
+
+
+# --- living background ----------------------------------------------------------------------
+
+PAGE_PALETTES = {
+    "": ("#CBD2F6", "#F6D2BF", "#DCCFF2", "#C7E8D8"),
+    "explore": ("#DCCFF2", "#F3CFDD", "#CBD2F6", "#F4E6B9"),
+    "tops": ("#F6D2BF", "#F4E6B9", "#F3CFDD", "#DCCFF2"),
+    "evolution": ("#C7E8D8", "#CBD2F6", "#F4E6B9", "#F6D2BF"),
+    "habits": ("#F4E6B9", "#F6D2BF", "#C7E8D8", "#CBD2F6"),
+    "discoveries": ("#F3CFDD", "#DCCFF2", "#C7E8D8", "#F4E6B9"),
+    "wrapped": ("#F6D2BF", "#DCCFF2", "#CBD2F6", "#F4E6B9"),
+    "library": ("#C7E8D8", "#F4E6B9", "#CBD2F6", "#F3CFDD"),
+}
+DEFAULT_PALETTE = ("#D6DAF2", "#E9DCEF", "#DDEBE4", "#F1E3D6")
+
+BG_JS = """
+<script>
+(() => {
+  const target = PALETTE.map(h => [1,3,5].map(i => parseInt(h.slice(i, i + 2), 16) / 255));
+  if (window.__dsbg) { window.__dsbg.set(target); return; }
+  const cv = document.createElement('canvas'); cv.id = 'ds-bg'; document.body.prepend(cv);
+  const gl = cv.getContext('webgl', {antialias: false, premultipliedAlpha: false});
+  const still = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let cur = target.map(c => c.slice()), from = cur, to = target, mixT = 1;
+  const css = () => { const c = cur.map(v => `rgb(${v.map(x => Math.round(x * 255)).join(',')})`);
+    cv.style.background = `radial-gradient(70% 90% at 12% 18%, ${c[0]}, transparent 62%), radial-gradient(70% 90% at 88% 24%, ${c[1]}, transparent 62%), radial-gradient(80% 90% at 30% 92%, ${c[2]}, transparent 62%), radial-gradient(80% 90% at 82% 88%, ${c[3]}, transparent 62%), #EFEEEA`; };
+  window.__dsbg = { set(p) { from = cur.map(c => c.slice()); to = p; mixT = 0; if (!gl) { cur = p; css(); } } };
+  if (!gl) { css(); return; }
+  const fs = `precision mediump float;uniform vec2 r;uniform float t;uniform vec3 a,b,c,d;
+  float h(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
+  float n(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(h(i),h(i+vec2(1,0)),f.x),mix(h(i+vec2(0,1)),h(i+vec2(1,1)),f.x),f.y);}
+  float fbm(vec2 p){float v=0.,w=.5;for(int k=0;k<4;k++){v+=w*n(p);p*=2.03;w*=.5;}return v;}
+  void main(){vec2 uv=gl_FragCoord.xy/r;vec2 q=uv*vec2(r.x/r.y,1.)*1.6;float s=t*.035;
+  float f1=fbm(q+vec2(s,-s*.6));float f2=fbm(q*1.3+vec2(-s*.7,s*.4)+f1);float f3=fbm(q*.8+vec2(s*.2,s)+f2*.8);
+  vec3 col=mix(a,b,smoothstep(.25,.75,f1));col=mix(col,c,smoothstep(.3,.8,f2)*.8);col=mix(col,d,smoothstep(.35,.85,f3)*.65);
+  col=mix(col,vec3(.937,.933,.918),.28);gl_FragColor=vec4(col,1.);}`;
+  const sh = (ty, src) => { const o = gl.createShader(ty); gl.shaderSource(o, src); gl.compileShader(o); return o; };
+  const pr = gl.createProgram(); gl.attachShader(pr, sh(gl.VERTEX_SHADER, 'attribute vec2 p;void main(){gl_Position=vec4(p,0.,1.);}'));
+  gl.attachShader(pr, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(pr); gl.useProgram(pr);
+  gl.bindBuffer(gl.ARRAY_BUFFER, gl.createBuffer());
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(pr, 'p'); gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  const U = n => gl.getUniformLocation(pr, n), ur = U('r'), ut = U('t'), uc = ['a','b','c','d'].map(U);
+  const fit = () => { cv.width = Math.ceil(innerWidth / 4); cv.height = Math.ceil(innerHeight / 4);
+    gl.viewport(0, 0, cv.width, cv.height); gl.uniform2f(ur, cv.width, cv.height); };
+  addEventListener('resize', fit); fit();
+  let last = 0; const t0 = performance.now();
+  const frame = now => {
+    if (!document.hidden && now - last > 50) {
+      last = now;
+      if (mixT < 1) { mixT = Math.min(1, mixT + 0.04); const e = 1 - Math.pow(1 - mixT, 3);
+        cur = from.map((c, i) => c.map((v, j) => v + (to[i][j] - v) * e)); }
+      uc.forEach((u, i) => gl.uniform3fv(u, cur[i]));
+      gl.uniform1f(ut, still ? 20 : (now - t0) / 1000 + 20); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+    if (!still || mixT < 1) requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+  if (still) { uc.forEach((u, i) => gl.uniform3fv(u, cur[i])); gl.uniform1f(ut, 20); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); }
+})();
+</script>
+"""
+
+
+def background(page: str) -> None:
+    """Fixed, slowly flowing pastel gradient behind the whole app (one palette per page)."""
+    import base64
+
+    palette = PAGE_PALETTES.get(page, DEFAULT_PALETTE)
+    code = BG_JS.strip().removeprefix("<script>").removesuffix("</script>").replace("PALETTE", json.dumps(list(palette)))
+    # Base64 keeps Streamlit's HTML sanitizer from mangling GLSL comparisons such as "k<4".
+    encoded = base64.b64encode(code.encode("utf-8")).decode("ascii")
+    st.html(f"<script>(0, eval)(atob('{encoded}'))</script>", unsafe_allow_javascript=True)

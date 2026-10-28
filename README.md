@@ -194,6 +194,16 @@ pytest
 
 ## 4. (Optionnel) Planifier la synchro en local
 
+**Le plus simple (macOS)** : double-clique sur **`Activer la synchro automatique.command`**.
+- La synchro tourne alors toutes les 30 minutes en arrière-plan, même app fermée, tant que le Mac est allumé.
+- Après une mise en veille, la synchro manquée est rattrapée au réveil.
+- Le journal de la synchro est dans `logs/autosync.log`.
+- Pour arrêter : `Désactiver la synchro automatique.command`.
+
+> ⚠️ Si le Mac reste éteint plus d'une journée pendant que tu écoutes beaucoup, des écoutes peuvent être perdues : Deezer ne garde que les 100 dernières. Pour ne rien perdre, même ordinateur éteint pendant un mois, il faut la synchro en ligne (étape 5).
+
+Les instructions manuelles ci-dessous restent valables (Windows, ou réglages personnalisés).
+
 Pour lancer la synchro toutes les 30 minutes, quand l'ordinateur est allumé. **La phase 2 est plus fiable** : si tu comptes la mettre en place bientôt, passe directement à l'étape 5.
 
 ### macOS (launchd)
@@ -487,7 +497,7 @@ tests/               pytest
 
 - **API non officielle.** L'app lit ton historique via l'API interne du lecteur web Deezer. Elle peut changer ou casser à tout moment (voir l'étape 7). Cet usage **n'est pas prévu par les conditions d'utilisation de Deezer** : utilise-la pour toi seul, avec modération (une requête toutes les 30 minutes).
 - **Fenêtre d'historique limitée par Deezer** aux 100 dernières écoutes : des pertes sont possibles si la synchro ne tourne pas assez souvent (ordinateur éteint en phase 1). Pour le passé, voir l'import de l'export Deezer ci-dessus.
-- **Durées d'écoute estimées**, voir plus haut. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
+- **Durées d'écoute estimées**, voir plus haut. Le seuil « titre passé » de la page Habitudes permet de repérer les écoutes très courtes. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
 - **Titres passés très vite** : il n'est pas encore confirmé que Deezer inscrive dans l'historique les titres passés au bout de quelques secondes.
   - Pour le vérifier : écoute un titre 5 secondes puis passe au suivant, lance `python -m scripts.sync`, puis regarde la page Historique.
   - Si le titre n'apparaît pas, c'est Deezer qui ne l'enregistre pas : aucun outil basé sur cet historique ne pourra le voir.

@@ -21,14 +21,15 @@ theme.hero(t("overview.hero_title"), f.label, [
 ])
 ui.estimated_note(df)
 
-freq = "D" if f.period in ("today", "7d", "30d") else ("W" if f.period in ("year", "custom") else "M")
+span_days = (df["played_local"].max() - df["played_local"].min()).days
+freq = "D" if span_days <= 45 else ("W" if span_days <= 400 else "M")
 theme.section(t("overview.activity"), t("overview.activity_kicker"))
 charts.show(charts.bar_timeline(stats.timeline(df, freq), "minutes", freq, t("common.minutes"), height=260), key="ov_tl")
 
 left, right = st.columns([5, 4], gap="large")
 with left:
     theme.section(t("overview.top_artists"), t("overview.by_plays"))
-    ui.cover_grid(stats.top(df, "artist", "plays", 6), "artist", ui.value_formatter("plays"), columns=3, key="ov_ar")
+    ui.cover_grid(stats.top(df, "artist", "plays", 8), "artist", ui.value_formatter("plays"), columns=4, key="ov_ar")
 with right:
     theme.section(t("overview.top_tracks"), t("overview.by_plays"))
     tracks = stats.top(df, "track", "plays", 8)
@@ -36,7 +37,8 @@ with right:
                             tracks["plays"], t("common.plays")), key="ov_tr")
 
 theme.section(t("overview.recent"), t("overview.recent_kicker"))
-recent = df.head(15)
+scoped, _ = data.scoped_plays("ov_recent")
+recent = scoped.head(15)
 st.dataframe(
     {
         t("common.time"): [fmt_datetime_short(x) for x in recent["played_local"]],

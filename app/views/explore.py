@@ -27,7 +27,8 @@ viz.cover_orbit(stats.top(df, "album", "plays", 64), t("common.plays_short"))
 
 theme.section(t("explore.constellation_title"), t("explore.constellation_kicker"))
 st.caption(t("explore.constellation_help"))
-viz.artist_constellation(df, t("common.plays_short"), t("common.other"))
+viz.artist_constellation(df, {"plays": t("common.plays_short"), "artists": t("common.artists").lower(),
+                              "other": t("common.other")})
 
 theme.section(t("explore.fingerprint_title"), t("explore.fingerprint_kicker"))
 st.caption(t("explore.fingerprint_help"))

@@ -69,15 +69,18 @@
     "period": "Period",
     "dates": "Dates",
     "min_duration": "Minimum listening time",
-    "min_duration_help": "Excludes plays shorter than this threshold (skipped tracks). Durations are often estimated: time until the next play, capped at the track length."
+    "min_duration_help": "Excludes plays shorter than this threshold (skipped tracks). Durations are often estimated: time until the next play, capped at the track length.",
+    "table_period": "Table period"
   },
   "period": {
     "today": "Today",
     "7d": "Last 7 days",
     "30d": "Last 30 days",
     "year": "This year",
-    "all": "All time",
-    "custom": "Custom dates"
+    "all": "Whole history",
+    "custom": "Custom dates",
+    "week": "This week",
+    "month": "This month"
   },
   "common": {
     "plays": "Plays",
@@ -169,7 +172,9 @@
     "no_skips": "No skipped track in this period.",
     "skips": "Skips",
     "skip_share": "% skipped",
-    "lead": "When you listen, how many days in a row, and what you skip the fastest."
+    "lead": "When you listen, how many days in a row, and what you skip the fastest.",
+    "calendar": "Your listening year",
+    "calendar_kicker": "Last 365 days · minutes per day"
   },
   "discoveries": {
     "title": "Discoveries",
@@ -357,10 +362,13 @@
     "orbit_help": "The most played albums are the biggest. Hover a cover to see its name.",
     "constellation_title": "The artist constellation",
     "constellation_kicker": "One particle per play",
-    "constellation_help": "Each cloud gathers one artist's plays, coloured by genre. Move the pointer to scatter the particles.",
+    "constellation_help": "Each territory is a genre; inside, each glowing cloud gathers one artist's plays. Hover a territory or a cloud; the pointer brushes the particles aside.",
     "fingerprint_title": "Listening fingerprint",
     "fingerprint_kicker": "Generative artwork",
     "fingerprint_help": "One ring per hour of the day, midnight in the centre, 11 pm outside. The more you listen at that hour, the more the ring waves; its colour is the dominant genre. Every period gives a unique print.",
     "download_svg": "Download the fingerprint (SVG)"
-  }
+  },
+  "chart_words": [
+    "avg"
+  ]
 }

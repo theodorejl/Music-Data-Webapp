@@ -6,8 +6,8 @@ from app.i18n import t
 from core import stats
 
 f = data.get_filters()
-df = data.filtered_plays()
 ui.header(t("tops.title"), f.label, lead=t("tops.lead"), dot="peach")
+df, period_label = data.scoped_plays("tops")
 
 if df.empty:
     ui.empty_state()
@@ -36,7 +36,7 @@ for tab, dim in zip(tabs, stats.DIMENSIONS):
             if unknown:
                 st.caption(t("tops.unknown_genre", n=unknown))
         elif view == "grid" and len(items) <= 100:
-            ui.cover_grid(items, kind, ui.value_formatter(metric), columns=5, key=f"tg_{dim}")
+            ui.cover_grid(items, kind, ui.value_formatter(metric), columns=8, key=f"tg_{dim}")
         else:
             ui.ranked_table(items, kind, key=f"tl_{dim}_{metric}_{n}")
         export = pd.DataFrame({
@@ -48,7 +48,7 @@ for tab, dim in zip(tabs, stats.DIMENSIONS):
                     "genre": t("common.genres")}[dim]
         c_xl, c_csv = st.columns([1, 1])
         with c_xl:
-            ui.excel_download(export, f"top_{dim}_{metric}.xlsx", tab_name, f"{t('tops.title')} — {tab_name} ({f.label})",
+            ui.excel_download(export, f"top_{dim}_{metric}.xlsx", tab_name, f"{t('tops.title')} — {tab_name} ({period_label})",
                               key=f"xl_{dim}", formats={"#": "int", t("common.plays"): "int", t("common.minutes"): "dec"})
         with c_csv:
             ui.csv_download(export, f"top_{dim}_{metric}.csv", key=f"dl_{dim}")

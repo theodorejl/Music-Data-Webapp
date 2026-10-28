@@ -29,7 +29,18 @@ ui.kpi_row([
 theme.section(t("habits.heatmap"))
 metric = st.segmented_control(t("tops.metric"), ["plays", "minutes"], default="plays", required=True,
                               format_func=lambda m: t(f"common.{m}"), key="hb_metric", label_visibility="collapsed")
-charts.show(charts.heatmap_chart(stats.heatmap(df, metric), t(f"common.{metric}")), key="hb_heat")
+h_left, h_right = st.columns([3, 2], gap="large")
+with h_left:
+    charts.show(charts.heatmap_chart(stats.heatmap(df, metric), t(f"common.{metric}")), key="hb_heat")
+with h_right:
+    by_hour = (df.groupby(df["played_local"].dt.hour)["minutes"].sum() if metric == "minutes"
+               else df.groupby(df["played_local"].dt.hour).size())
+    charts.show(charts.polar_clock(by_hour, t(f"common.{metric}"), height=320), key="hb_clock")
+
+theme.section(t("habits.calendar"), t("habits.calendar_kicker"))
+everything = data.all_plays()
+daily = everything.groupby(everything["played_local"].dt.date)["minutes"].sum()
+charts.show(charts.calendar(daily, t("common.minutes")), key="hb_cal")
 
 left, right = st.columns(2, gap="large")
 with left:
@@ -38,7 +49,8 @@ with left:
     charts.show(charts.hbar(tl("weekdays"), wd.round(0).tolist(), t("common.minutes")), key="hb_wd")
 with right:
     theme.section(t("habits.most_skipped"))
-    ms = stats.most_skipped(all_period, threshold, 10)
+    skip_scope, _ = data.scoped_plays("hb_skip")
+    ms = stats.most_skipped(skip_scope, threshold, 10)
     if ms.empty:
         ui.empty_state(t("habits.no_skips"))
     else:

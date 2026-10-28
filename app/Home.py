@@ -48,6 +48,7 @@ nav = st.navigation({
     t("nav.section_settings"): [pages["admin"]],
 }, expanded=True)
 
+theme.background(nav.url_path)
 st.session_state["filters"] = data.sidebar_filters()
 try:
     ui.sync_status(data.sync_runs(), len(data.all_plays()), data.timezone_name())

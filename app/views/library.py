@@ -88,7 +88,7 @@ with tab_albums:
         view = c2.segmented_control(t("tops.view"), ["list", "grid"], default="list", required=True,
                                     format_func=lambda v: t(f"tops.view_{v}"), key="lib_view")
         query = c3.text_input(t("history.search"), key="lib_q", placeholder=t("library.search_placeholder"))
-        shown = sorted_favorites(order)
+        shown = data.scope_frame(sorted_favorites(order), "lib_fav", "added_at")
         if query.strip():
             q = query.strip().casefold()
             shown = shown[shown["title"].str.casefold().str.contains(q, regex=False)
@@ -117,7 +117,7 @@ with tab_albums:
                 ui.open_detail("album", shown.iloc[event.selection.rows[0]]["album_id"])
             st.caption(t("common.click_row"))
         else:
-            per_page = 40
+            per_page = 48
             pages = max(1, math.ceil(len(shown) / per_page))
             page = st.number_input(t("history.page", total=pages), 1, pages, 1, key="lib_grid_page") if pages > 1 else 1
             chunk = shown.iloc[(page - 1) * per_page: page * per_page]
@@ -128,7 +128,7 @@ with tab_albums:
                 "plays": chunk["plays"].values, "minutes": chunk["minutes"].values,
                 "release": [release_text(v) for v in chunk["release_date"]],
             })
-            ui.cover_grid(grid, "album", lambda row: row.release, columns=5, key="lib_grid")
+            ui.cover_grid(grid, "album", lambda row: row.release, columns=8, key="lib_grid")
 
 # --- playlists ---------------------------------------------------------------------------
 
@@ -146,6 +146,7 @@ with tab_playlists:
         kind = st.segmented_control(t("library.show"), ["all", "own", "fav"], default="all", required=True,
                                     format_func=lambda k: t(f"library.show_{k}"), key="pl_kind")
         shown = pls if kind == "all" else pls[pls["is_own"].astype(bool) == (kind == "own")]
+        shown = data.scope_frame(shown, "pl_list", "added_at")
 
         left, right = st.columns(2, gap="large")
         with left:

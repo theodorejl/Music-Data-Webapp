@@ -345,7 +345,7 @@ def run_sync(engine: Engine, source: HistorySource, enrich: bool = True,
         run.gap_warning, run.gap_start, run.gap_end = result.gap_warning, result.gap_start, result.gap_end
         run.finished_at, run.duration_s = utcnow(), time.monotonic() - t0
         session.commit()
-    log.info("Fetched %d plays, inserted %d new", result.fetched, result.inserted)
+    log.info("Deezer window: %d most recent plays read, %d new stored", result.fetched, result.inserted)
 
     if enrich:
         run_enrichment(engine, enrich_budget)

@@ -41,11 +41,13 @@ theme.section(t("detail.listening_curve"))
 charts.show(charts.bar_timeline(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), height=220), key="tr_curve")
 
 theme.section(t("detail.all_plays"))
+p_start, p_end, _ = data.period_pills("tr_plays")
+plays_scope = stats.filter_frame(mine, p_start, p_end)
 st.dataframe(
     {
-        t("common.time"): [fmt_datetime_short(x) for x in mine["played_local"]],
+        t("common.time"): [fmt_datetime_short(x) for x in plays_scope["played_local"]],
         t("common.listened"): [fmt_seconds(s) + ("*" if e else "") for s, e in
-                               zip(mine["listened_seconds"], mine["duration_is_estimated"])],
+                               zip(plays_scope["listened_seconds"], plays_scope["duration_is_estimated"])],
     },
     hide_index=True,
 )

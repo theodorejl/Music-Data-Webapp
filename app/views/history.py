@@ -9,8 +9,8 @@ from core import stats
 PAGE_SIZE = 50
 
 f = data.get_filters()
-df = data.filtered_plays()
 ui.header(t("history.title"), f.label, lead=t("history.lead"))
+df, _ = data.scoped_plays("history")
 
 if df.empty:
     ui.empty_state()

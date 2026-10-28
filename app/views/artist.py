@@ -45,7 +45,8 @@ charts.show(charts.bar_timeline(stats.timeline(mine, "M"), "plays", "M", t("comm
 left, right = st.columns(2, gap="large")
 with left:
     theme.section(t("detail.favorite_tracks"))
-    tracks = stats.top(mine, "track", "plays", 10)
+    t_start, t_end, _ = data.period_pills("ar_tracks")
+    tracks = stats.top(stats.filter_frame(mine, t_start, t_end), "track", "plays", 10)
     ui.ranked_table(tracks, "track", key=f"ar_tracks_{artist_id}")
 with right:
     theme.section(t("detail.favorite_albums"))

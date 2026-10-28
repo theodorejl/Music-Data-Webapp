@@ -69,15 +69,18 @@
     "period": "Période",
     "dates": "Dates",
     "min_duration": "Durée d'écoute minimale",
-    "min_duration_help": "Exclut les écoutes plus courtes que ce seuil (titres passés). La durée est souvent estimée : temps jusqu'au titre suivant, plafonné à la durée du morceau."
+    "min_duration_help": "Exclut les écoutes plus courtes que ce seuil (titres passés). La durée est souvent estimée : temps jusqu'au titre suivant, plafonné à la durée du morceau.",
+    "table_period": "Période du tableau"
   },
   "period": {
     "today": "Aujourd'hui",
     "7d": "7 derniers jours",
     "30d": "30 derniers jours",
     "year": "Cette année",
-    "all": "Depuis le début",
-    "custom": "Dates libres"
+    "all": "Tout l'historique",
+    "custom": "Dates libres",
+    "week": "Cette semaine",
+    "month": "Ce mois-ci"
   },
   "common": {
     "plays": "Écoutes",
@@ -169,7 +172,9 @@
     "no_skips": "Aucun titre passé sur la période.",
     "skips": "Passés",
     "skip_share": "% passé",
-    "lead": "Quand tu écoutes, combien de jours d'affilée, et ce que tu passes le plus vite."
+    "lead": "Quand tu écoutes, combien de jours d'affilée, et ce que tu passes le plus vite.",
+    "calendar": "Ton année d'écoute",
+    "calendar_kicker": "365 derniers jours · minutes par jour"
   },
   "discoveries": {
     "title": "Découvertes",
@@ -357,10 +362,13 @@
     "orbit_help": "Les albums les plus écoutés sont les plus grands. Survole une pochette pour voir son nom.",
     "constellation_title": "La constellation d'artistes",
     "constellation_kicker": "Une particule par écoute",
-    "constellation_help": "Chaque nuage rassemble les écoutes d'un artiste, coloré par son genre. Passe la souris pour disperser les particules.",
+    "constellation_help": "Chaque territoire est un genre ; à l'intérieur, chaque nuage lumineux rassemble les écoutes d'un artiste. Survole un territoire ou un nuage ; la souris effleure les particules.",
     "fingerprint_title": "Empreinte sonore",
     "fingerprint_kicker": "Œuvre générative",
     "fingerprint_help": "Un anneau par heure de la journée, de minuit au centre à 23 h à l'extérieur. Plus tu écoutes à cette heure-là, plus l'anneau ondule ; sa couleur est le genre dominant. Chaque période donne une empreinte unique.",
     "download_svg": "Télécharger l'empreinte (SVG)"
-  }
+  },
+  "chart_words": [
+    "moy."
+  ]
 }

@@ -72,7 +72,9 @@ def main(argv: list[str] | None = None) -> int:
         run_enrichment(engine, args.enrich_budget)
     write_excel(engine, args, settings)
 
-    print(f"OK: {result.fetched} plays fetched, {result.inserted} new.")
+    # Deezer only exposes the most recent plays (100): "read" is that window, not a limit of the app.
+    print(f"OK: read Deezer's {result.fetched} most recent plays (the window Deezer exposes); "
+          f"{result.inserted} new stored, {result.fetched - result.inserted} already in the database.")
     if result.gap_warning:
         print(f"WARNING: {result.gap_warning}")
     return 0

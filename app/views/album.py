@@ -50,7 +50,8 @@ with c_txt:
     ])
 
 theme.section(t("detail.album_tracks"))
-tracks = stats.top(mine, "track", "plays", 100)
+t_start, t_end, _ = data.period_pills("al_tracks")
+tracks = stats.top(stats.filter_frame(mine, t_start, t_end), "track", "plays", 100)
 ui.ranked_table(tracks, "track", key=f"al_tracks_{album_id}")
 
 theme.section(t("detail.listening_curve"))
