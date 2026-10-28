@@ -29,10 +29,10 @@ secondaryBackgroundColor = "#ffffff"
 
 [server]
 headless = true
-# Apply code changes without restarting: the page reruns as soon as a file is saved.
-runOnSave = true
-fileWatcherType = "auto"
-folderWatchBlacklist = [".venv", "data", "logs", "Exports Excel", "tests", ".git"]
+# Code edits are picked up by app/devreload.py (whole-project reload in the script thread);
+# Streamlit's own watcher is off because it races with imports and leaves the page broken.
+# Settings and library changes are handled by scripts/dev_server.py, which restarts the app.
+fileWatcherType = "none"
 
 [browser]
 gatherUsageStats = false
