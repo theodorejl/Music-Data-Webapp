@@ -1,0 +1,53 @@
+# Collects recent Deezer plays every 30 minutes and writes them to Postgres (Neon).
+# Secrets (Settings > Secrets and variables > Actions): DEEZER_ARL, DATABASE_URL.
+# Optional variable: MUSICBRAINZ_CONTACT (an email or URL for the MusicBrainz User-Agent).
+#
+# Notes:
+# - GitHub cron runs are often delayed by a few minutes (sometimes more at busy times).
+#   The Deezer history keeps the last 100 plays, so a delayed run loses nothing.
+# - Each run takes ~1 minute (billed per started minute). 48 runs/day ≈ 1,450 min/month:
+#   unlimited on a public repo, within the 2,000 free min/month of a private repo.
+# - On public repos, GitHub disables scheduled workflows after 60 days without any
+#   commit; it emails you first. Re-enable in the Actions tab (or push any commit).
+
+name: Deezer sync
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deezer-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Sync Deezer history
+        run: python -m scripts.sync --enrich-budget 60
+        env:
+          DEEZER_ARL: ${{ secrets.DEEZER_ARL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          MUSICBRAINZ_CONTACT: ${{ vars.MUSICBRAINZ_CONTACT }}
+
+      - name: Keep unexpected Deezer responses for debugging
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sync-logs
+          path: logs/
+          if-no-files-found: ignore
+          retention-days: 7
