@@ -1,15 +1,23 @@
-"""Monthly / yearly recap. The URL (?y=2026&m=10&lang=fr) can be shared as is."""
+"""Daily / weekly / monthly / yearly recap.
 
+The URL can be shared as is: ?d=2026-10-28, ?w=2026-10-26 (Monday), ?y=2026&m=10 or ?y=2026,
+plus &lang=fr|en.
+"""
+
+from datetime import timedelta
 from html import escape
 
 import pandas as pd
 import streamlit as st
 
 from app.components import charts, data, ui
-from app.i18n import fmt_date, fmt_duration, fmt_int, fmt_month, get_lang, t
+from app.i18n import fmt_date, fmt_duration, fmt_int, fmt_month, fmt_plays, get_lang, t
 from core import stats
 
+MODES = ["day", "week", "month", "year"]
+
 f = data.get_filters()
+tz = data.timezone_name()
 everything = stats.filter_frame(data.all_plays(), min_seconds=f.min_seconds)
 ui.header(t("wrapped.title"))
 if everything.empty:
@@ -17,31 +25,62 @@ if everything.empty:
     st.stop()
 
 local = everything["played_local"]
-months = sorted({(d.year, d.month) for d in local}, reverse=True)
+days = sorted(set(local.dt.date), reverse=True)
+weeks = sorted({d - timedelta(days=d.weekday()) for d in days}, reverse=True)
+months = sorted({(d.year, d.month) for d in days}, reverse=True)
 years = sorted({y for y, _ in months}, reverse=True)
 
 qp = st.query_params
-default_mode = "month" if qp.get("m") else ("year" if qp.get("y") else "month")
-c1, c2 = st.columns([1, 2])
-mode = c1.segmented_control(t("wrapped.mode"), ["month", "year"], default=default_mode, required=True,
+default_mode = "day" if qp.get("d") else "week" if qp.get("w") else "month" if qp.get("m") else "year" if qp.get("y") else "week"
+c1, c2 = st.columns([3, 2])
+mode = c1.segmented_control(t("wrapped.mode"), MODES, default=default_mode, required=True,
                             format_func=lambda m: t(f"wrapped.{m}"), key="wr_mode")
-if mode == "month":
+
+
+def _parse_date(value):
+    try:
+        return pd.Timestamp(value).date()
+    except (TypeError, ValueError):
+        return None
+
+
+keep = {"day": {"d"}, "week": {"w"}, "month": {"y", "m"}, "year": {"y"}}[mode]
+for key in ("d", "w", "m", "y"):  # keep only the parameters of the current mode
+    if key in qp and key not in keep:
+        del qp[key]
+
+if mode == "day":
+    wanted = _parse_date(qp.get("d"))
+    day = c2.selectbox(t("wrapped.pick_day"), days, index=days.index(wanted) if wanted in days else 0,
+                       format_func=fmt_date, key="wr_day")
+    start = pd.Timestamp(day).tz_localize(tz)
+    end = pd.Timestamp(day + timedelta(days=1)).tz_localize(tz)
+    period_name = fmt_date(day)
+    qp.update({"d": day.isoformat(), "lang": get_lang()})
+elif mode == "week":
+    wanted = _parse_date(qp.get("w"))
+    monday = c2.selectbox(t("wrapped.pick_week"), weeks, index=weeks.index(wanted) if wanted in weeks else 0,
+                          format_func=lambda d: t("wrapped.week_of", date=fmt_date(d)), key="wr_week")
+    start = pd.Timestamp(monday).tz_localize(tz)
+    end = pd.Timestamp(monday + timedelta(days=7)).tz_localize(tz)
+    period_name = t("wrapped.week_period", date=fmt_date(monday))
+    qp.update({"w": monday.isoformat(), "lang": get_lang()})
+elif mode == "month":
     wanted = (int(qp.get("y", 0) or 0), int(qp.get("m", 0) or 0))
-    idx = months.index(wanted) if wanted in months else 0
-    year, month = c2.selectbox(t("wrapped.month"), months, index=idx, key="wr_month",
-                               format_func=lambda ym: fmt_month(pd.Timestamp(year=ym[0], month=ym[1], day=1)))
-    start = pd.Timestamp(year=year, month=month, day=1, tz=data.timezone_name())
+    year, month = c2.selectbox(t("wrapped.month"), months, index=months.index(wanted) if wanted in months else 0,
+                               format_func=lambda ym: fmt_month(pd.Timestamp(year=ym[0], month=ym[1], day=1)),
+                               key="wr_month")
+    start = pd.Timestamp(year=year, month=month, day=1, tz=tz)
     end = start + pd.offsets.MonthBegin(1)
     period_name = fmt_month(start)
     qp.update({"y": str(year), "m": str(month), "lang": get_lang()})
 else:
     wanted_y = int(qp.get("y", 0) or 0)
-    year = c2.selectbox(t("wrapped.year"), years, index=years.index(wanted_y) if wanted_y in years else 0, key="wr_year")
-    start = pd.Timestamp(year=year, month=1, day=1, tz=data.timezone_name())
-    end = pd.Timestamp(year=year + 1, month=1, day=1, tz=data.timezone_name())
+    year = c2.selectbox(t("wrapped.year"), years, index=years.index(wanted_y) if wanted_y in years else 0,
+                        key="wr_year")
+    start = pd.Timestamp(year=year, month=1, day=1, tz=tz)
+    end = pd.Timestamp(year=year + 1, month=1, day=1, tz=tz)
     period_name = str(year)
-    if "m" in qp:
-        del qp["m"]
     qp.update({"y": str(year), "lang": get_lang()})
 
 df = stats.filter_frame(everything, start, end)
@@ -80,7 +119,7 @@ with c_txt:
     facts = []
     if not top_genre.empty:
         facts.append(t("wrapped.top_genre", genre=top_genre.iloc[0]["label"]))
-    if busiest:
+    if busiest and mode != "day":
         facts.append(t("wrapped.busiest_day", date=fmt_date(busiest[0]), time=fmt_duration(busiest[1])))
     facts.append(t("wrapped.fav_hour", hour=fav_hour))
     for fact in facts:
@@ -94,12 +133,21 @@ with left:
         a, b = st.columns([1, 5], vertical_alignment="center")
         if isinstance(row.image, str):
             a.image(row.image, width="stretch")
-        b.markdown(f"**{row.rank}. {row.label}**  \n{row.sublabel} · {fmt_int(row.plays)} {t('common.plays_short')}")
+        b.markdown(f"**{row.rank}. {row.label}**  \n{row.sublabel} · {fmt_plays(row.plays)}")
 with right:
     st.subheader(t("wrapped.top_albums"))
     ui.cover_grid(stats.top(df, "album", "plays", 6), "album", ui.value_formatter("plays"), columns=3, key="wr_al")
 
-freq = "D" if mode == "month" else "M"
 st.subheader(t("wrapped.rhythm"))
-charts.show(charts.bar_timeline(stats.timeline(df, freq), "minutes", freq, t("common.minutes"), height=220), key="wr_tl")
+if mode == "day":
+    per_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum().reindex(range(24), fill_value=0)
+    charts.show(charts.bar_categories([f"{h}h" for h in per_hour.index], per_hour.round(0).tolist(),
+                                      t("common.minutes"), height=220), key="wr_tl")
+else:
+    freq = "M" if mode == "year" else "D"
+    tl = stats.timeline(df, freq)
+    if mode == "week":  # always show the 7 days, even silent ones
+        full = pd.date_range(start.tz_localize(None), periods=7, freq="D")
+        tl = tl.set_index("period").reindex(full, fill_value=0).rename_axis("period").reset_index()
+    charts.show(charts.bar_timeline(tl, "minutes", freq, t("common.minutes"), height=220), key="wr_tl")
 st.caption(t("wrapped.share_hint"))

@@ -1,8 +1,50 @@
 {
-  "months": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
-  "months_short": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
-  "weekdays": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
-  "weekdays_short": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+  "months": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ],
+  "months_short": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "weekdays": [
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday"
+  ],
+  "weekdays_short": [
+    "Mon",
+    "Tue",
+    "Wed",
+    "Thu",
+    "Fri",
+    "Sat",
+    "Sun"
+  ],
   "nav": {
     "section_stats": "Statistics",
     "section_library": "Library",
@@ -58,7 +100,8 @@
     "download_csv": "Download CSV",
     "open_page": "Open page",
     "click_row": "Click a row to open its page",
-    "db_error": "Cannot read the database ({error}). Check DATABASE_URL."
+    "db_error": "Cannot read the database ({error}). Check DATABASE_URL.",
+    "play_short": "play"
   },
   "status": {
     "never": "No sync yet.",
@@ -170,7 +213,13 @@
     "top_tracks": "Top tracks",
     "top_albums": "Top albums",
     "rhythm": "Listening rhythm",
-    "share_hint": "To share this recap, copy the page address: it contains the period and the language."
+    "share_hint": "To share this recap, copy the page address: it contains the period and the language.",
+    "day": "Day",
+    "week": "Week",
+    "pick_day": "Day",
+    "pick_week": "Week",
+    "week_of": "Week of {date}",
+    "week_period": "week of {date}"
   },
   "admin": {
     "title": "Corrections",

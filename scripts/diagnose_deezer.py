@@ -31,7 +31,16 @@ def main() -> int:
     except DeezerAuthError as exc:
         print("Cookie problem:", redact(exc))
         return 1
-    print(f"Logged in. USER_ID={client.user_id}\n")
+    print(f"Logged in as profile '{client.profile_name}' (USER_ID={client.user_id})")
+    profiles = client.call("deezer.getChildAccounts", {}).get("results") or []
+    if isinstance(profiles, list) and profiles:
+        print("Profiles on this account (set DEEZER_PROFILE to one of these names):")
+        for p in profiles:
+            print(f"  - {p.get('BLOG_NAME')}  (id {p.get('USER_ID')})")
+    if client.profile:
+        client.switch_profile(client.profile)
+        print(f"Switched to profile '{client.profile_name}' (DEEZER_PROFILE)")
+    print()
     for method, body in CANDIDATES:
         data = client.call(method, body(client.user_id))
         path = settings.log_dir / f"diagnose_{method}.json"

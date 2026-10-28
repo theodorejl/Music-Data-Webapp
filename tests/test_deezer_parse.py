@@ -44,3 +44,13 @@ def test_unexpected_responses_raise(bad):
 def test_item_without_timestamp_raises():
     with pytest.raises(DeezerAPIError):
         parse_history({"error": [], "results": {"data": [{"SNG_ID": "1"}]}})
+
+
+def test_pick_profile_by_name_or_id():
+    from core.deezer_gw import DeezerAuthError, pick_profile
+
+    accounts = [{"USER_ID": "1", "BLOG_NAME": "JL"}, {"USER_ID": "4601629902", "BLOG_NAME": "TBTC"}]
+    assert pick_profile(accounts, "tbtc")["USER_ID"] == "4601629902"
+    assert pick_profile(accounts, "4601629902")["BLOG_NAME"] == "TBTC"
+    with pytest.raises(DeezerAuthError, match="Available profiles: JL"):
+        pick_profile(accounts, "Inconnu")

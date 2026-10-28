@@ -9,6 +9,11 @@ Confirmed on 2026-10-28:
     SNG_ID and TS (unix timestamp of the play start). Capped at 100 entries,
     no pagination beyond that, no "listened duration" field.
   * `deezer.pageProfile` (tab=history) returns the same items: kept as fallback.
+  * The history belongs to the *logged-in profile*. With a Family offer, the arl
+    cookie opens the main profile; switching to another profile is done like the
+    web player does: `deezer.getChildAccounts` (list) -> `user.loginMulti`
+    {account_id} -> `deezer.userAutolog`. Passing another USER_ID to
+    `user.getSongsHistory` is silently ignored.
 """
 
 from __future__ import annotations
@@ -139,6 +144,19 @@ def extract_history_items(response: dict) -> list[dict]:
     raise DeezerAPIError("unknown history response shape")
 
 
+def pick_profile(accounts: list[dict], wanted: str) -> dict:
+    """Find a Family profile by id or by name (case-insensitive)."""
+    wanted = str(wanted).strip()
+    for acc in accounts:
+        if str(acc.get("USER_ID")) == wanted:
+            return acc
+    for acc in accounts:
+        if (acc.get("BLOG_NAME") or "").strip().casefold() == wanted.casefold():
+            return acc
+    names = ", ".join(f"{a.get('BLOG_NAME')} ({a.get('USER_ID')})" for a in accounts)
+    raise DeezerAuthError(f"Deezer profile '{wanted}' not found. Available profiles: {names}")
+
+
 def parse_history(response: dict) -> list[PlayRecord]:
     return [parse_history_item(item) for item in extract_history_items(response)]
 
@@ -146,8 +164,11 @@ def parse_history(response: dict) -> list[PlayRecord]:
 # --- HTTP client --------------------------------------------------------------
 
 class DeezerGatewayClient:
-    def __init__(self, arl: str | None = None, timeout: float = 20.0, max_retries: int = 4):
-        arl = arl or get_settings().deezer_arl
+    def __init__(self, arl: str | None = None, timeout: float = 20.0, max_retries: int = 4,
+                 profile: str | None = None):
+        settings = get_settings()
+        arl = arl or settings.deezer_arl
+        self.profile = profile if profile is not None else settings.deezer_profile
         if not arl:
             raise DeezerAuthError(
                 "DEEZER_ARL is not set. Put your arl cookie in .env (local) "
@@ -160,6 +181,7 @@ class DeezerGatewayClient:
         self._max_retries = max_retries
         self._api_token: str | None = None
         self.user_id: int | None = None
+        self.profile_name: str | None = None
 
     def _post(self, method: str, body: dict | None = None, api_token: str = "null") -> dict:
         params = {"method": method, "input": "3", "api_version": "1.0", "api_token": api_token}
@@ -207,7 +229,33 @@ class DeezerGatewayClient:
             )
         self.user_id = user_id
         self._api_token = results.get("checkForm")
-        log.info("Logged in to Deezer (user id %s)", user_id)
+        self.profile_name = user.get("BLOG_NAME")
+        log.info("Logged in to Deezer (profile %s, id %s)", self.profile_name, user_id)
+
+    def switch_profile(self, wanted: str) -> None:
+        """Switch the session to another profile of a Family account."""
+        if self._api_token is None:
+            self.login()
+        data = self.call("deezer.getChildAccounts", {})
+        accounts = data.get("results")
+        if not isinstance(accounts, list):
+            save_raw_response("deezer.getChildAccounts", data)
+            raise DeezerAPIError("could not list the account's profiles")
+        target = pick_profile(accounts, wanted)
+        target_id = int(target["USER_ID"])
+        if target_id == self.user_id:
+            return
+        if not (target.get("EXTRA_FAMILY") or {}).get("IS_LOGGABLE_AS", True):
+            raise DeezerAuthError(f"Profile '{target.get('BLOG_NAME')}' cannot be opened from this account")
+        result = self.call("user.loginMulti", {"account_id": target_id})
+        if result.get("error"):
+            save_raw_response("user.loginMulti", result)
+            raise DeezerAPIError(f"user.loginMulti failed: {result.get('error')}")
+        self.call("deezer.userAutolog", {})
+        self._api_token = None
+        self.login()  # new session -> new api_token, and check we really switched
+        if self.user_id != target_id:
+            raise DeezerAPIError(f"profile switch did not happen (still on user {self.user_id})")
 
     def call(self, method: str, body: dict | None = None) -> dict:
         if self._api_token is None:
@@ -224,6 +272,8 @@ class DeezerGatewayClient:
         """Raw history response. Tries the confirmed method first, then the fallback."""
         if self.user_id is None:
             self.login()
+        if self.profile:
+            self.switch_profile(self.profile)
         attempts = [
             ("user.getSongsHistory", {"USER_ID": self.user_id, "nb": nb, "start": 0}),
             ("deezer.pageProfile", {"USER_ID": self.user_id, "tab": "history", "nb": nb}),

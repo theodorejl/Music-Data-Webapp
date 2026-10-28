@@ -65,6 +65,12 @@ def fmt_int(n) -> str:
     return s.replace(",", " ") if get_lang() == "fr" else s
 
 
+def fmt_plays(n) -> str:
+    """'1 écoute' / '12 écoutes' (singular/plural)."""
+    key = "common.play_short" if int(n) == 1 else "common.plays_short"
+    return f"{fmt_int(n)} {t(key)}"
+
+
 def fmt_num(x, decimals: int = 1) -> str:
     try:
         s = f"{float(x):,.{decimals}f}"

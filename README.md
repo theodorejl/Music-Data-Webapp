@@ -1,6 +1,6 @@
 # Deezer Stats
 
-Une alternative perso à Last.fm : l'app enregistre **toutes** tes écoutes Deezer, y compris celles que le scrobbling rate, et en tire des statistiques. Tu y trouveras tes tops artistes, albums, titres et genres, l'évolution dans le temps, tes habitudes d'écoute, tes découvertes, un récap mensuel ou annuel, l'historique complet et des extraits de 30 s.
+Une alternative perso à Last.fm : l'app enregistre **toutes** tes écoutes Deezer, y compris celles que le scrobbling rate, et en tire des statistiques. Tu y trouveras tes tops artistes, albums, titres et genres, l'évolution dans le temps, tes habitudes d'écoute, tes découvertes, un récap du jour, de la semaine, du mois ou de l'année, l'historique complet et des extraits de 30 s.
 
 - **Phase 1 (local)** : l'app tourne sur ton ordinateur, dans ton navigateur.
 - **Phase 2 (en ligne, gratuit)** : un robot GitHub relève tes écoutes toutes les 30 minutes, même ordinateur éteint, et les range dans une base Postgres (Neon). L'app est publiée sur Streamlit Community Cloud.
@@ -127,6 +127,16 @@ Sur **Firefox**, c'est l'onglet **Stockage > Cookies**. Sur **Safari**, active d
    ADMIN_PASSWORD=un_mot_de_passe_pour_la_page_corrections
    ```
 3. Enregistre. Le fichier `.env` est ignoré par git : il ne partira jamais sur GitHub.
+
+### Si ton compte a plusieurs profils (offre Family)
+
+Chaque profil Deezer a **son propre historique**, et le cookie ouvre toujours le profil principal. Pour suivre un autre profil, indique son nom dans `.env` :
+
+```
+DEEZER_PROFILE=TBTC
+```
+
+La synchro bascule alors sur ce profil, comme le fait le site quand tu changes de profil. Pour voir la liste des profils du compte : `python -m scripts.diagnose_deezer`.
 
 ---
 
@@ -280,7 +290,7 @@ Sur la page du dépôt GitHub : **Settings > Secrets and variables > Actions > N
 | `DEEZER_ARL` | ton cookie arl |
 | `DATABASE_URL` | la connection string Neon |
 
-Optionnel : dans l'onglet **Variables**, ajoute `MUSICBRAINZ_CONTACT`, avec ton e-mail ou l'URL du dépôt. MusicBrainz demande un moyen de contact dans le User-Agent.
+Dans l'onglet **Variables** (même page), ajoute `DEEZER_PROFILE` = `TBTC` (ton profil). Optionnel : ajoute aussi `MUSICBRAINZ_CONTACT`, avec ton e-mail ou l'URL du dépôt. MusicBrainz demande un moyen de contact dans le User-Agent.
 
 ### 5.5 Activer le robot de synchro
 
@@ -363,11 +373,12 @@ L'app utilise une API **non officielle** : Deezer peut la modifier sans préveni
 ### Ce que Deezer fournit (mesuré le 28/10/2026)
 
 - La méthode `user.getSongsHistory` renvoie les **100 dernières écoutes**, de la plus récente à la plus ancienne. Il n'y a pas de pagination au-delà.
-  - Sur ce compte, ces 100 écoutes couvraient environ **un mois** (du 29/09 au 28/10/2026).
+  - Ces 100 écoutes couvraient environ **29 heures** sur le profil TBTC, et environ un mois sur le profil principal, moins utilisé.
+- **L'historique est propre à chaque profil** d'un compte Family. La synchro change de profil avec `user.loginMulti` (réglage `DEEZER_PROFILE`).
   - Une écoute répétée du même titre apparaît bien plusieurs fois.
 - Chaque écoute a un horodatage (`TS`, le début de l'écoute) et la durée du **morceau**.
 - **Deezer ne donne pas le temps réellement écouté.**
-- **Fréquence choisie : toutes les 30 minutes.** Pour perdre des écoutes, il faudrait en enchaîner plus de 100 en 30 minutes, soit un titre toutes les 18 secondes.
+- **Fréquence choisie : toutes les 30 minutes.** Pour perdre des écoutes, il faudrait en enchaîner plus de 100 en 30 minutes, soit un titre toutes les 18 secondes. En revanche, **sur TBTC, une journée sans synchro suffit à perdre des écoutes** : d'où l'importance de la phase 2.
 - Si une synchro voit que les 100 écoutes reçues ne rejoignent pas les dernières déjà enregistrées, elle note un **« trou possible entre X et Y »**. Tu le vois discrètement dans la barre latérale de l'app.
 
 ### Durée d'écoute estimée

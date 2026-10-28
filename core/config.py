@@ -70,6 +70,7 @@ def normalize_database_url(url: str) -> str:
 class Settings:
     database_url: str
     deezer_arl: str | None
+    deezer_profile: str | None  # Family profile name or id; empty = main profile
     admin_password: str | None
     timezone: str
     history_window: int
@@ -81,6 +82,7 @@ def get_settings() -> Settings:
     return Settings(
         database_url=normalize_database_url(get_setting("DATABASE_URL", DEFAULT_SQLITE)),
         deezer_arl=get_setting("DEEZER_ARL"),
+        deezer_profile=get_setting("DEEZER_PROFILE"),
         admin_password=get_setting("ADMIN_PASSWORD"),
         timezone=get_setting("TIMEZONE", "Europe/Zurich"),
         # Maximum number of entries returned by Deezer's history (measured: 100).

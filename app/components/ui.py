@@ -7,7 +7,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from app.i18n import fmt_datetime_short, fmt_duration, fmt_int, t
+from app.i18n import fmt_datetime_short, fmt_duration, fmt_int, fmt_plays, t
 
 # Pages registry, filled by Home.py so components can link to detail pages.
 PAGES: dict[str, st.Page] = {}
@@ -123,7 +123,7 @@ def ranked_table(items: pd.DataFrame, kind: str | None, key: str) -> None:
 def value_formatter(metric: str):
     if metric == "minutes":
         return lambda row: fmt_duration(row.minutes)
-    return lambda row: f"{fmt_int(row.plays)} {t('common.plays_short')}"
+    return lambda row: fmt_plays(row.plays)
 
 
 def sync_status(runs: pd.DataFrame, total_plays: int, tz: str) -> None:

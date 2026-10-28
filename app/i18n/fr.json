@@ -1,8 +1,50 @@
 {
-  "months": ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"],
-  "months_short": ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."],
-  "weekdays": ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi", "Dimanche"],
-  "weekdays_short": ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"],
+  "months": [
+    "janvier",
+    "février",
+    "mars",
+    "avril",
+    "mai",
+    "juin",
+    "juillet",
+    "août",
+    "septembre",
+    "octobre",
+    "novembre",
+    "décembre"
+  ],
+  "months_short": [
+    "janv.",
+    "févr.",
+    "mars",
+    "avr.",
+    "mai",
+    "juin",
+    "juil.",
+    "août",
+    "sept.",
+    "oct.",
+    "nov.",
+    "déc."
+  ],
+  "weekdays": [
+    "Lundi",
+    "Mardi",
+    "Mercredi",
+    "Jeudi",
+    "Vendredi",
+    "Samedi",
+    "Dimanche"
+  ],
+  "weekdays_short": [
+    "Lun",
+    "Mar",
+    "Mer",
+    "Jeu",
+    "Ven",
+    "Sam",
+    "Dim"
+  ],
   "nav": {
     "section_stats": "Statistiques",
     "section_library": "Bibliothèque",
@@ -58,7 +100,8 @@
     "download_csv": "Télécharger en CSV",
     "open_page": "Ouvrir la fiche",
     "click_row": "Clique sur une ligne pour ouvrir sa fiche",
-    "db_error": "Impossible de lire la base de données ({error}). Vérifie DATABASE_URL."
+    "db_error": "Impossible de lire la base de données ({error}). Vérifie DATABASE_URL.",
+    "play_short": "écoute"
   },
   "status": {
     "never": "Aucune synchro pour l'instant.",
@@ -170,7 +213,13 @@
     "top_tracks": "Top titres",
     "top_albums": "Top albums",
     "rhythm": "Rythme d'écoute",
-    "share_hint": "Pour partager ce récap, copie l'adresse de la page : elle contient la période et la langue."
+    "share_hint": "Pour partager ce récap, copie l'adresse de la page : elle contient la période et la langue.",
+    "day": "Jour",
+    "week": "Semaine",
+    "pick_day": "Jour",
+    "pick_week": "Semaine",
+    "week_of": "Semaine du {date}",
+    "week_period": "semaine du {date}"
   },
   "admin": {
     "title": "Corrections",

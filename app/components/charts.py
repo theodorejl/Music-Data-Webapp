@@ -117,6 +117,15 @@ def stacked_share(df: pd.DataFrame, freq: str, other_label: str, height: int = 3
     return fig
 
 
+def bar_categories(labels: list[str], values: list[float], y_label: str, height: int = 260) -> go.Figure:
+    """Vertical bars on a category axis (e.g. hours of the day)."""
+    fig = style(go.Figure(), height)
+    fig.add_trace(go.Bar(x=labels, y=values, marker=dict(color=ACCENT, cornerradius=4),
+                         hovertemplate=f"%{{x}}<br>{y_label}: %{{y:,.0f}}<extra></extra>"))
+    fig.update_xaxes(type="category")
+    return fig
+
+
 def hbar(labels: list[str], values: list[float], value_label: str, height: int | None = None,
          fmt: str = ",.0f") -> go.Figure:
     """Horizontal ranked bars, biggest on top, values written at the end."""

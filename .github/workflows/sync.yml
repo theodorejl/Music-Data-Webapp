@@ -1,6 +1,7 @@
 # Collects recent Deezer plays every 30 minutes and writes them to Postgres (Neon).
 # Secrets (Settings > Secrets and variables > Actions): DEEZER_ARL, DATABASE_URL.
-# Optional variable: MUSICBRAINZ_CONTACT (an email or URL for the MusicBrainz User-Agent).
+# Variables (same page, "Variables" tab): DEEZER_PROFILE (Family profile name, e.g. TBTC),
+# MUSICBRAINZ_CONTACT (optional: an email or URL for the MusicBrainz User-Agent).
 #
 # Notes:
 # - GitHub cron runs are often delayed by a few minutes (sometimes more at busy times).
@@ -41,6 +42,7 @@ jobs:
         env:
           DEEZER_ARL: ${{ secrets.DEEZER_ARL }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DEEZER_PROFILE: ${{ vars.DEEZER_PROFILE }}
           MUSICBRAINZ_CONTACT: ${{ vars.MUSICBRAINZ_CONTACT }}
 
       - name: Keep unexpected Deezer responses for debugging
