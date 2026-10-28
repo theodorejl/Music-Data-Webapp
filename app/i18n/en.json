@@ -177,7 +177,12 @@
     "mosaic_section": "The mosaic",
     "list_section": "The chart",
     "list_title": "Your {what}",
-    "genre_covers_note": "With the album that carries each genre."
+    "genre_covers_note": "With the album that carries each genre.",
+    "wheel_root": "Your listening",
+    "wheel_total": "of your listening",
+    "wheel_click": "click a genre",
+    "wheel_hint": "click: dive in · click the centre: back",
+    "wheel_note": "Genres, then artists, then albums: click a genre or an artist to dive in, the centre to come back. Hover to see the photo or the cover."
   },
   "evolution": {
     "title": "Trends",
@@ -442,20 +447,21 @@
     "orbit_help": "The most played albums are the biggest. Hover a cover to see its name.",
     "constellation_title": "The artist constellation",
     "constellation_kicker": "One particle per play",
-    "constellation_help": "Each territory is a genre; inside, each glowing cloud gathers one artist's plays. Hover a territory or a cloud; the pointer brushes the particles aside.",
+    "constellation_help": "Each territory is a genre; inside, each glowing cloud gathers one artist's plays. Hover a cloud to see who it is, zoom with the wheel to enter a territory: every name appears.",
     "fingerprint_title": "Listening fingerprint",
     "fingerprint_kicker": "Generative artwork",
     "fingerprint_help": "One ring per hour of the day, midnight in the centre, 11 pm outside. The more you listen at that hour, the more the ring waves; its colour is the dominant genre. Every period gives a unique print.",
     "download_svg": "Download the fingerprint (SVG)",
     "hero_lead": "{plays} plays, {artists} artists, {genres} genres: your music, drawn differently.",
     "fingerprint_story": "A one-of-a-kind print: one ring per hour of the day, midnight at the centre, 11 pm at the edge. The more you listen at that hour, the more the ring ripples; its colour is the leading genre. Download it, print it, share it.",
-    "orbit_title_of": "The {what} orbit"
+    "orbit_title_of": "The {what} orbit",
+    "zoom_hint": "wheel or pinch: zoom · drag: move · double-click: reset"
   },
   "chart_words": [
     "avg"
   ],
   "refresh": {
-    "button": "Refresh my plays",
+    "button": "Refresh",
     "help": "Fetch your latest Deezer plays right now.",
     "step1": "Connecting to Deezer…",
     "step2": "Reading your latest plays…",
@@ -476,7 +482,8 @@
     "wrapped": "Recaps",
     "library": "Library",
     "history": "Journal",
-    "admin": "Settings"
+    "admin": "Settings",
+    "foryou": "For you"
   },
   "search": {
     "label": "Search",
@@ -555,5 +562,38 @@
     "morning": "In the morning",
     "afternoon": "In the afternoon",
     "evening": "In the evening"
+  },
+  "reco": {
+    "kicker": "3 recommendation engines",
+    "refresh": "New ideas",
+    "lead": "{n} tracks you have never played, picked from {artists}, your genres ({genres}) and what you play {moment}. Click a cover to hear 30 s.",
+    "empty": "Not enough plays in this period to recommend anything yet: pick a longer period.",
+    "unavailable": "Deezer cannot be reached right now: try again in a moment.",
+    "loading": "The three engines are searching for you…",
+    "loading_short": "Loading…",
+    "engine_neighbours": "Neighbours",
+    "engine_genres": "Your genres",
+    "engine_moment": "Your moment",
+    "tile_neighbours": "new artists close to your {n} favourites",
+    "tile_moment": "to play {moment}",
+    "map_section": "The map of your recommendations",
+    "map_note": "Each territory is one of your genres. White discs are your artists; around them, what each engine suggests, linked to the music it comes from.",
+    "map_title": "Where the recommendations come from",
+    "map_meta": "{n} tracks · {seeds} of your artists",
+    "map_you": "Your artists",
+    "map_hint": "wheel or pinch: zoom · drag: move · click a cover: listen",
+    "play": "Click: play 30 s",
+    "pause": "Click: pause",
+    "no_preview": "No preview for this track",
+    "because_neighbours": "Close to",
+    "because_genres": "Charting now in",
+    "because_moment": "In the spirit of",
+    "how_neighbours": "For each of your favourite artists, Deezer knows the artists that sound alike. The more you play an artist and the closer a neighbour, the higher it ranks; one key track per new artist.",
+    "how_genres": "What is charting now in each of your genres, shared out by the place each genre takes in your listening. One track per artist, only artists new to you.",
+    "how_moment": "The radio of the artists you play most {moment}: tracks that fit the time of day, new artists first.",
+    "n_tracks": "{n} tracks",
+    "open": "Open in Deezer",
+    "none": "This engine found nothing new for now.",
+    "footnote": "30 s previews provided by Deezer. Recommendations are refreshed every 6 hours, or with “New ideas”; anything already in your history is left out."
   }
 }

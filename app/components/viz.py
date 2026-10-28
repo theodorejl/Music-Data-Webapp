@@ -21,11 +21,11 @@ import streamlit as st
 
 STRONG = ["#1e9fd8", "#ff6f4d", "#8b6cf0", "#4fae2c", "#e8558e", "#d39a06", "#119f86"]  # validated chart order
 OTHER = "#c4c9d0"
-FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800'
+FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300..700'
          '&display=swap" rel="stylesheet">')
-BASE_CSS = """html,body{margin:0;background:transparent;font-family:'Google Sans Flex',system-ui,sans-serif;color:#1f1f1f;
+BASE_CSS = """html,body{margin:0;background:transparent;font-family:'Geist Mono',ui-monospace,Menlo,monospace;color:#1f1f1f;
 -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
-.card{position:relative;background:rgba(255,255,255,.5);border-radius:24px;overflow:hidden}
+.card{position:relative;background:rgba(255,255,255,.5);border-radius:22px;overflow:hidden}
 .lab{font-size:13px;color:#5c6064}
 .legend{position:absolute;left:22px;top:20px;display:flex;flex-direction:column;gap:7px;z-index:2}
 .legend span{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#4A4843}
@@ -97,7 +97,7 @@ pos=P.map(p=>{{const a=p[1]*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(p[0]/maxTurn
 function guide(){{ctx.strokeStyle='rgba(23,23,26,.07)';ctx.lineWidth=1;ctx.beginPath();
 const turns=Math.ceil(maxTurn);for(let i=0;i<=turns*120;i++){{const tt=i/120;const a=(tt%1)*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(tt/maxTurn);
 const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}}ctx.stroke();
-ctx.fillStyle='#5c6064';ctx.font='12px Google Sans Flex, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillStyle='#5c6064';ctx.font='12px Geist Mono, ui-monospace, monospace';ctx.textAlign='center';ctx.textBaseline='middle';
 H.forEach((h,i)=>{{const a=i/H.length*Math.PI*2-Math.PI/2;ctx.fillText(h,cx+Math.cos(a)*(R1+24),cy+Math.sin(a)*(R1+24))}})}}
 let shown=still?P.length:0,hover=-1;
 function draw(){{ctx.clearRect(0,0,W,Hh);guide();
@@ -162,15 +162,18 @@ GLOW_OTHER = "#C9C4D8"
 
 def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> None:
     """Genres are territories (Voronoi cells, labelled); inside, each artist is a glowing
-    cloud with one particle per play. The pointer only brushes particles aside.
-    labels: {'plays', 'artists', 'other'}."""
+    cloud with one particle per play. Wheel or pinch to zoom, drag to move, double-click to
+    come back; hovering a cloud names the artist (with their photo) without moving anything.
+    labels: {'plays', 'artists', 'other', 'hint'}."""
+    from app.components.interactive import ESC_JS, TERRITORY_JS, ZOOM_CSS, ZOOM_HTML, ZOOM_JS, js_data
+
     if df.empty:
         return
     genres = df["genre"].dropna().value_counts().head(6).index.tolist()
     base = _palette(genres)
     gcol = {g: GLOW[STRONG.index(base[g])] if base[g] in STRONG else GLOW_OTHER for g in genres}
     d = df.assign(group=df["genre"].where(df["genre"].isin(genres), labels["other"]))
-    by_artist = d.groupby("artist_name").agg(plays=("play_id", "count"),
+    by_artist = d.groupby("artist_name").agg(plays=("play_id", "count"), picture=("artist_picture", "first"),
                                              group=("group", lambda s: s.mode().iloc[0]))
     by_artist = by_artist.sort_values("plays", ascending=False).head(48).reset_index()
     groups = [g for g in genres if g in set(by_artist["group"])]
@@ -179,35 +182,30 @@ def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> N
     weight = by_artist.groupby("group")["plays"].sum()
     total = int(by_artist["plays"].sum())
     scale = min(14.0, 3600 / max(total, 1))
-    G = [[escape(str(g)), gcol.get(g, GLOW_OTHER), int(weight.get(g, 0))] for g in groups]
-    A = [[escape(str(r.artist_name)), int(r.plays), max(10, int(r.plays * scale)), groups.index(r.group)]
-         for r in by_artist.itertuples()]
+    G = [[str(g), gcol.get(g, GLOW_OTHER), int(weight.get(g, 0))] for g in groups]
+    A = [[str(r.artist_name), int(r.plays), max(10, int(r.plays * scale)), groups.index(r.group),
+          r.picture if isinstance(r.picture, str) else ""] for r in by_artist.itertuples()]
     caption = f"{total} {labels['plays']} · {len(A)} {labels['artists']}"
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONTS}<style>{BASE_CSS}
-.night{{position:relative;border-radius:20px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
+.night{{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
 canvas{{display:block;width:100%;height:{height}px}}
-.cap{{position:absolute;right:22px;top:20px;font-size:13px;color:rgba(255,255,255,.7)}}
-.tip{{background:#FBFAF8;color:#17171A}}.tip small{{color:#8A8780}}</style></head><body>
-<div class="night"><canvas id="c"></canvas><div class="cap">{escape(caption)}</div><div class="tip" id="tip"></div></div>
+.cap{{position:absolute;right:22px;top:20px;font-size:12px;color:rgba(255,255,255,.7)}}
+.tip{{background:#FBFAF8;color:#17171A;display:flex;gap:12px;align-items:center;padding:9px 14px 9px 9px}}.tip small{{color:#8A8780}}
+.tip img{{width:48px;height:48px;border-radius:50%;object-fit:cover}}
+{ZOOM_CSS}</style></head><body>
+<div class="night"><canvas id="c"></canvas><div class="cap">{escape(caption)}</div><div class="tip" id="tip"></div>
+{ZOOM_HTML}<div class="hint">{escape(labels["hint"])}</div></div>
 <script>
-const G={json.dumps(G, ensure_ascii=False)}, A={json.dumps(A, ensure_ascii=False)};
+const G={js_data(G)}, A={js_data(A)};{ESC_JS}
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
 const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let W,H,seeds=[],cells=[],C=[],P=[],sprites={{}},mouse={{x:-1e4,y:-1e4}},hoverA=-1,hoverG=-1;
+let W=0,H=0,cells=[],C=[],P=[],sprites={{}},hoverA=-1,hoverG=-1;const M=30;
+{TERRITORY_JS}
 function sprite(col){{const s=document.createElement('canvas');s.width=s.height=24;const g=s.getContext('2d');
 const r=g.createRadialGradient(12,12,0,12,12,12);r.addColorStop(0,col);r.addColorStop(.25,col+'cc');r.addColorStop(1,col+'00');
 g.fillStyle=r;g.fillRect(0,0,24,24);return s}}
-function clip(poly,a,b,c){{const out=[];for(let i=0;i<poly.length;i++){{const p=poly[i],q=poly[(i+1)%poly.length];
-const fp=a*p[0]+b*p[1]-c,fq=a*q[0]+b*q[1]-c;if(fp<=0)out.push(p);if(fp*fq<0){{const t=fp/(fp-fq);out.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t])}}}}return out}}
-function inside(poly,x,y){{let k=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){{const[xi,yi]=poly[i],[xj,yj]=poly[j];
-if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))k=!k}}return k}}
-function centroid(poly){{let x=0,y=0;poly.forEach(p=>{{x+=p[0];y+=p[1]}});return[x/poly.length,y/poly.length]}}
-function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);
-const n=G.length,cx=W/2,cy=H/2,rx=W*.3,ry=H*.28;
-seeds=G.map((g,i)=>n===1?[cx,cy]:[cx+Math.cos(i/n*6.283-1.2)*rx*(i%2?.82:1),cy+Math.sin(i/n*6.283-1.2)*ry*(i%2?.82:1)]);
-const m=30,frame=[[m,m],[W-m,m],[W-m,H-m],[m,H-m]];
-cells=seeds.map((s,i)=>{{let poly=frame.slice();seeds.forEach((o,j)=>{{if(i===j)return;const a=o[0]-s[0],b=o[1]-s[1];
-const c=(o[0]*o[0]+o[1]*o[1]-s[0]*s[0]-s[1]*s[1])/2;poly=clip(poly,a,b,c)}});return poly}});
+function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+cells=territories(G.length,W,H,M);
 const ga=Math.PI*(3-Math.sqrt(5)),count=G.map(()=>0),maxP=Math.max(...A.map(a=>a[1]));
 C=A.map(a=>{{const g=a[3],k=count[g]++;const cell=cells[g],ce=centroid(cell);const R=Math.min(W,H)*.15;
 let r=R*Math.sqrt((k+.4)/Math.max(1,A.filter(b=>b[3]===g).length)),x=ce[0]+Math.cos(k*ga)*r,y=ce[1]+Math.sin(k*ga)*r;
@@ -215,45 +213,38 @@ for(let t=0;t<12&&!inside(cell,x,y);t++){{x=(x+ce[0])/2;y=(y+ce[1])/2}}
 return{{x,y,s:6+Math.sqrt(a[1]/maxP)*30,g}}}});
 P=[];A.forEach((a,i)=>{{for(let k=0;k<a[2];k++){{const u=(Math.random()+Math.random()+Math.random()+Math.random())/4-.5;
 const rr=Math.abs(u)*2*C[i].s*1.3,t=Math.random()*6.283;
-P.push({{a:i,ox:Math.cos(t)*rr,oy:Math.sin(t)*rr,x:C[i].x+Math.cos(t)*rr,y:C[i].y+Math.sin(t)*rr,vx:0,vy:0,ph:Math.random()*6.283,
-z:Math.random()<.12}})}}}});
+P.push({{a:i,ox:Math.cos(t)*rr,oy:Math.sin(t)*rr,ph:Math.random()*6.283,z:Math.random()<.12}})}}}});
 G.forEach(g=>{{if(!sprites[g[1]])sprites[g[1]]=sprite(g[1])}})}}
-function draw(time){{const tt=time/1000;ctx.clearRect(0,0,W,H);
-cells.forEach((cell,i)=>{{if(i===hoverG){{ctx.fillStyle='rgba(255,255,255,.045)';ctx.beginPath();cell.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}}}});
+function draw(time){{const tt=still?0:time/1000,dpr=devicePixelRatio||1,k=view.k;
+ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);
+cells.forEach((cell,i)=>{{if(i===hoverG){{ctx.fillStyle='rgba(255,255,255,.045)';ctx.beginPath();cell.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}}}});
 ctx.globalCompositeOperation='lighter';
-for(const p of P){{const c=C[p.a];const tx=c.x+p.ox+Math.sin(tt*.35+p.ph)*2.2,ty=c.y+p.oy+Math.cos(tt*.3+p.ph*1.3)*2.2;
-const dx=p.x-mouse.x,dy=p.y-mouse.y,dd=dx*dx+dy*dy;if(dd<2116){{const f=(2116-dd)/2116*.55/Math.sqrt(dd+4);p.vx+=dx*f;p.vy+=dy*f}}
-p.vx+=(tx-p.x)*.07;p.vy+=(ty-p.y)*.07;p.vx*=.78;p.vy*=.78;p.x+=p.vx;p.y+=p.vy;
-const col=G[A[p.a][3]][1];ctx.globalAlpha=(hoverA<0||hoverA===p.a)?(hoverG<0||hoverG===A[p.a][3]?.9:.35):.25;
-const sz=p.z?9:6;ctx.drawImage(sprites[col],p.x-sz/2,p.y-sz/2,sz,sz)}}
+for(const p of P){{const c=C[p.a];const x=c.x+p.ox+Math.sin(tt*.35+p.ph)*1.6,y=c.y+p.oy+Math.cos(tt*.3+p.ph*1.3)*1.6;
+const col=G[A[p.a][3]][1];ctx.globalAlpha=(hoverA<0||hoverA===p.a)?(hoverG<0||hoverG===A[p.a][3]?.9:.35):.22;
+const sz=p.z?9:6;ctx.drawImage(sprites[col],x-sz/2,y-sz/2,sz,sz)}}
 ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
-ctx.strokeStyle='rgba(255,255,255,.42)';ctx.lineWidth=1.1;const m=30;
-cells.forEach(cell=>{{for(let i=0;i<cell.length;i++){{const p=cell[i],q=cell[(i+1)%cell.length];
-const onFrame=(Math.abs(p[0]-q[0])<.5&&(Math.abs(p[0]-m)<.5||Math.abs(p[0]-(W-m))<.5))||(Math.abs(p[1]-q[1])<.5&&(Math.abs(p[1]-m)<.5||Math.abs(p[1]-(H-m))<.5));
-if(!onFrame){{ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}}}}});
+drawBorders(ctx,cells,W,H,M,k);
 ctx.textAlign='center';ctx.textBaseline='middle';
 cells.forEach((cell,i)=>{{const ce=centroid(cell);let lx=ce[0],ly=ce[1]-Math.min(W,H)*.2;if(!inside(cell,lx,ly))ly=ce[1];
-ctx.font='600 20px Google Sans Flex, system-ui, sans-serif';ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
+ctx.font=`600 ${{19/k}}px Geist Mono, monospace`;ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
 ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(G[i][0],lx,ly);ctx.shadowBlur=0;
-ctx.font='12px Google Sans Flex, system-ui, sans-serif';ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20)}});
-ctx.textAlign='left';ctx.font='12px Google Sans Flex, system-ui, sans-serif';const shown=G.map(()=>0);
-C.forEach((c,i)=>{{if(shown[c.g]<2||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10,y=c.y-c.s*.6;ctx.strokeStyle='rgba(255,255,255,.4)';
-ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#fff':'rgba(255,255,255,.72)';
+ctx.font=`${{11.5/k}}px Geist Mono, monospace`;ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20/k)}});
+ctx.textAlign='left';ctx.font=`${{11.5/k}}px Geist Mono, monospace`;const shown=G.map(()=>0),limit=k>2.2?99:k>1.4?5:2;
+C.forEach((c,i)=>{{if(shown[c.g]<limit||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10/k,y=c.y-c.s*.6;ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1/k;
+ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4/k,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#fff':'rgba(255,255,255,.72)';
 ctx.fillText(A[i][0]+'  '+A[i][1],x,y)}}}});
-if(!still)requestAnimationFrame(draw)}}
+requestAnimationFrame(draw)}}
+{ZOOM_JS}
+cv.addEventListener('mousemove',e=>{{if(drag){{tip.classList.remove('on');return}}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;
+const[wx,wy]=toWorld(mx,my);hoverG=cells.findIndex(c=>inside(c,wx,wy));let best=-1,bd=1e9;
+C.forEach((c,i)=>{{const dd=(c.x-wx)**2+(c.y-wy)**2;if(dd<(c.s+8/view.k)**2&&dd<bd){{bd=dd;best=i}}}});hoverA=best;
+if(best>=0){{const a=A[best];tip.innerHTML=(a[4]?`<img src="${{esc(a[4])}}">`:'')+`<div>${{esc(a[0])}}<small>${{esc(G[a[3]][0])}} · ${{a[1]}} {escape(labels["plays"])}</small></div>`;
+tip.style.left=Math.min(mx+16,W-280)+'px';tip.style.top=Math.min(my+16,H-80)+'px';tip.classList.add('on')}}else tip.classList.remove('on')}});
+cv.addEventListener('mouseleave',()=>{{hoverA=hoverG=-1;tip.classList.remove('on')}});
 layout();addEventListener('resize',layout);requestAnimationFrame(draw);
-cv.addEventListener('mousemove',e=>{{const b=cv.getBoundingClientRect();mouse.x=e.clientX-b.left;mouse.y=e.clientY-b.top;
-hoverG=cells.findIndex(c=>inside(c,mouse.x,mouse.y));let best=-1,bd=1e9;
-C.forEach((c,i)=>{{const dd=(c.x-mouse.x)**2+(c.y-mouse.y)**2;if(dd<(c.s+8)**2&&dd<bd){{bd=dd;best=i}}}});hoverA=best;
-if(best>=0){{tip.innerHTML=`${{A[best][0]}}<small>${{G[A[best][3]][0]}} · ${{A[best][1]}} {escape(labels["plays"])}</small>`;
-tip.style.left=Math.min(mouse.x+16,W-270)+'px';tip.style.top=(mouse.y+16)+'px';tip.classList.add('on')}}else tip.classList.remove('on');
-if(still)requestAnimationFrame(draw)}});
-cv.addEventListener('mouseleave',()=>{{mouse.x=mouse.y=-1e4;hoverA=hoverG=-1;tip.classList.remove('on')}});
 </script></body></html>"""
     st.iframe(html, height=height + 4)
 
-
-# --- 4. generative fingerprint -----------------------------------------------------------------
 
 def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900, framed: bool = True) -> str:
     """One closed, noise-distorted ring per hour of the day (midnight inside, 23h outside).
@@ -296,8 +287,8 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
             f'<radialGradient id="fpb" cx="85%" cy="85%" r="75%"><stop offset="0" stop-color="#ffcde0"/><stop offset="1" stop-color="#ffcde0" stop-opacity="0"/></radialGradient></defs>'
             f'<rect width="{size}" height="{size}" rx="36" fill="#f6f3ff"/><rect width="{size}" height="{size}" rx="36" fill="url(#fpa)"/>'
             f'<rect width="{size}" height="{size}" rx="36" fill="url(#fpb)"/>'
-            f'<text x="40" y="58" font-family="Google Sans Flex, system-ui, sans-serif" font-size="34" font-weight="400" letter-spacing="-1" '
+            f'<text x="40" y="58" font-family="Geist Mono, ui-monospace, monospace" font-size="34" font-weight="400" letter-spacing="-1" '
             f'fill="#17171A">{escape(title)}</text>'
-            f'<text x="40" y="84" font-family="Google Sans Flex, system-ui, sans-serif" font-size="14" '
+            f'<text x="40" y="84" font-family="Geist Mono, ui-monospace, monospace" font-size="14" '
             f'fill="#5c6064">{escape(subtitle)}</text>'
-            f'<g font-family="Google Sans Flex, system-ui, sans-serif">{legend}</g>{"".join(paths)}</svg>')
+            f'<g font-family="Geist Mono, ui-monospace, monospace">{legend}</g>{"".join(paths)}</svg>')

@@ -2,7 +2,7 @@
 
 White page under a slowly flowing pastel field; data lives in large, very round panels
 filled with a grainy mesh gradient of one colour family each (see app/assets/theme.css);
-oversized Google Sans Flex; data drawn in vivid pastels and in the deep ink of its panel.
+oversized Geist Mono; data drawn in vivid pastels and in the deep ink of its panel.
 """
 
 from __future__ import annotations
@@ -28,6 +28,7 @@ FAMILIES = {
     "butter": {"mid": "#d39a06", "ink": "#5c4100", "soft": "#fff3cf", "light": "#ffd66b"},
     "teal": {"mid": "#119f86", "ink": "#08493d", "soft": "#dcf5ee", "light": "#86dac6"},
     "mist": {"mid": "#5f6b7d", "ink": "#2b3442", "soft": "#eef2f7", "light": "#cdd8e8"},
+    "ocean": {"mid": "#3f5fd8", "ink": "#1d2b7a", "soft": "#e3e8ff", "light": "#a9b8ff"},
     "night": {"mid": "#bba6ff", "ink": "#f2f0ff", "soft": "#2a2b4d", "light": "#8e7cf0"},
 }
 # Categorical order validated with the dataviz validator (CVD ΔE ≥ 9.9 between neighbours).
@@ -39,7 +40,7 @@ OTHER = "#c4c9d0"
 PAGE_FAMILY = {
     "": "sky", "home": "sky", "tops": "coral", "rhythms": "lime", "discoveries": "rose", "explore": "lilac",
     "wrapped": "butter", "library": "teal", "history": "mist", "artist": "lilac", "album": "coral",
-    "track": "rose", "admin": "mist",
+    "track": "rose", "admin": "mist", "foryou": "ocean",
 }
 
 
@@ -84,10 +85,8 @@ def mark_img(size: int = 38) -> str:
 
 
 def brand_html() -> str:
-    """DatAtlaSonore: Data · Atlas · Sonore, the three capitals in the first three chart colours."""
-    word = "".join(f"<i style='color:{PALETTE[i]}'>{c}</i>" if c.isupper() else c
-                   for i, c in zip([0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2], APP_NAME))
-    return f"<div class='ds-brand'>{mark_img()}<b>{word}</b></div>"
+    """DatAtlaSonore (Data · Atlas · Sonore) in black, next to the spinning record."""
+    return f"<div class='ds-brand'>{mark_img()}<b>{APP_NAME}</b></div>"
 
 
 def html(content: str) -> None:
@@ -227,6 +226,7 @@ BG_PALETTES = {
     "butter": ("#ffd66b", "#ffab8f", "#ade27c", "#ffcde0"),
     "teal": ("#86dac6", "#c4e9f9", "#d4f0ae", "#ffd66b"),
     "mist": ("#cdd8e8", "#ddd2ff", "#c4e9f9", "#ffd0bd"),
+    "ocean": ("#a9b8ff", "#86dac6", "#ffc6dc", "#c4e9f9"),
 }
 
 

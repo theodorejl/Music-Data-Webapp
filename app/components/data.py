@@ -238,6 +238,14 @@ def artist_genres() -> dict[int, str]:
     return {int(k): v for k, v in g.drop_duplicates("artist_id").set_index("artist_id")["genre"].items()}
 
 
+@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=8)
+def recommendations(key: tuple, _profile) -> pd.DataFrame:
+    """The three engines' picks, kept six hours for the same seeds (key), then refreshed."""
+    from core.recommend import recommend
+
+    return recommend(_profile, 12)
+
+
 @st.cache_data(ttl=STATS_TTL, show_spinner=False)
 def search_index() -> list[tuple[str, str]]:
     """(target, label) for the search box: artists, then albums, then tracks, most played first."""

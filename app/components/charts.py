@@ -20,7 +20,7 @@ from app.i18n import get_lang, plotly_separators, tl
 PALETTE = theme.PALETTE
 OTHER = theme.OTHER
 INK, MUTED, GRID = "#1f1f1f", "rgba(31,31,31,.62)", "rgba(31,31,31,.10)"
-FONT = '"Google Sans Flex", "Google Sans", system-ui, -apple-system, sans-serif'
+FONT = '"Geist Mono", "JetBrains Mono", ui-monospace, Menlo, monospace'
 CONFIG = {"displayModeBar": False, "responsive": True}
 
 # multi-hue sequential scales, light to dark (lightness only goes down)
@@ -368,28 +368,6 @@ def donut(labels: list[str], values: list[float], center: str, center_sub: str =
                        showarrow=False, font=dict(color=INK, family=FONT))
     style(fig, height, legend=False)
     fig.update_layout(margin=dict(l=30, r=30, t=30, b=30))
-    return fig
-
-
-def sunburst(df: pd.DataFrame, height: int = 460, other_label: str | None = None) -> go.Figure:
-    """Genre → artist rings: each genre in its colour, its artists in lighter steps of it.
-    df columns: genre, artist, minutes."""
-    genres = df.groupby("genre")["minutes"].sum().sort_values(ascending=False)
-    cmap = category_colors(list(genres.index), other_label)
-    ids, labels, parents, values, colors = [], [], [], [], []
-    for g, total in genres.items():
-        ids.append(f"g::{g}"); labels.append(g); parents.append(""); values.append(float(total)); colors.append(cmap[g])
-        arts = df[df["genre"] == g].sort_values("minutes", ascending=False)
-        for k, r in enumerate(arts.itertuples(index=False)):
-            ids.append(f"a::{g}::{r.artist}"); labels.append(r.artist); parents.append(f"g::{g}")
-            values.append(float(r.minutes)); colors.append(_blend(cmap[g], "#ffffff", 0.22 + 0.5 * k / max(1, len(arts))))
-    fig = go.Figure(go.Sunburst(
-        ids=ids, labels=labels, parents=parents, values=values, branchvalues="total",
-        marker=dict(colors=colors, line=dict(color="#ffffff", width=2)), insidetextorientation="radial",
-        textfont=dict(family=FONT, color=INK), maxdepth=2,
-        hovertemplate="<b>%{label}</b><br>%{percentRoot:.0%}<extra></extra>"))
-    style(fig, height)
-    fig.update_layout(margin=dict(l=4, r=4, t=4, b=4))
     return fig
 
 

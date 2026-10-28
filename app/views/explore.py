@@ -31,7 +31,7 @@ with theme.panel("night", "constellation"):
             ui.empty_state()
         else:
             viz.artist_constellation(sc.df, {"plays": t("common.plays_short"), "artists": t("common.artists").lower(),
-                                             "other": t("common.other")})
+                                             "other": t("common.other"), "hint": t("explore.zoom_hint")})
 
 theme.gap()
 left, right = st.columns([1, 1], gap="medium")

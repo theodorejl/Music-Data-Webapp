@@ -177,7 +177,12 @@
     "mosaic_section": "La mosaïque",
     "list_section": "Le classement",
     "list_title": "Tes {what}",
-    "genre_covers_note": "Avec l'album qui porte chaque genre."
+    "genre_covers_note": "Avec l'album qui porte chaque genre.",
+    "wheel_root": "Ton écoute",
+    "wheel_total": "de ton écoute",
+    "wheel_click": "clique un genre",
+    "wheel_hint": "clic : entrer · clic au centre : revenir",
+    "wheel_note": "Genres, puis artistes, puis albums : clique un genre ou un artiste pour y entrer, le centre pour revenir. Survole pour voir la photo ou la pochette."
   },
   "evolution": {
     "title": "Évolution",
@@ -442,20 +447,21 @@
     "orbit_help": "Les albums les plus écoutés sont les plus grands. Survole une pochette pour voir son nom.",
     "constellation_title": "La constellation d'artistes",
     "constellation_kicker": "Une particule par écoute",
-    "constellation_help": "Chaque territoire est un genre ; à l'intérieur, chaque nuage lumineux rassemble les écoutes d'un artiste. Survole un territoire ou un nuage ; la souris effleure les particules.",
+    "constellation_help": "Chaque territoire est un genre ; à l'intérieur, chaque nuage lumineux rassemble les écoutes d'un artiste. Survole un nuage pour voir qui c'est, zoome à la molette pour entrer dans un territoire : tous les noms apparaissent.",
     "fingerprint_title": "Empreinte sonore",
     "fingerprint_kicker": "Œuvre générative",
     "fingerprint_help": "Un anneau par heure de la journée, de minuit au centre à 23 h à l'extérieur. Plus tu écoutes à cette heure-là, plus l'anneau ondule ; sa couleur est le genre dominant. Chaque période donne une empreinte unique.",
     "download_svg": "Télécharger l'empreinte (SVG)",
     "hero_lead": "{plays} écoutes, {artists} artistes, {genres} genres : ta musique dessinée autrement.",
     "fingerprint_story": "Une empreinte unique : un anneau par heure de la journée, de minuit au centre à 23 h au bord. Plus tu écoutes à cette heure, plus l'anneau ondule ; sa couleur est le genre dominant. À télécharger, imprimer, partager.",
-    "orbit_title_of": "L'orbite des {what}"
+    "orbit_title_of": "L'orbite des {what}",
+    "zoom_hint": "molette ou pincer : zoom · glisser : se déplacer · double-clic : recentrer"
   },
   "chart_words": [
     "moy."
   ],
   "refresh": {
-    "button": "Actualiser mes écoutes",
+    "button": "Actualiser",
     "help": "Récupère tout de suite tes dernières écoutes Deezer.",
     "step1": "Connexion à Deezer…",
     "step2": "Lecture des dernières écoutes…",
@@ -476,7 +482,8 @@
     "wrapped": "Récaps",
     "library": "Bibliothèque",
     "history": "Journal",
-    "admin": "Réglages"
+    "admin": "Réglages",
+    "foryou": "Pour toi"
   },
   "search": {
     "label": "Rechercher",
@@ -555,5 +562,38 @@
     "morning": "Le matin",
     "afternoon": "L'après-midi",
     "evening": "Le soir"
+  },
+  "reco": {
+    "kicker": "3 moteurs de recommandation",
+    "refresh": "Nouvelles idées",
+    "lead": "{n} titres que tu n'as jamais écoutés, choisis à partir de {artists}, de tes genres ({genres}) et de ce que tu écoutes {moment}. Clique sur une pochette pour en écouter 30 s.",
+    "empty": "Pas encore assez d'écoutes sur cette période pour recommander quoi que ce soit : choisis une période plus longue.",
+    "unavailable": "Impossible de joindre Deezer pour l'instant : réessaie dans un moment.",
+    "loading": "Les trois moteurs cherchent pour toi…",
+    "loading_short": "Chargement…",
+    "engine_neighbours": "Les voisins",
+    "engine_genres": "Tes genres",
+    "engine_moment": "Ton moment",
+    "tile_neighbours": "nouveaux artistes proches de tes {n} favoris",
+    "tile_moment": "pour écouter {moment}",
+    "map_section": "La carte de tes recommandations",
+    "map_note": "Chaque territoire est un de tes genres. Les disques blancs sont tes artistes ; autour, ce que chaque moteur te propose, relié à la musique dont il vient.",
+    "map_title": "D'où viennent les recommandations",
+    "map_meta": "{n} titres · {seeds} de tes artistes",
+    "map_you": "Tes artistes",
+    "map_hint": "molette ou pincer : zoom · glisser : se déplacer · clic sur une pochette : écouter",
+    "play": "Clic : écouter 30 s",
+    "pause": "Clic : pause",
+    "no_preview": "Pas d'extrait disponible pour ce titre",
+    "because_neighbours": "Proche de",
+    "because_genres": "Top du moment en",
+    "because_moment": "Dans l'esprit de",
+    "how_neighbours": "Pour chacun de tes artistes favoris, Deezer connaît les artistes qui lui ressemblent. Plus tu écoutes un artiste et plus un voisin est proche, plus il remonte ; un titre phare par nouvel artiste.",
+    "how_genres": "Ce qui cartonne en ce moment dans chacun de tes genres, réparti selon la place que chaque genre prend dans ton écoute. Un titre par artiste, que des artistes nouveaux pour toi.",
+    "how_moment": "La radio des artistes que tu écoutes le plus {moment} : des titres qui collent à l'heure qu'il est, en privilégiant les artistes que tu ne connais pas encore.",
+    "n_tracks": "{n} titres",
+    "open": "Ouvrir dans Deezer",
+    "none": "Ce moteur n'a rien trouvé de nouveau pour l'instant.",
+    "footnote": "Extraits de 30 s fournis par Deezer. Les recommandations sont recalculées toutes les 6 heures, ou avec « Nouvelles idées » ; tout ce qui est déjà dans ton historique est exclu."
   }
 }

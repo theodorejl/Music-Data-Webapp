@@ -6,7 +6,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from app.components import charts, data, theme, ui
+from app.components import charts, data, interactive, theme, ui
 from app.i18n import fmt_duration, fmt_int, t
 from core import stats
 
@@ -93,16 +93,24 @@ with left:
         slot = st.container()
         sc = data.scope_bar("tops_sun")
         with slot:
-            theme.head(t("tops.sunburst_title"), sc.label, t("tops.sunburst_meta"))
+            theme.head(t("tops.sunburst_title"), sc.label, t("tops.wheel_note"))
             with_genre = sc.df.dropna(subset=["genre"])
             if with_genre.empty:
                 ui.empty_state(t("tops.no_genre"))
             else:
-                ga = with_genre.groupby(["genre", "artist_name"])["minutes"].sum().reset_index()
-                keep = ga.sort_values("minutes", ascending=False).groupby("genre").head(8)
                 top_genres = with_genre.groupby("genre")["minutes"].sum().nlargest(7).index
-                keep = keep[keep["genre"].isin(top_genres)].rename(columns={"artist_name": "artist"})
-                charts.show(charts.sunburst(keep, height=470), key="tops_sun")
+                part = with_genre[with_genre["genre"].isin(top_genres)]
+                artists = (part.groupby(["genre", "artist_name"])["minutes"].sum().reset_index()
+                           .sort_values("minutes", ascending=False).groupby("genre").head(8))
+                part = part[part.set_index(["genre", "artist_name"]).index.isin(artists.set_index(["genre", "artist_name"]).index)]
+                wheel = (part.groupby(["genre", "artist_name", "album_title"])
+                         .agg(minutes=("minutes", "sum"), picture=("artist_picture", "first"), cover=("cover", "first"))
+                         .reset_index().rename(columns={"artist_name": "artist", "album_title": "album"}))
+                order = {g: i for i, g in enumerate(top_genres)}
+                wheel = wheel.sort_values(["genre", "minutes"], key=lambda c: c.map(order) if c.name == "genre" else -c)
+                interactive.genre_wheel(wheel, charts.category_colors(list(top_genres)),
+                                        {"root": t("tops.wheel_root"), "total": t("tops.wheel_total"),
+                                         "click": t("tops.wheel_click"), "hint": t("tops.wheel_hint")}, height=600)
 with right:
     with theme.panel("rose", "genres"):
         slot = st.container()

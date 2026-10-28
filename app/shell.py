@@ -25,6 +25,7 @@ RAIL = [
     ("tops", "tops.py", ":material/trophy:"),
     ("rhythms", "rhythms.py", ":material/graphic_eq:"),
     ("discoveries", "discoveries.py", ":material/explore:"),
+    ("foryou", "foryou.py", ":material/headphones:"),
     ("explore", "explore.py", ":material/blur_on:"),
     ("wrapped", "wrapped.py", ":material/auto_awesome:"),
     ("library", "library.py", ":material/library_music:"),

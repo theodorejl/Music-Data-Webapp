@@ -1,6 +1,6 @@
 [theme]
 base = "light"
-# "Noto" direction: white page, grainy pastel mesh panels, Google Sans Flex, vivid pastel data colours.
+# "Noto" direction: white page, grainy pastel mesh panels, Geist Mono, vivid pastel data colours.
 primaryColor = "#1f1f1f"
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f0f4f9"
@@ -14,8 +14,8 @@ showWidgetBorder = false
 showSidebarBorder = false
 baseRadius = "16px"
 buttonRadius = "999px"
-font = "Google Sans Flex:https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&display=swap"
-headingFont = "Google Sans Flex:https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&display=swap"
+font = "Geist Mono:https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300..700&display=swap"
+headingFont = "Geist Mono:https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300..700&display=swap"
 baseFontSize = 15
 metricValueFontSize = "40px"
 metricValueFontWeight = 400

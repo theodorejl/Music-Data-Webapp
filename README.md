@@ -173,7 +173,7 @@ Tu n'as **jamais besoin de relancer l'app** après une modification :
 - réglages (`.streamlit/config.toml`, `.env`, `requirements.txt`) : le superviseur redémarre l'app et la page se reconnecte d'elle-même (`scripts/dev_server.py`) ;
 - plantage : le superviseur relance l'app automatiquement.
 
-L'app s'organise autour d'un rail à gauche (Accueil, Classements, Rythmes, Découvertes, Univers, Récaps, Bibliothèque, Journal, Réglages) et d'une recherche en haut qui ouvre la fiche d'un artiste, d'un album ou d'un titre. La période se choisit dans l'en-tête de chaque page et reste la même d'une page à l'autre.
+L'app s'organise autour d'un rail à gauche (Accueil, Classements, Rythmes, Découvertes, Pour toi, Univers, Récaps, Bibliothèque, Journal, Réglages) et d'une recherche en haut qui ouvre la fiche d'un artiste, d'un album ou d'un titre. La période se choisit dans l'en-tête de chaque page et reste la même d'une page à l'autre.
 
 ### 3.3 (Optionnel) Essayer l'app avec des données fictives
 
@@ -398,6 +398,18 @@ Pour forcer un rechargement immédiat de la bibliothèque : `python -m scripts.s
 
 ---
 
+## Recommandations (page « Pour toi »)
+
+La page **Pour toi** propose des titres que tu n'as **jamais** écoutés, trouvés par trois moteurs qui partent de ton historique (la période choisie en haut de la page) et de l'API publique de Deezer. Le cookie `arl` n'est jamais utilisé ici, donc la page marche aussi sur le site en ligne.
+
+1. **Les voisins** (graphe d'artistes) : pour chacun de tes 10 artistes favoris, Deezer connaît les artistes qui lui ressemblent. Un voisin gagne des points selon le temps que tu passes sur l'artiste de départ et selon sa proximité ; on garde un titre phare par nouvel artiste.
+2. **Tes genres** (profil de goût) : ce qui est en tête des classements Deezer dans chacun de tes genres, réparti selon la part de chaque genre dans ton écoute. Un titre par artiste, uniquement des artistes nouveaux pour toi.
+3. **Ton moment** (contexte) : la radio Deezer des artistes que tu écoutes le plus à ce moment de la journée (nuit, matin, après-midi, soir), en privilégiant les artistes inconnus.
+
+Les trois moteurs ne se répètent pas : un même titre n'apparaît qu'une fois. Clique sur une pochette pour écouter **30 s**. Le lien de l'extrait est demandé à Deezer au moment du clic, car ces liens expirent au bout d'environ 15 minutes.
+
+La **carte** place chaque recommandation dans le territoire de son genre, reliée à l'artiste dont elle vient. On peut zoomer (molette ou pincement), se déplacer (glisser) et écouter (clic). Les résultats sont gardés 6 heures, et le bouton **Nouvelles idées** les recalcule.
+
 ## Récupérer l'historique plus ancien (export Deezer)
 
 L'historique de Deezer ne renvoie **que les 100 dernières écoutes** : c'est une limite de Deezer, pas de l'app. L'app, elle, garde **tout** ce qu'elle a relevé, sans limite.
@@ -466,7 +478,8 @@ app/                 application Streamlit (lecture seule, sauf la page admin)
   shell.py           rail de navigation, recherche, actualisation, fond vivant
   devreload.py       rechargement à chaud de tout le projet (aucune relance nécessaire)
   views/             une page par fichier (pas « pages/ » : ce nom active un ancien mode de Streamlit)
-  components/        thème « Noto » (panneaux en dégradé), blocs, graphiques Plotly, visualisations
+  components/        thème « Noto » (panneaux en dégradé), blocs, graphiques Plotly, visualisations,
+                     interactive.py : roue des genres (D3), carte et cartes de recommandations, extraits
   assets/theme.css   tout le style : familles de couleurs, panneaux, rail, puces
   i18n/              fr.json, en.json + t("clé")
 core/
@@ -477,6 +490,7 @@ core/
   musicbrainz.py     tags de genres (1 requête par seconde)
   sync.py            relevé → dédoublonnage → stockage → enrichissement
   stats.py           toutes les statistiques (fonctions pures sur des DataFrames)
+  recommend.py       les trois moteurs de recommandation (API publique Deezer)
 scripts/             sync, dev_server, cloud_db, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest
 .github/workflows/   synchro toutes les 30 min

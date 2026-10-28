@@ -1,46 +1,24 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <!-- DatAtlaSonore: a stylised spinning record. Each groove is an incomplete ring turning at
-       its own speed, so the gaps show the disc moving; the label carries the app's palette. -->
+  <!-- DatAtlaSonore: a minimal record in black and white. Each groove is an incomplete ring
+       turning at its own speed, so the gaps show the disc spinning. -->
   <style>
     .spin { transform-box: view-box; transform-origin: 32px 32px; animation: spin linear infinite; }
-    .g1 { animation-duration: 11s; }
-    .g2 { animation-duration: 7s; }
-    .g3 { animation-duration: 14s; }
+    .g1 { animation-duration: 12s; }
+    .g2 { animation-duration: 7.5s; }
+    .g3 { animation-duration: 16s; }
     .g4 { animation-duration: 5s; }
-    .g5 { animation-duration: 9s; }
-    .lab { animation-duration: 3.2s; }
     @keyframes spin { to { transform: rotate(360deg); } }
     @media (prefers-reduced-motion: reduce) { .spin { animation: none; } }
   </style>
-  <defs>
-    <radialGradient id="disc" cx="50%" cy="50%" r="50%">
-      <stop offset="0" stop-color="#2b2b33"/>
-      <stop offset="0.72" stop-color="#16161b"/>
-      <stop offset="1" stop-color="#0c0c10"/>
-    </radialGradient>
-    <linearGradient id="label" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#8b6cf0"/>
-      <stop offset="0.5" stop-color="#e8558e"/>
-      <stop offset="1" stop-color="#ffb000"/>
-    </linearGradient>
-    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4"/></filter>
-  </defs>
-  <circle cx="32" cy="32" r="31" fill="url(#disc)"/>
-  <circle class="spin g1" cx="32" cy="32" r="27.6" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="2"
-          stroke-linecap="round" pathLength="100" stroke-dasharray="34 5 22 4 31 4"/>
-  <circle class="spin g2" cx="32" cy="32" r="24.2" fill="none" stroke="#8fd2f1" stroke-width="1.6"
-          stroke-linecap="round" pathLength="100" stroke-dasharray="46 7 39 8"/>
-  <circle class="spin g3" cx="32" cy="32" r="20.9" fill="none" stroke="#ffffff" stroke-opacity="0.32" stroke-width="2.4"
-          stroke-linecap="round" pathLength="100" stroke-dasharray="20 6 28 5 35 6"/>
-  <circle class="spin g4" cx="32" cy="32" r="17.6" fill="none" stroke="#ffab8f" stroke-width="1.6"
-          stroke-linecap="round" pathLength="100" stroke-dasharray="58 9 24 9"/>
-  <circle class="spin g5" cx="32" cy="32" r="14.6" fill="none" stroke="#ade27c" stroke-opacity="0.9" stroke-width="1.3"
-          stroke-linecap="round" pathLength="100" stroke-dasharray="30 10 44 16"/>
-  <g class="spin lab">
-    <circle cx="32" cy="32" r="11" fill="url(#label)"/>
-    <path d="M32 23.6 A8.4 8.4 0 0 1 40.4 32" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round"/>
-  </g>
-  <circle cx="32" cy="32" r="2.3" fill="#ffffff"/>
-  <ellipse cx="19" cy="17" rx="13" ry="4.2" transform="rotate(-42 19 17)" fill="#ffffff" opacity="0.16" filter="url(#soft)"/>
-  <ellipse cx="45" cy="47" rx="13" ry="4.2" transform="rotate(-42 45 47)" fill="#ffffff" opacity="0.10" filter="url(#soft)"/>
+  <circle cx="32" cy="32" r="31" fill="#111111"/>
+  <circle class="spin g1" cx="32" cy="32" r="26" fill="none" stroke="#ffffff" stroke-width="1.6"
+          stroke-linecap="round" pathLength="100" stroke-dasharray="62 6 24 8"/>
+  <circle class="spin g2" cx="32" cy="32" r="21.5" fill="none" stroke="#ffffff" stroke-opacity="0.55" stroke-width="1.6"
+          stroke-linecap="round" pathLength="100" stroke-dasharray="40 9 38 13"/>
+  <circle class="spin g3" cx="32" cy="32" r="17" fill="none" stroke="#ffffff" stroke-width="1.6"
+          stroke-linecap="round" pathLength="100" stroke-dasharray="78 22"/>
+  <circle cx="32" cy="32" r="10" fill="#ffffff"/>
+  <circle class="spin g4" cx="32" cy="32" r="6.4" fill="none" stroke="#111111" stroke-opacity="0.35" stroke-width="1"
+          pathLength="100" stroke-dasharray="70 30"/>
+  <circle cx="32" cy="32" r="1.8" fill="#111111"/>
 </svg>
