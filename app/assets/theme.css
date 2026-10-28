@@ -1,0 +1,211 @@
+/*
+ * Deezer Stats — app theme.
+ * taste-skill app run: style "pastel-consumer" (seed 1597702739), shell "open plane".
+ * Brand exceptions decided with the owner: the living pastel ground (#ds-bg) and the
+ * Explorations visuals keep their gradient and glow; everything else follows the app rules:
+ * flat opaque surfaces, one 1px edge, one large radius stepping down (20 / 10 / 8 / 5),
+ * Manrope, sentence case, colour on data only, nothing raised at rest, no entrance motion.
+ */
+
+:root {
+  --ground: #f3f5f7;
+  --surface: #ffffff;
+  --raised: #f2f8fd;
+  --active: #ebedf0;
+  --border: #e6e6e6;
+  --rule: #f4f4f4;
+  --control: #d6d9dd;
+  --text: #1b1d1f;
+  --muted: #5c6064;
+  --faint: #6b6b6b;
+  --primary: #1d1f20;
+  --accent: #1d5fd6;
+  --accent-soft: #dcf1ff;
+  --accent-ink: #0a3a80;
+  --positive: #2f7a45;
+  --negative: #c41c29;
+  --pill-neutral-bg: #eef1f4; --pill-neutral-ink: #3a3d40;
+
+  --radius-card: 20px; --radius-inner: 10px; --radius-control: 10px; --radius-art: 5px;
+  --gap: 24px; --pad: 24px; --control-height: 40px;
+  --fs-title: 28px; --fs-section: 20px; --fs-kpi: 32px; --fs-body: 16px; --fs-small: 14px; --fs-meta: 12px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --t-press: 140ms; --t-hover: 180ms; --t-ui: 240ms;
+}
+
+/* ---------- ground (brand exception: the living pastel field sits behind everything) ---------- */
+html, body { background: var(--ground); }
+.stApp, [data-testid="stAppViewContainer"], [data-testid="stMain"] { background: transparent !important; }
+#ds-bg { position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; pointer-events: none; }
+.stApp > * { position: relative; z-index: 1; }
+[data-testid="stHeader"] { background: transparent; }
+.stElementContainer:has(> [data-testid="stHtml"] > script:only-child) { display: none; }
+[data-testid="stMainBlockContainer"] { max-width: none; padding: 34px 40px 96px; }
+
+/* ---------- type ---------- */
+html { font-variant-numeric: tabular-nums; -webkit-font-smoothing: antialiased; }
+h1 { font-size: var(--fs-title) !important; font-weight: 600 !important; letter-spacing: -0.02em !important;
+     line-height: 1.2 !important; padding: 0 !important; color: var(--text); }
+h2, h3 { font-size: var(--fs-section) !important; font-weight: 400 !important; letter-spacing: -0.01em !important;
+         line-height: 1.3 !important; color: var(--text); }
+[data-testid="stHeadingWithActionElements"] [data-testid="stHeaderActionElements"] { display: none; }
+p, li { text-wrap: pretty; }
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p { color: var(--muted); font-size: var(--fs-small); }
+.ds-sub { color: var(--muted); font-size: var(--fs-body); margin: 6px 0 0; max-width: 96ch; }
+.ds-sub b { color: var(--text); font-weight: 600; }
+.ds-section-gap { height: 16px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- shell: open plane ---------- */
+[data-testid="stSidebar"] { background: var(--ground) !important; border-right: 1px solid var(--border); }
+[data-testid="stSidebar"] > div { background: transparent !important; }
+[data-testid="stSidebarHeader"] { padding-top: 22px; }
+[data-testid="stSidebarHeader"] img { height: 28px !important; max-width: 200px; }
+[data-testid="stNavSectionHeader"] { font-size: 13px !important; font-weight: 500; letter-spacing: 0; text-transform: none;
+  color: var(--faint) !important; margin-top: 22px; }
+[data-testid="stSidebarNavSeparator"] { display: none; }
+[data-testid="stSidebarNavLink"] { border-radius: 8px; min-height: 32px; transition: background-color var(--t-hover) ease; }
+[data-testid="stSidebarNavLink"] span { font-size: 14px; }
+@media (hover: hover) and (pointer: fine) { [data-testid="stSidebarNavLink"]:hover { background: var(--active); } }
+[data-testid="stSidebarNavLink"][aria-current="page"] { background: var(--active); }
+[data-testid="stSidebarNavLink"][aria-current="page"] span { color: var(--text) !important; font-weight: 500; }
+.ds-scope { font-size: 13px; color: var(--muted); margin: -6px 0 14px; }
+.ds-scope b { color: var(--text); font-weight: 600; }
+.ds-side-title { font-size: 13px; font-weight: 500; color: var(--faint); margin: 18px 0 6px; }
+.ds-stamp { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+/* ---------- panels ---------- */
+[class*="st-key-card"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);
+  padding: 20px 24px 22px; }
+[class*="st-key-card"] [data-testid="stPlotlyChart"] { background: transparent; border: 0; padding: 0; }
+[data-testid="stPlotlyChart"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);
+  padding: 14px 16px 8px; }
+[data-testid="stDataFrame"] { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card);
+  overflow: hidden; padding: 6px; }
+[data-testid="stExpander"] details { border: 1px solid var(--border) !important; background: var(--surface); border-radius: var(--radius-inner); }
+[data-testid="stAlert"] > div { border-radius: var(--radius-inner); border: 1px dashed var(--control); background: var(--surface) !important;
+  color: var(--muted); }
+[data-testid="stImage"] img { border-radius: var(--radius-art); }
+[data-testid="stIFrame"] { border-radius: var(--radius-card); }
+
+/* card head: title left, its own figure or period right */
+.ds-card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; margin-bottom: 4px; }
+.ds-card-title { font-size: var(--fs-section); font-weight: 400; color: var(--text); margin: 0; }
+.ds-card-meta { font-size: var(--fs-small); color: var(--muted); white-space: nowrap; }
+.ds-figure { font-size: var(--fs-kpi); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; color: var(--text); margin: 8px 0 2px; }
+.ds-figure small { font-size: 18px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.ds-figure-sub { font-size: var(--fs-small); color: var(--muted); margin: 0 0 8px; }
+
+/* KPI strip: one container split by 1px dividers */
+.ds-kpis { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius-card); }
+.ds-kpi { padding: 16px 24px 18px; min-width: 0; }
+.ds-kpi + .ds-kpi { border-left: 1px solid var(--border); }
+.ds-kpi-label { font-size: var(--fs-small); color: var(--muted); }
+.ds-kpi-value { font-size: 26px; font-weight: 500; letter-spacing: -0.01em; line-height: 1.2; margin-top: 6px; color: var(--text); }
+.ds-kpi-value small { font-size: 15px; color: var(--muted); font-weight: 400; }
+.ds-kpi-cap { font-size: var(--fs-meta); color: var(--faint); margin-top: 4px; }
+@media (max-width: 640px) {
+  .ds-kpis { grid-auto-flow: row; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ds-kpi + .ds-kpi { border-left: 0; }
+  .ds-kpi:nth-child(2n) { border-left: 1px solid var(--border); }
+  .ds-kpi:nth-child(n+3) { border-top: 1px solid var(--border); }
+}
+
+/* bar list with artwork: label line, 10px pill bar, value after its end */
+.ds-bars { display: grid; gap: 4px; }
+.ds-bar-row { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center; min-height: 56px; }
+.ds-bar-row img, .ds-bar-row .ds-art-empty { width: 40px; height: 40px; border-radius: var(--radius-art); object-fit: cover; background: var(--raised); }
+.ds-bar-row.round img { border-radius: 50%; }
+.ds-bar-label { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; color: var(--text); }
+.ds-bar-label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-bar-label em { font-style: normal; color: var(--muted); font-size: 13px; }
+.ds-bar-track { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+.ds-bar-fill { height: 10px; border-radius: 999px; background: var(--accent); }
+.ds-bar-fill.dim { background: #a9c3f0; }
+.ds-bar-value { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+/* genre tiles: the style's move, each genre pale with the dark of its own hue */
+.ds-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.ds-tile { border-radius: var(--radius-inner); padding: 12px 14px; min-height: 64px; }
+.ds-tile b { display: block; font-size: 15px; font-weight: 600; }
+.ds-tile span { font-size: 13px; opacity: .85; }
+
+/* rows: recent plays and similar short lists */
+.ds-rows { display: grid; }
+.ds-row { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; min-height: 56px; }
+.ds-row + .ds-row { border-top: 1px solid var(--rule); }
+.ds-row img { width: 40px; height: 40px; border-radius: var(--radius-art); object-fit: cover; }
+.ds-row-main { min-width: 0; }
+.ds-row-main b { display: block; font-size: 15px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-row-main span { display: block; font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-row-end { font-size: 13px; color: var(--muted); text-align: right; white-space: nowrap; }
+
+/* day in covers (signature element): one column per hour, covers stacked from the axis */
+.ds-day { display: grid; grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 4px; align-items: end; margin-top: 12px; }
+.ds-day-col { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; min-width: 0; }
+.ds-day-col img, .ds-day-col i { width: 100% !important; max-width: 30px; height: auto !important; aspect-ratio: 1 / 1;
+  border-radius: 3px; object-fit: cover; background: var(--raised); display: block; flex: none;
+  transition: transform var(--t-hover) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) { .ds-day-col img:hover { transform: scale(1.6); position: relative; z-index: 5; } }
+.ds-day-h { display: block; width: 100%; border-top: 2px solid var(--rule); padding-top: 4px; text-align: left;
+  font-size: 12px; color: var(--faint); min-height: 20px; }
+.ds-day-more { font-size: 12px; color: var(--muted); }
+
+/* ---------- controls ---------- */
+[data-baseweb="select"] > div, [data-baseweb="input"], [data-baseweb="base-input"],
+[data-testid="stNumberInputContainer"], [data-testid="stDateInputField"] {
+  background: var(--surface) !important; border-radius: var(--radius-control) !important; border: 1px solid var(--control) !important; }
+[data-testid="stWidgetLabel"] p { font-size: var(--fs-small); color: var(--muted); }
+[data-testid="stSliderThumbValue"], [data-testid="stSliderTickBar"] { white-space: nowrap; }
+
+/* buttons: flat, one fill; near-black primary, white secondary with a 1px edge */
+[data-testid="stBaseButton-primary"], [data-testid="stBaseButton-secondary"] {
+  min-height: var(--control-height); border-radius: var(--radius-control) !important;
+  box-shadow: none !important; /* taste-skill-ignore: removes Streamlit's default button shadow */
+  font-weight: 500; transition: background-color var(--t-hover) ease, transform var(--t-press) var(--ease-out); }
+[data-testid="stBaseButton-primary"] { background: var(--primary) !important; border: 1px solid var(--primary) !important; color: #fff !important; }
+[data-testid="stBaseButton-secondary"] { background: var(--surface) !important; border: 1px solid var(--control) !important; color: var(--text) !important; }
+@media (hover: hover) and (pointer: fine) {
+  [data-testid="stBaseButton-primary"]:hover { background: #33373a !important; }
+  [data-testid="stBaseButton-secondary"]:hover { background: var(--raised) !important; }
+}
+[data-testid="stBaseButton-primary"]:active, [data-testid="stBaseButton-secondary"]:active { transform: scale(0.97); }
+[data-testid="stBaseButton-tertiary"] { padding: 0 !important; min-height: 0 !important; color: var(--text) !important; }
+[data-testid="stBaseButton-tertiary"] p { font-weight: 500; text-decoration: underline; text-decoration-thickness: 1px;
+  text-underline-offset: 3px; text-decoration-color: var(--control); }
+@media (hover: hover) and (pointer: fine) { [data-testid="stBaseButton-tertiary"]:hover p { text-decoration-color: var(--text); } }
+[data-testid="stPageLink-NavLink"] { border: 1px solid var(--control); border-radius: var(--radius-control); background: var(--surface);
+  padding: 6px 14px; width: fit-content; }
+
+/* segmented track: grey track, white active option */
+[data-testid="stButtonGroup"] [role="radiogroup"] { background: #e9ecef; border-radius: var(--radius-control); padding: 3px; gap: 2px; width: fit-content; }
+button[data-variant="segmented_control"] { border: 0 !important; border-radius: 8px !important; background: transparent; min-height: 34px;
+  transition: background-color var(--t-ui) ease; }
+button[data-variant="segmented_control"] p { color: var(--muted) !important; }
+button[data-variant="segmented_control"][aria-checked="true"] { background: var(--surface) !important; }
+button[data-variant="segmented_control"][aria-checked="true"] p { color: var(--text) !important; font-weight: 500; }
+
+/* underline tabs on a full-width 1px rule */
+[data-testid="stTabs"] [role="tablist"] { border-bottom: 1px solid var(--border); gap: 24px; }
+[data-testid="stTab"] { padding: 10px 0 !important; }
+[data-testid="stTab"] p { font-size: 15px; color: var(--muted); }
+[data-testid="stTab"][aria-selected="true"] p { color: var(--text) !important; font-weight: 500; }
+[data-testid="stTabs"] .react-aria-SelectionIndicator { background: var(--text) !important; height: 2px !important; }
+[data-testid="stTabPanel"] { padding-top: 20px; }
+
+/* cover grid captions */
+.ds-cap-title { font-weight: 500; font-size: 15px; margin: 8px 0 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ds-cap-sub { color: var(--muted); font-size: 13px; margin: 0 0 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stElementContainer:has(.ds-cap-sub) { margin-top: -12px; }
+
+/* recap: the period's figure in its card */
+.ds-hero-num { font-size: 40px; font-weight: 600; letter-spacing: -0.02em; line-height: 1.1; color: var(--text); }
+
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; animation: none !important; } }
+@media (max-width: 640px) {
+  [data-testid="stMainBlockContainer"] { padding: 20px 16px 64px; }
+  .ds-day-more { display: none; }
+  [data-testid="stImage"] img { max-width: 220px; }
+}

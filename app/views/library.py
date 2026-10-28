@@ -48,19 +48,19 @@ with tab_albums:
             (t("library.fav_albums"), fmt_int(len(fav)), None),
             (t("common.artists"), fmt_int(fav["artist_id"].nunique()), None),
             (t("library.median_year"), str(int(years.median())) if len(years) else "–", None),
-            (t("library.listened_share"), fmt_pct(listened / len(fav)), t("library.listened_share_help")),
+            (t("library.listened_share"), fmt_pct(listened / len(fav)), t("library.listened_share_short")),
         ])
 
         left, right = st.columns(2, gap="large")
         with left:
             theme.section(t("library.by_decade"))
             dec = (years // 10 * 10).astype(int).value_counts().sort_index()
-            charts.show(charts.bar_categories([f"{d}s" for d in dec.index], dec.tolist(), t("library.albums")),
+            charts.show(charts.bar_categories([f"{d}s" for d in dec.index], dec.tolist(), t("library.albums"), height=360),
                         key="lib_dec")
         with right:
             theme.section(t("library.top_artists"))
             top_art = fav.groupby("artist_name").size().sort_values(ascending=False).head(10)
-            charts.show(charts.hbar(top_art.index.tolist(), top_art.tolist(), t("library.albums")), key="lib_art")
+            charts.show(charts.hbar(top_art.index.tolist(), top_art.tolist(), t("library.albums"), height=360), key="lib_art")
         left, right = st.columns(2, gap="large")
         with left:
             theme.section(t("library.genres"))
@@ -68,7 +68,7 @@ with tab_albums:
             if g.empty:
                 ui.empty_state(t("tops.no_genre"))
             else:
-                charts.show(charts.hbar(g.index.tolist(), g.tolist(), t("library.albums")), key="lib_genre")
+                charts.show(charts.hbar(g.index.tolist(), g.tolist(), t("library.albums"), height=360), key="lib_genre")
         with right:
             theme.section(t("library.added_per_month"))
             added = pd.to_datetime(fav["added_at"], errors="coerce").dropna()
@@ -79,7 +79,7 @@ with tab_albums:
                 full = pd.date_range(per_month.index.min(), per_month.index.max(), freq="MS")
                 per_month = per_month.reindex(full, fill_value=0)
                 tl = pd.DataFrame({"period": per_month.index, "albums": per_month.values})
-                charts.show(charts.bar_timeline(tl, "albums", "M", t("library.albums"), height=300), key="lib_added")
+                charts.show(charts.bar_timeline(tl, "albums", "M", t("library.albums"), height=360), key="lib_added")
 
         theme.section(t("library.all_favorites"))
         c1, c2, c3 = st.columns([2, 2, 2])
@@ -110,7 +110,7 @@ with tab_albums:
                     "release": st.column_config.TextColumn(t("library.release")),
                     "genre": st.column_config.TextColumn(t("common.genre")),
                     "added": st.column_config.TextColumn(t("library.added")),
-                    "plays": st.column_config.NumberColumn(t("library.plays_history")),
+                    "plays": st.column_config.NumberColumn(t("library.plays_history"), alignment="right"),
                 },
             )
             if event.selection.rows:
@@ -152,14 +152,14 @@ with tab_playlists:
         with left:
             theme.section(t("library.most_played_playlists"))
             top_pl = shown.sort_values("plays", ascending=False).head(10)
-            charts.show(charts.hbar(top_pl["title"].tolist(), top_pl["plays"].tolist(), t("common.plays")),
+            charts.show(charts.hbar(top_pl["title"].tolist(), top_pl["plays"].tolist(), t("common.plays"), height=380),
                         key="pl_top")
         with right:
             theme.section(t("library.artists_in_playlists"))
             in_shown = tracks_all[tracks_all["playlist_id"].isin(shown["id"])]
             arts = in_shown.dropna(subset=["artist_name"]).groupby("artist_name").size()
             arts = arts.sort_values(ascending=False).head(10)
-            charts.show(charts.hbar(arts.index.tolist(), arts.tolist(), t("library.tracks")), key="pl_art")
+            charts.show(charts.hbar(arts.index.tolist(), arts.tolist(), t("library.tracks"), height=380), key="pl_art")
 
         theme.section(t("library.all_playlists"))
         event = st.dataframe(
@@ -173,10 +173,10 @@ with tab_playlists:
                 "picture": st.column_config.ImageColumn("", width="small"),
                 "title": st.column_config.TextColumn(t("library.playlist")),
                 "creator": st.column_config.TextColumn(t("library.creator")),
-                "tracks": st.column_config.NumberColumn(t("library.tracks")),
-                "duration": st.column_config.TextColumn(t("library.duration")),
-                "played": st.column_config.TextColumn(t("library.played_share"), help=t("library.played_share_help")),
-                "plays": st.column_config.NumberColumn(t("library.plays_history")),
+                "tracks": st.column_config.NumberColumn(t("library.tracks"), alignment="right"),
+                "duration": st.column_config.TextColumn(t("library.duration"), alignment="right"),
+                "played": st.column_config.TextColumn(t("library.played_share"), help=t("library.played_share_help"), alignment="right"),
+                "plays": st.column_config.NumberColumn(t("library.plays_history"), alignment="right"),
             },
         )
         st.caption(t("library.pick_playlist"))
@@ -201,7 +201,7 @@ with tab_playlists:
                     "title": st.column_config.TextColumn(t("common.track")),
                     "artist": st.column_config.TextColumn(t("common.artist")),
                     "album": st.column_config.TextColumn(t("common.album")),
-                    "plays": st.column_config.NumberColumn(t("library.plays_history")),
+                    "plays": st.column_config.NumberColumn(t("library.plays_history"), alignment="right"),
                 },
             )
 

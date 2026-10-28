@@ -19,7 +19,7 @@ MODES = ["day", "week", "month", "year"]
 f = data.get_filters()
 tz = data.timezone_name()
 everything = stats.filter_frame(data.all_plays(), min_seconds=f.min_seconds)
-theme.page_header(t("wrapped.title"), kicker=t("wrapped.kicker"), dot="peach")
+st.title(t("wrapped.title"))
 if everything.empty:
     ui.empty_state()
     st.stop()
@@ -96,60 +96,60 @@ top_genre = stats.top(df, "genre", "minutes", 1)
 busiest = stats.busiest_day(df)
 fav_hour = int(df["played_local"].dt.hour.value_counts().idxmax())
 
-theme.hero(period_name, t("wrapped.your_period", period=period_name), [
-    (t("common.listening_time"), fmt_duration(k["minutes"])),
-    (t("common.plays"), fmt_int(k["plays"])),
-    (t("common.artists"), fmt_int(k["artists"])),
-    (t("wrapped.new_artists"), fmt_int(new_artists)),
-], palette=("#F7CDB8", "#D7C8F2", "#C9D0F7", "#F6E2A8"))
+st.markdown(f"<p class='ds-sub'>{escape(t('wrapped.your_period', period=period_name))} · "
+            f"{escape(t('wrapped.finding', artist=str(top_artist['label']), time=fmt_duration(top_artist['minutes'])))}</p>",
+            unsafe_allow_html=True)
+ui.kpi_row([
+    (t("common.listening_time"), fmt_duration(k["minutes"]), t("common.estimated_short")),
+    (t("common.plays"), fmt_int(k["plays"]), None),
+    (t("common.artists"), fmt_int(k["artists"]), None),
+    (t("wrapped.new_artists"), fmt_int(new_artists), t("wrapped.new_artists_cap")),
+])
+st.markdown("<div class='ds-section-gap'></div>", unsafe_allow_html=True)
 
-c_img, c_txt = st.columns([1, 2], gap="large", vertical_alignment="center")
-with c_img:
-    if isinstance(top_artist["image"], str):
-        st.image(top_artist["image"].replace("250x250", "500x500"), width="stretch")
-with c_txt:
-    st.caption(t("wrapped.top_artist"))
-    st.markdown(f"<div class='ds-hero-num' style='font-size:clamp(2.2rem,1.4rem + 2.4vw,3.6rem)'>"
-                f"{escape(str(top_artist['label']))}</div>", unsafe_allow_html=True)
-    st.markdown(t("wrapped.top_artist_detail", time=fmt_duration(top_artist["minutes"]),
-                  plays=fmt_int(top_artist["plays"])))
-    facts = []
-    if not top_genre.empty:
-        facts.append(t("wrapped.top_genre", genre=top_genre.iloc[0]["label"]))
-    if busiest and mode != "day":
-        facts.append(t("wrapped.busiest_day", date=fmt_date(busiest[0]), time=fmt_duration(busiest[1])))
-    facts.append(t("wrapped.fav_hour", hour=fav_hour))
-    for fact in facts:
-        st.markdown(f"- {fact}")
+c_art, c_tracks, c_albums = st.columns([1, 1.15, 1.15], gap="medium")
+with c_art:
+    with st.container(key="card-wr-artist"):
+        theme.card_head(t("wrapped.top_artist"))
+        if isinstance(top_artist["image"], str):
+            st.image(top_artist["image"].replace("250x250", "500x500"), width="stretch")
+        st.html(f"<div class='ds-figure'>{escape(str(top_artist['label']))}</div>"
+                f"<p class='ds-figure-sub'>{escape(t('wrapped.top_artist_detail', time=fmt_duration(top_artist['minutes']), plays=fmt_int(top_artist['plays'])))}</p>")
+        facts = []
+        if not top_genre.empty:
+            facts.append(t("wrapped.top_genre_plain", genre=top_genre.iloc[0]["label"]))
+        if busiest and mode != "day":
+            facts.append(t("wrapped.busiest_day_plain", date=fmt_date(busiest[0]), time=fmt_duration(busiest[1])))
+        facts.append(t("wrapped.fav_hour_plain", hour=fav_hour))
+        st.html("<div class='ds-stamp'>" + "<br>".join(escape(x) for x in facts) + "</div>")
+with c_tracks:
+    with st.container(key="card-wr-tracks"):
+        theme.card_head(t("wrapped.top_tracks"), meta=t("overview.by_plays"))
+        ui.bar_list(stats.top(df, "track", "plays", 7), lambda r: fmt_plays(r.plays), limit=7)
+with c_albums:
+    with st.container(key="card-wr-albums"):
+        theme.card_head(t("wrapped.top_albums"), meta=t("overview.by_plays"))
+        ui.bar_list(stats.top(df, "album", "plays", 7), lambda r: fmt_plays(r.plays), limit=7)
 
-left, right = st.columns(2, gap="large")
-with left:
-    theme.section(t("wrapped.top_tracks"))
-    tracks = stats.top(df, "track", "plays", 5)
-    for row in tracks.itertuples():
-        a, b = st.columns([1, 5], vertical_alignment="center")
-        if isinstance(row.image, str):
-            a.image(row.image, width="stretch")
-        b.markdown(f"**{row.rank}. {row.label}**  \n{row.sublabel} · {fmt_plays(row.plays)}")
-with right:
-    theme.section(t("wrapped.top_albums"))
-    ui.cover_grid(stats.top(df, "album", "plays", 6), "album", ui.value_formatter("plays"), columns=3, key="wr_al")
+with st.container(key="card-wr-rhythm"):
+    theme.card_head(t("wrapped.rhythm"), meta=period_name)
+    if mode == "day":
+        per_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum().reindex(range(24), fill_value=0)
+        charts.show(charts.bar_categories([f"{h}h" for h in per_hour.index], per_hour.round(0).tolist(),
+                                          t("common.minutes"), height=220), key="wr_tl")
+    else:
+        freq = "M" if mode == "year" else "D"
+        tl = stats.timeline(df, freq)
+        if mode == "week":  # always show the 7 days, even silent ones
+            full = pd.date_range(start.tz_localize(None), periods=7, freq="D")
+            tl = tl.set_index("period").reindex(full, fill_value=0).rename_axis("period").reset_index()
+        charts.show(charts.bar_timeline(tl, "minutes", freq, t("common.minutes"), height=220, highlight_last=False),
+                    key="wr_tl")
 
-theme.section(t("wrapped.rhythm"))
-if mode == "day":
-    per_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum().reindex(range(24), fill_value=0)
-    charts.show(charts.bar_categories([f"{h}h" for h in per_hour.index], per_hour.round(0).tolist(),
-                                      t("common.minutes"), height=220), key="wr_tl")
-else:
-    freq = "M" if mode == "year" else "D"
-    tl = stats.timeline(df, freq)
-    if mode == "week":  # always show the 7 days, even silent ones
-        full = pd.date_range(start.tz_localize(None), periods=7, freq="D")
-        tl = tl.set_index("period").reindex(full, fill_value=0).rename_axis("period").reset_index()
-    charts.show(charts.bar_timeline(tl, "minutes", freq, t("common.minutes"), height=220), key="wr_tl")
-theme.section(t("explore.fingerprint_title"), t("explore.fingerprint_kicker"))
-svg = viz.fingerprint_svg(df, t("explore.fingerprint_title"), period_name)
-st.markdown(svg, unsafe_allow_html=True)
-st.download_button(t("explore.download_svg"), svg.encode("utf-8"), file_name="empreinte_sonore.svg",
-                   mime="image/svg+xml", icon=":material/download:", key="wr_fp_dl")
+with st.container(key="card-wr-print"):
+    theme.card_head(t("explore.fingerprint_title"), meta=t("explore.fingerprint_kicker"))
+    svg = viz.fingerprint_svg(df, t("explore.fingerprint_title"), period_name)
+    st.markdown(svg, unsafe_allow_html=True)
+    st.download_button(t("explore.download_svg"), svg.encode("utf-8"), file_name="empreinte_sonore.svg",
+                       mime="image/svg+xml", icon=":material/download:", key="wr_fp_dl")
 st.caption(t("wrapped.share_hint"))

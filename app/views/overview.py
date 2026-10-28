@@ -1,7 +1,10 @@
+"""Overview. Question: what did I listen to in this period, and what dominates it?
+The finding sits under the title; each sum sits in the card that explains it."""
+
 import streamlit as st
 
 from app.components import charts, data, theme, ui
-from app.i18n import fmt_datetime_short, fmt_duration, fmt_int, fmt_seconds, t
+from app.i18n import fmt_date, fmt_duration, fmt_int, fmt_pct, fmt_plays, fmt_seconds, t
 from core import stats
 
 f = data.get_filters()
@@ -13,44 +16,51 @@ if df.empty:
     st.stop()
 
 k = stats.kpis(df)
-theme.hero(t("overview.hero_title"), f.label, [
-    (t("common.plays"), fmt_int(k["plays"])),
-    (t("common.listening_time"), fmt_duration(k["minutes"])),
-    (t("common.artists"), fmt_int(k["artists"])),
-    (t("common.tracks"), fmt_int(k["tracks"])),
-])
-ui.estimated_note(df)
+artists = stats.top(df, "artist", "minutes", 6)
+busiest = stats.busiest_day(df)
+finding = t("overview.finding", artist=artists.iloc[0]["label"],
+            share=fmt_pct(artists.iloc[0]["minutes"] / k["minutes"]) if k["minutes"] else "–",
+            day=fmt_date(busiest[0]) if busiest else "–", time=fmt_duration(busiest[1]) if busiest else "–")
+theme.page_header(t("overview.title"), kicker=f.label, lead=finding)
 
 span_days = (df["played_local"].max() - df["played_local"].min()).days
 freq = "D" if span_days <= 45 else ("W" if span_days <= 400 else "M")
-theme.section(t("overview.activity"), t("overview.activity_kicker"))
-charts.show(charts.bar_timeline(stats.timeline(df, freq), "minutes", freq, t("common.minutes"), height=260), key="ov_tl")
 
-left, right = st.columns([5, 4], gap="large")
-with left:
-    theme.section(t("overview.top_artists"), t("overview.by_plays"))
-    ui.cover_grid(stats.top(df, "artist", "plays", 8), "artist", ui.value_formatter("plays"), columns=4, key="ov_ar")
-with right:
-    theme.section(t("overview.top_tracks"), t("overview.by_plays"))
-    tracks = stats.top(df, "track", "plays", 8)
-    charts.show(charts.hbar([f"{a} — {b}" if len(a) < 28 else a for a, b in zip(tracks["label"], tracks["sublabel"])],
-                            tracks["plays"], t("common.plays")), key="ov_tr")
+main, rail = st.columns([1.85, 1], gap="large")
+with main:
+    with st.container(key="card-time"):
+        theme.card_head(t("overview.time_title"), meta=f.label, figure=fmt_duration(k["minutes"]),
+                        figure_sub=t("overview.time_sub", plays=fmt_int(k["plays"]), artists=fmt_int(k["artists"]),
+                                     tracks=fmt_int(k["tracks"]), avg=fmt_seconds(k["avg_seconds"])))
+        charts.show(charts.bar_timeline(stats.timeline(df, freq), "minutes", freq, t("common.minutes"), height=230),
+                    key="ov_tl")
 
-theme.section(t("overview.recent"), t("overview.recent_kicker"))
-scoped, _ = data.scoped_plays("ov_recent")
-recent = scoped.head(15)
-st.dataframe(
-    {
-        t("common.time"): [fmt_datetime_short(x) for x in recent["played_local"]],
-        "": recent["cover"].tolist(),
-        t("common.track"): recent["track_title"].tolist(),
-        t("common.artist"): recent["artist_name"].tolist(),
-        t("common.listened"): [fmt_seconds(s) + ("*" if e else "") for s, e in
-                               zip(recent["listened_seconds"], recent["duration_is_estimated"])],
-    },
-    hide_index=True,
-    column_config={"": st.column_config.ImageColumn("", width="small")},
-)
-c1, c2 = st.columns(2)
-c1.page_link(ui.PAGES["history"], label=t("overview.see_history"), icon=":material/arrow_forward:")
-c2.page_link(ui.PAGES["explore"], label=t("overview.see_explore"), icon=":material/blur_on:")
+    last_day = df["played_local"].max().date()
+    day = df[df["played_local"].dt.date == last_day]
+    with st.container(key="card-day"):
+        theme.card_head(t("overview.day_title"), meta=fmt_date(last_day),
+                        figure_sub=t("overview.day_sub", plays=fmt_plays(len(day)), time=fmt_duration(day["minutes"].sum()),
+                                     first=day["played_local"].min().strftime("%H:%M"),
+                                     last=day["played_local"].max().strftime("%H:%M")))
+        ui.day_in_covers(day)
+
+    with st.container(key="card-genres"):
+        genres = stats.top(df, "genre", "minutes", 6)
+        theme.card_head(t("overview.genres_title"), meta=t("overview.genres_meta"))
+        if genres.empty:
+            ui.empty_state(t("tops.no_genre"))
+        else:
+            ui.genre_tiles(genres, k["minutes"])
+
+with rail:
+    with st.container(key="card-artists"):
+        theme.card_head(t("overview.top_artists"), meta=t("overview.by_minutes"))
+        ui.bar_list(artists, lambda r: fmt_duration(r.minutes), round_art=True, limit=5, metric="minutes")
+        st.page_link(ui.PAGES["tops"], label=t("overview.see_tops"), icon=":material/arrow_forward:")
+
+    with st.container(key="card-recent"):
+        theme.card_head(t("overview.recent"), meta=t("overview.recent_kicker"))
+        ui.short_rows(df, limit=5)
+        st.page_link(ui.PAGES["history"], label=t("overview.see_history"), icon=":material/arrow_forward:")
+
+ui.estimated_note(df)

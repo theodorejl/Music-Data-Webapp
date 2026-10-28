@@ -105,9 +105,10 @@ def fmt_duration(minutes) -> str:
     except (TypeError, ValueError):
         return "–"
     h, m = divmod(total, 60)
+    nb = "\u00a0"  # a duration never breaks across lines
     if get_lang() == "fr":
-        return f"{fmt_int(h)} h {m:02d}" if h else f"{m} min"
-    return f"{fmt_int(h)}h {m:02d}m" if h else f"{m} min"
+        return f"{fmt_int(h)}{nb}h{nb}{m:02d}" if h else f"{m}{nb}min"
+    return f"{fmt_int(h)}h{nb}{m:02d}m" if h else f"{m}{nb}min"
 
 
 def fmt_seconds(s) -> str:

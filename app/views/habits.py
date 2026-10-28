@@ -22,8 +22,8 @@ ui.kpi_row([
     (t("habits.current_streak"), t("habits.days", n=fmt_int(s["current"])), None),
     (t("habits.longest_streak"), t("habits.days", n=fmt_int(s["longest"])),
      f"{fmt_date(s['longest_start'])} → {fmt_date(s['longest_end'])}" if s["longest_start"] else None),
-    (t("habits.avg_listen"), fmt_seconds(df["listened_seconds"].mean()), t("common.estimated_help")),
-    (t("habits.skip_rate"), fmt_pct(stats.skip_rate(all_period, threshold)), t("habits.skip_rate_help", s=threshold)),
+    (t("habits.avg_listen"), fmt_seconds(df["listened_seconds"].mean()), t("common.estimated_short")),
+    (t("habits.skip_rate"), fmt_pct(stats.skip_rate(all_period, threshold)), t("habits.skip_rate_short", s=threshold)),
 ])
 
 theme.section(t("habits.heatmap"))
@@ -62,6 +62,8 @@ with right:
                 t("habits.skips"): ms["skips"].tolist(),
                 t("habits.skip_share"): [fmt_pct(x) for x in ms["skip_rate"]],
             },
-            hide_index=True, column_config={"": st.column_config.ImageColumn("", width="small")},
+            hide_index=True, column_config={"": st.column_config.ImageColumn("", width="small"),
+                                            t("habits.skips"): st.column_config.NumberColumn(alignment="right"),
+                                            t("habits.skip_share"): st.column_config.TextColumn(alignment="right")},
         )
 ui.estimated_note(df)

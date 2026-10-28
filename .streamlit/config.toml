@@ -1,32 +1,31 @@
 [theme]
 base = "light"
-# Soft stone ground, white surfaces, ink text, one periwinkle accent.
-primaryColor = "#6C7FE8"
-backgroundColor = "#EFEEEA"
-secondaryBackgroundColor = "#F7F6F3"
-textColor = "#17171A"
-linkColor = "#4B5BC4"
+# taste-skill app style "pastel-consumer": #f3f5f7 ground, white panels, ink text, one cobalt accent on data.
+primaryColor = "#1d5fd6"
+backgroundColor = "#f3f5f7"
+secondaryBackgroundColor = "#f2f8fd"
+textColor = "#1b1d1f"
+linkColor = "#1d5fd6"
 linkUnderline = false
-borderColor = "#E4E2DD"
-dataframeBorderColor = "#ECEAE5"
-dataframeHeaderBackgroundColor = "#F4F3EF"
+borderColor = "#e6e6e6"
+dataframeBorderColor = "#f4f4f4"
+dataframeHeaderBackgroundColor = "#ffffff"
 showWidgetBorder = false
 showSidebarBorder = false
-baseRadius = "14px"
-buttonRadius = "999px"
-font = "Geist:https://fonts.googleapis.com/css2?family=Geist:wght@300..700&display=swap"
-headingFont = "Geist:https://fonts.googleapis.com/css2?family=Geist:wght@300..700&display=swap"
-codeFont = "Geist Mono:https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400..600&display=swap"
+baseRadius = "10px"
+buttonRadius = "10px"
+font = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap"
+headingFont = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap"
 baseFontSize = 15
-metricValueFontSize = "2.4rem"
+metricValueFontSize = "26px"
 metricValueFontWeight = 400
-# Validated categorical order (dataviz validator: CVD ΔE ≥ 9.9, normal-vision ΔE ≥ 18.1).
-chartCategoricalColors = ["#6C7FE8", "#EE8E66", "#9B7FD9", "#3FB58E", "#D9A93A", "#E07FA8"]
-chartSequentialColors = ["#F2F3FD", "#DDE2FB", "#C3CBF6", "#A4B0F1", "#8796EC", "#6C7FE8", "#5465CF", "#3F4EAE", "#2E3A88", "#202963"]
+# taste-skill pastel-consumer chart hues (one hue per chart).
+chartCategoricalColors = ["#1d5fd6", "#b45309", "#2a8798"]
+chartSequentialColors = ["#f5f8fe", "#eef4fd", "#dcf1ff", "#c7defa", "#b9d3f6", "#8fb3ee", "#5f8de3", "#1d5fd6", "#164ca9", "#0a3a80"]
 
 [theme.sidebar]
-backgroundColor = "#F7F6F3"
-secondaryBackgroundColor = "#EFEEEA"
+backgroundColor = "#f3f5f7"
+secondaryBackgroundColor = "#ffffff"
 
 [server]
 headless = true

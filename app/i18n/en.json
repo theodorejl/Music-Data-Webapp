@@ -107,7 +107,8 @@
     "click_row": "Click a row to open its page",
     "db_error": "Cannot read the database ({error}). Check DATABASE_URL.",
     "play_short": "play",
-    "download_excel": "Download Excel"
+    "download_excel": "Download Excel",
+    "estimated_short": "estimated durations"
   },
   "status": {
     "never": "No sync yet.",
@@ -115,7 +116,8 @@
     "total_plays": "{n} plays recorded",
     "last_failed": "The last sync failed.",
     "gaps": "Possible gaps ({n})",
-    "gap_between": "Possible gap between {start} and {end}"
+    "gap_between": "Possible gap between {start} and {end}",
+    "title": "Collection"
   },
   "overview": {
     "title": "Overview",
@@ -129,7 +131,16 @@
     "activity_kicker": "Listening minutes",
     "by_plays": "By number of plays",
     "recent_kicker": "Live from Deezer",
-    "see_explore": "See the visual explorations"
+    "see_explore": "See the visual explorations",
+    "finding": "{artist} makes {share} of your minutes; biggest day {day} ({time})",
+    "time_title": "Listening time",
+    "time_sub": "{plays} plays · {artists} artists · {tracks} tracks · {avg} on average per play",
+    "day_title": "Your day in covers",
+    "day_sub": "{plays} · {time} listened, from {first} to {last}",
+    "genres_title": "Genres",
+    "genres_meta": "share of minutes",
+    "by_minutes": "by minutes",
+    "see_tops": "See all top charts"
   },
   "tops": {
     "title": "Top charts",
@@ -153,7 +164,7 @@
     "cumulative": "Cumulative",
     "genre_share": "Share of top genres",
     "artist_share": "Share of top artists",
-    "share_note": "The period's top 6 genres and artists; everything else is grouped under \"Other\".",
+    "share_note": "The period's top 3 genres and artists; everything else is grouped under \"Other\".",
     "lead": "How your listening changes over time, and the share of the genres and artists that matter."
   },
   "habits": {
@@ -174,7 +185,8 @@
     "skip_share": "% skipped",
     "lead": "When you listen, how many days in a row, and what you skip the fastest.",
     "calendar": "Your listening year",
-    "calendar_kicker": "Last 365 days · minutes per day"
+    "calendar_kicker": "Last 365 days · minutes per day",
+    "skip_rate_short": "plays under {s} s"
   },
   "discoveries": {
     "title": "Discoveries",
@@ -240,7 +252,12 @@
     "week_of": "Week of {date}",
     "week_period": "week of {date}",
     "kicker": "Shareable recap",
-    "new_artists": "New artists"
+    "new_artists": "New artists",
+    "finding": "{artist} leads with {time}",
+    "new_artists_cap": "first play in the period",
+    "top_genre_plain": "Favourite genre: {genre}",
+    "busiest_day_plain": "Biggest day: {date} ({time})",
+    "fav_hour_plain": "Favourite hour: {hour}:00"
   },
   "admin": {
     "title": "Corrections",
@@ -285,7 +302,7 @@
   "library": {
     "title": "Favorite albums & playlists",
     "subtitle": "Your Deezer library, cross-checked with your listening history.",
-    "empty": "Library not loaded yet: run a sync (python -m scripts.sync --library).",
+    "empty": "Library not loaded yet: run a sync (`python -m scripts.sync --library`).",
     "tab_albums": "Favorite albums",
     "tab_playlists": "Playlists",
     "tab_export": "Exports",
@@ -340,7 +357,8 @@
     "poster_generate": "Generate the A3 poster",
     "poster_wait": "Downloading covers and laying out…",
     "poster_download": "Download the poster (A3 PDF)",
-    "kicker": "Deezer library"
+    "kicker": "Deezer library",
+    "listened_share_short": "at least one track in the history"
   },
   "explore": {
     "title": "Explorations",

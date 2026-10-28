@@ -55,7 +55,8 @@ for tab, dim in ((tab_ar, "artist"), (tab_al, "album")):
                 t("discoveries.plays_since"): frame["plays"].tolist(),
             },
             hide_index=True, key=f"disc_{dim}", on_select="rerun", selection_mode="single-row",
-            column_config={"": st.column_config.ImageColumn("", width="small")},
+            column_config={"": st.column_config.ImageColumn("", width="small"),
+                           t("discoveries.plays_since"): st.column_config.NumberColumn(alignment="right")},
         )
         if event.selection.rows:
             ui.open_detail(dim, frame.iloc[event.selection.rows[0]]["key"])

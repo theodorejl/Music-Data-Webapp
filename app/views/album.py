@@ -46,7 +46,7 @@ with c_txt:
     st.caption(t("detail.first_play", date=fmt_date(mine["played_local"].min().date())))
     ui.kpi_row([
         (t("common.plays"), fmt_int(len(mine)), None),
-        (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_help")),
+        (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_short")),
     ])
 
 theme.section(t("detail.album_tracks"))

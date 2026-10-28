@@ -21,12 +21,12 @@ import streamlit as st
 
 STRONG = ["#6C7FE8", "#EE8E66", "#9B7FD9", "#3FB58E", "#D9A93A", "#E07FA8"]
 OTHER = "#B9B5AD"
-FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..600&family=Geist+Mono:wght@400'
+FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600'
          '&display=swap" rel="stylesheet">')
-BASE_CSS = """html,body{margin:0;background:transparent;font-family:Geist,system-ui,sans-serif;color:#17171A;
+BASE_CSS = """html,body{margin:0;background:transparent;font-family:Manrope,system-ui,sans-serif;color:#1b1d1f;
 -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
-.card{position:relative;background:#FBFAF8;border-radius:26px;overflow:hidden}
-.lab{font-family:"Geist Mono",monospace;font-size:10.5px;letter-spacing:.15em;text-transform:uppercase;color:#8A8780}
+.card{position:relative;background:#FFFFFF;border:1px solid #e6e6e6;border-radius:20px;overflow:hidden}
+.lab{font-size:13px;color:#5c6064}
 .legend{position:absolute;left:22px;top:20px;display:flex;flex-direction:column;gap:7px;z-index:2}
 .legend span{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#4A4843}
 .legend i{width:9px;height:9px;border-radius:9px;display:inline-block}
@@ -91,8 +91,8 @@ pos=P.map(p=>{{const a=p[1]*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(p[0]/maxTurn
 function guide(){{ctx.strokeStyle='rgba(23,23,26,.07)';ctx.lineWidth=1;ctx.beginPath();
 const turns=Math.ceil(maxTurn);for(let i=0;i<=turns*120;i++){{const tt=i/120;const a=(tt%1)*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(tt/maxTurn);
 const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}}ctx.stroke();
-ctx.fillStyle='#8A8780';ctx.font='10.5px "Geist Mono", monospace';ctx.textAlign='center';ctx.textBaseline='middle';
-H.forEach((h,i)=>{{const a=i/H.length*Math.PI*2-Math.PI/2;ctx.fillText(h.toUpperCase(),cx+Math.cos(a)*(R1+24),cy+Math.sin(a)*(R1+24))}})}}
+ctx.fillStyle='#5c6064';ctx.font='12px Manrope, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+H.forEach((h,i)=>{{const a=i/H.length*Math.PI*2-Math.PI/2;ctx.fillText(h,cx+Math.cos(a)*(R1+24),cy+Math.sin(a)*(R1+24))}})}}
 let shown=still?P.length:0,hover=-1;
 function draw(){{ctx.clearRect(0,0,W,Hh);guide();
 for(let i=0;i<shown;i++){{const[x,y,r]=pos[i];ctx.globalAlpha=i===hover?1:.82;ctx.fillStyle=P[i][3];ctx.beginPath();ctx.arc(x,y,i===hover?r+2.5:r,0,7);ctx.fill()}}
@@ -177,10 +177,9 @@ def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> N
          for r in by_artist.itertuples()]
     caption = f"{total} {labels['plays']} · {len(A)} {labels['artists']}"
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONTS}<style>{BASE_CSS}
-.night{{position:relative;border-radius:26px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
+.night{{position:relative;border-radius:20px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
 canvas{{display:block;width:100%;height:{height}px}}
-.cap{{position:absolute;right:22px;top:20px;font-family:"Geist Mono",monospace;font-size:10.5px;letter-spacing:.16em;
-text-transform:uppercase;color:rgba(255,255,255,.55)}}
+.cap{{position:absolute;right:22px;top:20px;font-size:13px;color:rgba(255,255,255,.7)}}
 .tip{{background:#FBFAF8;color:#17171A}}.tip small{{color:#8A8780}}</style></head><body>
 <div class="night"><canvas id="c"></canvas><div class="cap">{escape(caption)}</div><div class="tip" id="tip"></div></div>
 <script>
@@ -227,13 +226,13 @@ const onFrame=(Math.abs(p[0]-q[0])<.5&&(Math.abs(p[0]-m)<.5||Math.abs(p[0]-(W-m)
 if(!onFrame){{ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}}}}});
 ctx.textAlign='center';ctx.textBaseline='middle';
 cells.forEach((cell,i)=>{{const ce=centroid(cell);let lx=ce[0],ly=ce[1]-Math.min(W,H)*.2;if(!inside(cell,lx,ly))ly=ce[1];
-ctx.font='500 21px Geist, system-ui, sans-serif';ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
+ctx.font='600 20px Manrope, system-ui, sans-serif';ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
 ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(G[i][0],lx,ly);ctx.shadowBlur=0;
-ctx.font='10px "Geist Mono", monospace';ctx.fillStyle='rgba(255,255,255,.5)';ctx.fillText((G[i][2]+' {escape(labels["plays"])}').toUpperCase(),lx,ly+20)}});
-ctx.textAlign='left';ctx.font='10.5px "Geist Mono", monospace';const shown=G.map(()=>0);
+ctx.font='12px Manrope, system-ui, sans-serif';ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20)}});
+ctx.textAlign='left';ctx.font='12px Manrope, system-ui, sans-serif';const shown=G.map(()=>0);
 C.forEach((c,i)=>{{if(shown[c.g]<2||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10,y=c.y-c.s*.6;ctx.strokeStyle='rgba(255,255,255,.4)';
 ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#fff':'rgba(255,255,255,.72)';
-ctx.fillText(A[i][0].toUpperCase()+'  '+A[i][1],x,y)}}}});
+ctx.fillText(A[i][0]+'  '+A[i][1],x,y)}}}});
 if(!still)requestAnimationFrame(draw)}}
 layout();addEventListener('resize',layout);requestAnimationFrame(draw);
 cv.addEventListener('mousemove',e=>{{const b=cv.getBoundingClientRect();mouse.x=e.clientX-b.left;mouse.y=e.clientY-b.top;
@@ -254,8 +253,8 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
     Ring wobble = listening time at that hour; colour = dominant genre at that hour.
     Deterministic for a given dataset, so the same period always gives the same print."""
     cx = cy = size / 2
-    top_genres = df["genre"].dropna().value_counts().head(6).index.tolist()
-    colors = _palette(top_genres)
+    top_genres = df["genre"].dropna().value_counts().head(3).index.tolist()
+    colors = {g: ["#1d5fd6", "#b45309", "#2a8798"][i] for i, g in enumerate(top_genres)}
     by_hour = df.groupby(df["played_local"].dt.hour)
     minutes = by_hour["minutes"].sum().reindex(range(24), fill_value=0.0)
     dominant = by_hour["genre"].agg(lambda s: s.dropna().mode().iloc[0] if s.notna().any() else None)
@@ -267,7 +266,7 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
     for h in range(24):
         base = size * 0.07 + h * size * 0.0152
         amp = (minutes[h] / mmax) * size * 0.016 + size * 0.0015
-        color = colors.get(dominant.get(h), OTHER) if minutes[h] > 0 else "#D9D6CF"
+        color = colors.get(dominant.get(h), "#9aa1a9") if minutes[h] > 0 else "#e3e6ea"
         for layer in range(4):  # four fine strokes per ring give the engraved texture
             pts = []
             for k in range(181):
@@ -283,9 +282,9 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
         for i, (g, c) in enumerate(colors.items()))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" width="100%" '
             f'style="max-width:{size}px;display:block;margin:auto">'
-            f'<rect width="{size}" height="{size}" rx="28" fill="#FBFAF8"/>'
-            f'<text x="40" y="58" font-family="Geist, system-ui, sans-serif" font-size="30" letter-spacing="-1" '
+            f'<rect width="{size}" height="{size}" rx="20" fill="#FFFFFF"/>'
+            f'<text x="40" y="58" font-family="Manrope, system-ui, sans-serif" font-size="28" font-weight="600" letter-spacing="-0.5" '
             f'fill="#17171A">{escape(title)}</text>'
-            f'<text x="40" y="84" font-family="Geist Mono, monospace" font-size="11" letter-spacing="2" '
-            f'fill="#8A8780">{escape(subtitle.upper())}</text>'
-            f'<g font-family="Geist, system-ui, sans-serif">{legend}</g>{"".join(paths)}</svg>')
+            f'<text x="40" y="84" font-family="Manrope, system-ui, sans-serif" font-size="14" '
+            f'fill="#5c6064">{escape(subtitle)}</text>'
+            f'<g font-family="Manrope, system-ui, sans-serif">{legend}</g>{"".join(paths)}</svg>')

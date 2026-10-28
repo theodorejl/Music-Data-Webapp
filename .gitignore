@@ -25,3 +25,6 @@ Exports Excel/
 
 # Conversation log with Claude (personal)
 Journal.md
+
+# Third-party design skill (taste-skill, MIT), installed locally for Claude Code
+.claude/skills/

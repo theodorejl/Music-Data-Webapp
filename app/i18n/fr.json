@@ -107,7 +107,8 @@
     "click_row": "Clique sur une ligne pour ouvrir sa fiche",
     "db_error": "Impossible de lire la base de données ({error}). Vérifie DATABASE_URL.",
     "play_short": "écoute",
-    "download_excel": "Télécharger en Excel"
+    "download_excel": "Télécharger en Excel",
+    "estimated_short": "durées estimées"
   },
   "status": {
     "never": "Aucune synchro pour l'instant.",
@@ -115,7 +116,8 @@
     "total_plays": "{n} écoutes enregistrées",
     "last_failed": "La dernière synchro a échoué.",
     "gaps": "Trous possibles ({n})",
-    "gap_between": "Trou possible entre {start} et {end}"
+    "gap_between": "Trou possible entre {start} et {end}",
+    "title": "Collecte"
   },
   "overview": {
     "title": "Vue d'ensemble",
@@ -129,7 +131,16 @@
     "activity_kicker": "Minutes d'écoute",
     "by_plays": "Par nombre d'écoutes",
     "recent_kicker": "En direct de Deezer",
-    "see_explore": "Voir les explorations visuelles"
+    "see_explore": "Voir les explorations visuelles",
+    "finding": "{artist} fait {share} de tes minutes ; plus grosse journée le {day} ({time})",
+    "time_title": "Temps d'écoute",
+    "time_sub": "{plays} écoutes · {artists} artistes · {tracks} titres · {avg} en moyenne par écoute",
+    "day_title": "Ta journée en pochettes",
+    "day_sub": "{plays} · {time} d'écoute, de {first} à {last}",
+    "genres_title": "Genres",
+    "genres_meta": "part des minutes",
+    "by_minutes": "par minutes",
+    "see_tops": "Voir tous les tops"
   },
   "tops": {
     "title": "Tops",
@@ -153,7 +164,7 @@
     "cumulative": "Cumul",
     "genre_share": "Part des principaux genres",
     "artist_share": "Part des principaux artistes",
-    "share_note": "Les 6 genres et artistes principaux de la période ; le reste est regroupé dans « Autres ».",
+    "share_note": "Les 3 genres et artistes principaux de la période ; le reste est regroupé dans « Autres ».",
     "lead": "Comment ton écoute évolue dans le temps, et la place des genres et artistes qui comptent."
   },
   "habits": {
@@ -174,7 +185,8 @@
     "skip_share": "% passé",
     "lead": "Quand tu écoutes, combien de jours d'affilée, et ce que tu passes le plus vite.",
     "calendar": "Ton année d'écoute",
-    "calendar_kicker": "365 derniers jours · minutes par jour"
+    "calendar_kicker": "365 derniers jours · minutes par jour",
+    "skip_rate_short": "écoutes de moins de {s} s"
   },
   "discoveries": {
     "title": "Découvertes",
@@ -240,7 +252,12 @@
     "week_of": "Semaine du {date}",
     "week_period": "semaine du {date}",
     "kicker": "Récapitulatif partageable",
-    "new_artists": "Nouveaux artistes"
+    "new_artists": "Nouveaux artistes",
+    "finding": "{artist} en tête avec {time}",
+    "new_artists_cap": "première écoute dans la période",
+    "top_genre_plain": "Genre préféré : {genre}",
+    "busiest_day_plain": "Plus grosse journée : {date} ({time})",
+    "fav_hour_plain": "Heure favorite : {hour} h"
   },
   "admin": {
     "title": "Corrections",
@@ -285,7 +302,7 @@
   "library": {
     "title": "Albums & playlists favoris",
     "subtitle": "Ta bibliothèque Deezer, croisée avec ton historique d'écoute.",
-    "empty": "Bibliothèque pas encore chargée : lance une synchro (python -m scripts.sync --library).",
+    "empty": "Bibliothèque pas encore chargée : lance une synchro (`python -m scripts.sync --library`).",
     "tab_albums": "Albums favoris",
     "tab_playlists": "Playlists",
     "tab_export": "Exports",
@@ -340,7 +357,8 @@
     "poster_generate": "Générer l'affiche A3",
     "poster_wait": "Téléchargement des pochettes et mise en page…",
     "poster_download": "Télécharger l'affiche (PDF A3)",
-    "kicker": "Bibliothèque Deezer"
+    "kicker": "Bibliothèque Deezer",
+    "listened_share_short": "au moins un titre dans l'historique"
   },
   "explore": {
     "title": "Explorations",

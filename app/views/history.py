@@ -39,7 +39,8 @@ event = st.dataframe(
     },
     hide_index=True, height=min(38 + 35 * len(chunk), 1800), key="hist_table",
     on_select="rerun", selection_mode="single-row",
-    column_config={"": st.column_config.ImageColumn("", width="small")},
+    column_config={"": st.column_config.ImageColumn("", width="small"),
+                   t("common.listened"): st.column_config.TextColumn(alignment="right")},
 )
 if event.selection.rows:
     ui.open_detail("track", chunk.iloc[event.selection.rows[0]]["track_id"])

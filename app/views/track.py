@@ -32,9 +32,9 @@ with c_txt:
 
 ui.kpi_row([
     (t("common.plays"), fmt_int(len(mine)), None),
-    (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_help")),
+    (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_short")),
     (t("habits.avg_listen"), fmt_seconds(mine["listened_seconds"].mean()), None),
-    (t("habits.skip_rate"), fmt_pct(stats.skip_rate(mine, 30)), t("habits.skip_rate_help", s=30)),
+    (t("habits.skip_rate"), fmt_pct(stats.skip_rate(mine, 30)), t("habits.skip_rate_short", s=30)),
 ])
 
 theme.section(t("detail.listening_curve"))
@@ -50,6 +50,7 @@ st.dataframe(
                                zip(plays_scope["listened_seconds"], plays_scope["duration_is_estimated"])],
     },
     hide_index=True,
+    column_config={t("common.listened"): st.column_config.TextColumn(alignment="right")},
 )
 ui.estimated_note(mine)
 detail.back_links()

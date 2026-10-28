@@ -35,7 +35,7 @@ with c_txt:
 ui.kpi_row([
     (t("detail.plays_all_time"), fmt_int(len(mine)), None),
     (t("detail.plays_period", period=f.label.lower()), fmt_int(len(in_period)), None),
-    (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_help")),
+    (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_short")),
     (t("common.tracks"), fmt_int(mine["track_id"].nunique()), None),
 ])
 
