@@ -9,11 +9,12 @@ if str(ROOT) not in sys.path:  # make `core` and `app` importable (local and Str
 
 import streamlit as st  # noqa: E402
 
-from app.components import data, ui  # noqa: E402
+from app.components import data, theme, ui  # noqa: E402
 from app.i18n import DEFAULT_LANG, LANGS, t  # noqa: E402
 
 st.set_page_config(page_title="Deezer Stats", page_icon="🎧", layout="wide")
 ui.inject_css()
+theme.brand()
 
 # Language first: page titles depend on it. Kept in the URL (?lang=en) so links can be shared.
 if "lang" not in st.session_state:
@@ -30,6 +31,7 @@ pages = {
     "evolution": st.Page(P / "evolution.py", title=t("nav.evolution"), icon=":material/show_chart:", url_path="evolution"),
     "habits": st.Page(P / "habits.py", title=t("nav.habits"), icon=":material/schedule:", url_path="habits"),
     "discoveries": st.Page(P / "discoveries.py", title=t("nav.discoveries"), icon=":material/explore:", url_path="discoveries"),
+    "explore": st.Page(P / "explore.py", title=t("nav.explore"), icon=":material/blur_on:", url_path="explore"),
     "wrapped": st.Page(P / "wrapped.py", title=t("nav.wrapped"), icon=":material/auto_awesome:", url_path="wrapped"),
     "library": st.Page(P / "library.py", title=t("nav.library"), icon=":material/library_music:", url_path="library"),
     "history": st.Page(P / "history.py", title=t("nav.history"), icon=":material/history:", url_path="history"),
@@ -41,10 +43,10 @@ pages = {
 ui.PAGES.update(pages)
 
 nav = st.navigation({
-    t("nav.section_stats"): [pages[k] for k in ("overview", "tops", "evolution", "habits", "discoveries", "wrapped")],
+    t("nav.section_stats"): [pages[k] for k in ("overview", "explore", "tops", "evolution", "habits", "discoveries", "wrapped")],
     t("nav.section_library"): [pages[k] for k in ("library", "history", "artist", "album", "track")],
     t("nav.section_settings"): [pages["admin"]],
-})
+}, expanded=True)
 
 st.session_state["filters"] = data.sidebar_filters()
 try:

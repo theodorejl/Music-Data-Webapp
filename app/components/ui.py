@@ -7,44 +7,22 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
+from app.components import theme
 from app.i18n import fmt_datetime_short, fmt_duration, fmt_int, fmt_plays, t
 
 # Pages registry, filled by Home.py so components can link to detail pages.
 PAGES: dict[str, st.Page] = {}
 
-CSS = """
-<style>
-.block-container {padding-top: 2.2rem; padding-bottom: 3rem; max-width: 1200px;}
-h1 {font-weight: 650; letter-spacing: -0.02em;}
-h2, h3 {font-weight: 600; letter-spacing: -0.01em;}
-[data-testid="stMetricValue"] {font-size: 1.7rem; font-weight: 600;}
-[data-testid="stMetricLabel"] p {color: #52514e;}
-.ds-sub {color: #52514e; margin-top: -0.6rem; margin-bottom: 1.2rem;}
-.ds-muted {color: #898781; font-size: 0.85rem;}
-.ds-card-title {font-weight: 600; line-height: 1.2; margin: 0.35rem 0 0 0; font-size: 0.92rem;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
-.ds-card-sub {color: #52514e; font-size: 0.8rem; margin: 0;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;}
-.ds-rank {color: #898781; font-size: 0.8rem;}
-[data-testid="stImage"] img {border-radius: 6px;}
-.ds-hero {font-size: 3rem; font-weight: 700; letter-spacing: -0.03em; line-height: 1;}
-.ds-wrapped {background: #f4f8fd; border-radius: 16px; padding: 1.6rem 1.8rem; margin-bottom: 1rem;}
-@media (max-width: 640px) {
-  [data-testid="stImage"] img {max-width: 180px;}
-  .ds-hero {font-size: 2.2rem;}
-}
-</style>
-"""
+
 
 
 def inject_css() -> None:
-    st.markdown(CSS, unsafe_allow_html=True)
+    theme.inject()
 
 
-def header(title: str, subtitle: str | None = None) -> None:
-    st.title(title)
-    if subtitle:
-        st.markdown(f"<div class='ds-sub'>{escape(subtitle)}</div>", unsafe_allow_html=True)
+def header(title: str, subtitle: str | None = None, lead: str | None = None, dot: str = "periwinkle") -> None:
+    """Page header: small kicker (usually the period), large display title, optional lead."""
+    theme.page_header(title, kicker=subtitle, lead=lead, dot=dot)
 
 
 def kpi_row(items: list[tuple[str, str, str | None]]) -> None:

@@ -1,12 +1,12 @@
 import streamlit as st
 
-from app.components import charts, data, ui
+from app.components import charts, data, theme, ui
 from app.i18n import fmt_date, fmt_int, fmt_pct, fmt_seconds, t, tl
 from core import stats
 
 f = data.get_filters()
 df = data.filtered_plays()
-ui.header(t("habits.title"), f.label)
+ui.header(t("habits.title"), f.label, lead=t("habits.lead"), dot="butter")
 
 if df.empty:
     ui.empty_state()
@@ -26,18 +26,18 @@ ui.kpi_row([
     (t("habits.skip_rate"), fmt_pct(stats.skip_rate(all_period, threshold)), t("habits.skip_rate_help", s=threshold)),
 ])
 
-st.subheader(t("habits.heatmap"))
+theme.section(t("habits.heatmap"))
 metric = st.segmented_control(t("tops.metric"), ["plays", "minutes"], default="plays", required=True,
                               format_func=lambda m: t(f"common.{m}"), key="hb_metric", label_visibility="collapsed")
 charts.show(charts.heatmap_chart(stats.heatmap(df, metric), t(f"common.{metric}")), key="hb_heat")
 
 left, right = st.columns(2, gap="large")
 with left:
-    st.subheader(t("habits.by_weekday"))
+    theme.section(t("habits.by_weekday"))
     wd = df.groupby(df["played_local"].dt.weekday)["minutes"].sum().reindex(range(7), fill_value=0)
     charts.show(charts.hbar(tl("weekdays"), wd.round(0).tolist(), t("common.minutes")), key="hb_wd")
 with right:
-    st.subheader(t("habits.most_skipped"))
+    theme.section(t("habits.most_skipped"))
     ms = stats.most_skipped(all_period, threshold, 10)
     if ms.empty:
         ui.empty_state(t("habits.no_skips"))

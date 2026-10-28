@@ -10,7 +10,7 @@ PAGE_SIZE = 50
 
 f = data.get_filters()
 df = data.filtered_plays()
-ui.header(t("history.title"), f.label)
+ui.header(t("history.title"), f.label, lead=t("history.lead"))
 
 if df.empty:
     ui.empty_state()

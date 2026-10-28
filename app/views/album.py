@@ -3,7 +3,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from app.components import charts, data, detail, ui
+from app.components import charts, data, detail, theme, ui
 from app.i18n import fmt_date, fmt_duration, fmt_int, t
 from core import stats
 
@@ -49,14 +49,14 @@ with c_txt:
         (t("common.listening_time"), fmt_duration(mine["minutes"].sum()), t("common.estimated_help")),
     ])
 
-st.subheader(t("detail.album_tracks"))
+theme.section(t("detail.album_tracks"))
 tracks = stats.top(mine, "track", "plays", 100)
 ui.ranked_table(tracks, "track", key=f"al_tracks_{album_id}")
 
-st.subheader(t("detail.listening_curve"))
+theme.section(t("detail.listening_curve"))
 charts.show(charts.bar_timeline(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), height=220), key="al_curve")
 
 if not tracks.empty:
-    st.subheader(t("detail.preview_title"))
+    theme.section(t("detail.preview_title"))
     detail.preview_player(int(tracks.iloc[0]["key"]), tracks.iloc[0]["label"])
 detail.back_links()

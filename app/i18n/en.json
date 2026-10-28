@@ -60,7 +60,8 @@
     "album": "Album",
     "track": "Track",
     "admin": "Corrections (admin)",
-    "library": "Albums & playlists"
+    "library": "Albums & playlists",
+    "explore": "Explorations"
   },
   "filters": {
     "title": "Filters",
@@ -120,7 +121,12 @@
     "top_artists": "Top artists",
     "top_tracks": "Top tracks",
     "recent": "Recent plays",
-    "see_history": "See full history"
+    "see_history": "See full history",
+    "hero_title": "My listening",
+    "activity_kicker": "Listening minutes",
+    "by_plays": "By number of plays",
+    "recent_kicker": "Live from Deezer",
+    "see_explore": "See the visual explorations"
   },
   "tops": {
     "title": "Top charts",
@@ -131,7 +137,8 @@
     "count": "Count",
     "no_genre": "No genre known yet (enrichment runs in the background).",
     "unknown_genre": "{n} plays without a known genre are not counted.",
-    "count_all": "All"
+    "count_all": "All",
+    "lead": "Your favorite artists, albums, tracks and genres, ranked by plays or by minutes."
   },
   "evolution": {
     "title": "Trends",
@@ -143,7 +150,8 @@
     "cumulative": "Cumulative",
     "genre_share": "Share of top genres",
     "artist_share": "Share of top artists",
-    "share_note": "The period's top 6 genres and artists; everything else is grouped under \"Other\"."
+    "share_note": "The period's top 6 genres and artists; everything else is grouped under \"Other\".",
+    "lead": "How your listening changes over time, and the share of the genres and artists that matter."
   },
   "habits": {
     "title": "Listening habits",
@@ -160,7 +168,8 @@
     "most_skipped": "Most skipped tracks",
     "no_skips": "No skipped track in this period.",
     "skips": "Skips",
-    "skip_share": "% skipped"
+    "skip_share": "% skipped",
+    "lead": "When you listen, how many days in a row, and what you skip the fastest."
   },
   "discoveries": {
     "title": "Discoveries",
@@ -171,7 +180,8 @@
     "per_month": "Discoveries per month",
     "first_play": "First play",
     "plays_since": "Plays since",
-    "none": "No discovery in this period."
+    "none": "No discovery in this period.",
+    "lead": "The artists and albums that entered your musical life, month after month."
   },
   "detail": {
     "choose_artist": "Artist",
@@ -199,7 +209,8 @@
     "search_placeholder": "Track, artist, album or genre",
     "count": "{n} plays",
     "page": "Page (of {total})",
-    "star_note": "* estimated duration"
+    "star_note": "* estimated duration",
+    "lead": "Every timestamped play, searchable and exportable."
   },
   "wrapped": {
     "title": "Recap",
@@ -222,7 +233,9 @@
     "pick_day": "Day",
     "pick_week": "Week",
     "week_of": "Week of {date}",
-    "week_period": "week of {date}"
+    "week_period": "week of {date}",
+    "kicker": "Shareable recap",
+    "new_artists": "New artists"
   },
   "admin": {
     "title": "Corrections",
@@ -261,7 +274,8 @@
     "kind_merge_album": "Album merge",
     "kind_album_genre": "Forced genre",
     "kind_rename_genre": "Renamed genre",
-    "kind_hide_play": "Hidden play"
+    "kind_hide_play": "Hidden play",
+    "kicker": "Administration"
   },
   "library": {
     "title": "Favorite albums & playlists",
@@ -320,6 +334,33 @@
     "poster_layout": "{n} albums → {cols} columns × {rows} rows grid, covers about {size} mm wide.",
     "poster_generate": "Generate the A3 poster",
     "poster_wait": "Downloading covers and laying out…",
-    "poster_download": "Download the poster (A3 PDF)"
+    "poster_download": "Download the poster (A3 PDF)",
+    "kicker": "Deezer library"
+  },
+  "explore": {
+    "title": "Explorations",
+    "lead": "Your listening seen differently: as a spiral, an orbit, a constellation and a fingerprint.",
+    "spiral_title": "The time spiral",
+    "spiral_kicker": "Each dot is a play",
+    "spiral_help": "Time winds out from the centre; the angle is the time of day. Dot size follows the time listened, colour the genre. Hover a dot to see the track.",
+    "turn_day": "One turn = one day",
+    "turn_week": "One turn = one week",
+    "dot_size": "Size = minutes listened",
+    "hours": [
+      "midnight",
+      "6 am",
+      "noon",
+      "6 pm"
+    ],
+    "orbit_title": "The cover orbit",
+    "orbit_kicker": "Your albums on a golden spiral",
+    "orbit_help": "The most played albums are the biggest. Hover a cover to see its name.",
+    "constellation_title": "The artist constellation",
+    "constellation_kicker": "One particle per play",
+    "constellation_help": "Each cloud gathers one artist's plays, coloured by genre. Move the pointer to scatter the particles.",
+    "fingerprint_title": "Listening fingerprint",
+    "fingerprint_kicker": "Generative artwork",
+    "fingerprint_help": "One ring per hour of the day, midnight in the centre, 11 pm outside. The more you listen at that hour, the more the ring waves; its colour is the dominant genre. Every period gives a unique print.",
+    "download_svg": "Download the fingerprint (SVG)"
   }
 }

@@ -2,7 +2,7 @@ from html import escape
 
 import streamlit as st
 
-from app.components import charts, data, detail, ui
+from app.components import charts, data, detail, theme, ui
 from app.i18n import fmt_date, fmt_duration, fmt_int, t
 from core import stats
 
@@ -39,20 +39,20 @@ ui.kpi_row([
     (t("common.tracks"), fmt_int(mine["track_id"].nunique()), None),
 ])
 
-st.subheader(t("detail.listening_curve"))
+theme.section(t("detail.listening_curve"))
 charts.show(charts.bar_timeline(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), height=220), key="ar_curve")
 
 left, right = st.columns(2, gap="large")
 with left:
-    st.subheader(t("detail.favorite_tracks"))
+    theme.section(t("detail.favorite_tracks"))
     tracks = stats.top(mine, "track", "plays", 10)
     ui.ranked_table(tracks, "track", key=f"ar_tracks_{artist_id}")
 with right:
-    st.subheader(t("detail.favorite_albums"))
+    theme.section(t("detail.favorite_albums"))
     albums = stats.top(mine, "album", "plays", 6)
     ui.cover_grid(albums, "album", ui.value_formatter("plays"), columns=3, key="ar_albums")
 
 if not tracks.empty:
-    st.subheader(t("detail.preview_title"))
+    theme.section(t("detail.preview_title"))
     detail.preview_player(int(tracks.iloc[0]["key"]), tracks.iloc[0]["label"])
 detail.back_links()

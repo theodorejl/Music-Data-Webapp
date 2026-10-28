@@ -1,11 +1,11 @@
 import streamlit as st
 
-from app.components import charts, data, ui
+from app.components import charts, data, theme, ui
 from app.i18n import fmt_datetime_short, fmt_int, t
 from core import stats
 
 f = data.get_filters()
-ui.header(t("discoveries.title"), f.label)
+ui.header(t("discoveries.title"), f.label, lead=t("discoveries.lead"), dot="rose")
 
 # "New" means first play ever, so first plays are computed on the whole history
 # (with the minimum-duration filter), then restricted to the selected period.
@@ -34,7 +34,7 @@ ui.kpi_row([
 ])
 st.caption(t("discoveries.since_note"))
 
-st.subheader(t("discoveries.per_month"))
+theme.section(t("discoveries.per_month"))
 per_month = stats.discoveries_per_month(everything)
 charts.show(charts.grouped_bars(per_month, "period", [("new_artists", t("common.artists")),
                                                       ("new_albums", t("common.albums"))]), key="disc_month")

@@ -1,12 +1,12 @@
 import streamlit as st
 
-from app.components import charts, data, ui
+from app.components import charts, data, theme, ui
 from app.i18n import t
 from core import stats
 
 f = data.get_filters()
 df = data.filtered_plays()
-ui.header(t("evolution.title"), f.label)
+ui.header(t("evolution.title"), f.label, lead=t("evolution.lead"), dot="mint")
 
 if df.empty:
     ui.empty_state()
@@ -19,24 +19,24 @@ metric = c2.segmented_control(t("tops.metric"), ["plays", "minutes"], default="m
                               format_func=lambda m: t(f"common.{m}"), key="ev_metric")
 label = t(f"common.{metric}")
 
-st.subheader(t("evolution.per_period", metric=label))
+theme.section(t("evolution.per_period", metric=label))
 charts.show(charts.bar_timeline(stats.timeline(df, freq), metric, freq, label), key="ev_bar")
 
-st.subheader(t("evolution.cumulative"))
+theme.section(t("evolution.cumulative"))
 charts.show(charts.line_timeline(stats.cumulative(df, freq), metric, freq, label, height=260), key="ev_cum")
 
 share_freq = "M" if freq == "M" else "W"
 other = t("common.other")
 left, right = st.columns(2, gap="large")
 with left:
-    st.subheader(t("evolution.genre_share"))
+    theme.section(t("evolution.genre_share"))
     g = stats.share_over_time(df, "genre", share_freq, 6, metric, other)
     if g.empty:
         ui.empty_state(t("tops.no_genre"))
     else:
         charts.show(charts.stacked_share(g, share_freq, other), key="ev_g")
 with right:
-    st.subheader(t("evolution.artist_share"))
+    theme.section(t("evolution.artist_share"))
     a = stats.share_over_time(df, "artist", share_freq, 6, metric, other)
     charts.show(charts.stacked_share(a, share_freq, other), key="ev_a")
 st.caption(t("evolution.share_note"))

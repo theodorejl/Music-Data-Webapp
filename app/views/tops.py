@@ -7,7 +7,7 @@ from core import stats
 
 f = data.get_filters()
 df = data.filtered_plays()
-ui.header(t("tops.title"), f.label)
+ui.header(t("tops.title"), f.label, lead=t("tops.lead"), dot="peach")
 
 if df.empty:
     ui.empty_state()

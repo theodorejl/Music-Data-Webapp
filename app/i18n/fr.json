@@ -60,7 +60,8 @@
     "album": "Album",
     "track": "Titre",
     "admin": "Corrections (admin)",
-    "library": "Albums & playlists"
+    "library": "Albums & playlists",
+    "explore": "Explorations"
   },
   "filters": {
     "title": "Filtres",
@@ -120,7 +121,12 @@
     "top_artists": "Artistes les plus écoutés",
     "top_tracks": "Titres les plus écoutés",
     "recent": "Dernières écoutes",
-    "see_history": "Voir tout l'historique"
+    "see_history": "Voir tout l'historique",
+    "hero_title": "Mes écoutes",
+    "activity_kicker": "Minutes d'écoute",
+    "by_plays": "Par nombre d'écoutes",
+    "recent_kicker": "En direct de Deezer",
+    "see_explore": "Voir les explorations visuelles"
   },
   "tops": {
     "title": "Tops",
@@ -131,7 +137,8 @@
     "count": "Nombre",
     "no_genre": "Pas encore de genre connu (l'enrichissement tourne en arrière-plan).",
     "unknown_genre": "{n} écoutes sans genre connu ne sont pas comptées.",
-    "count_all": "Tous"
+    "count_all": "Tous",
+    "lead": "Tes artistes, albums, titres et genres préférés, classés par écoutes ou par minutes."
   },
   "evolution": {
     "title": "Évolution",
@@ -143,7 +150,8 @@
     "cumulative": "Cumul",
     "genre_share": "Part des principaux genres",
     "artist_share": "Part des principaux artistes",
-    "share_note": "Les 6 genres et artistes principaux de la période ; le reste est regroupé dans « Autres »."
+    "share_note": "Les 6 genres et artistes principaux de la période ; le reste est regroupé dans « Autres ».",
+    "lead": "Comment ton écoute évolue dans le temps, et la place des genres et artistes qui comptent."
   },
   "habits": {
     "title": "Habitudes d'écoute",
@@ -160,7 +168,8 @@
     "most_skipped": "Titres les plus passés",
     "no_skips": "Aucun titre passé sur la période.",
     "skips": "Passés",
-    "skip_share": "% passé"
+    "skip_share": "% passé",
+    "lead": "Quand tu écoutes, combien de jours d'affilée, et ce que tu passes le plus vite."
   },
   "discoveries": {
     "title": "Découvertes",
@@ -171,7 +180,8 @@
     "per_month": "Découvertes par mois",
     "first_play": "Première écoute",
     "plays_since": "Écoutes depuis",
-    "none": "Aucune découverte sur cette période."
+    "none": "Aucune découverte sur cette période.",
+    "lead": "Les artistes et albums entrés dans ta vie musicale, mois après mois."
   },
   "detail": {
     "choose_artist": "Artiste",
@@ -199,7 +209,8 @@
     "search_placeholder": "Titre, artiste, album ou genre",
     "count": "{n} écoutes",
     "page": "Page (sur {total})",
-    "star_note": "* durée estimée"
+    "star_note": "* durée estimée",
+    "lead": "Toutes tes écoutes horodatées, cherchables et exportables."
   },
   "wrapped": {
     "title": "Récap",
@@ -222,7 +233,9 @@
     "pick_day": "Jour",
     "pick_week": "Semaine",
     "week_of": "Semaine du {date}",
-    "week_period": "semaine du {date}"
+    "week_period": "semaine du {date}",
+    "kicker": "Récapitulatif partageable",
+    "new_artists": "Nouveaux artistes"
   },
   "admin": {
     "title": "Corrections",
@@ -261,7 +274,8 @@
     "kind_merge_album": "Fusion d'albums",
     "kind_album_genre": "Genre forcé",
     "kind_rename_genre": "Genre renommé",
-    "kind_hide_play": "Écoute masquée"
+    "kind_hide_play": "Écoute masquée",
+    "kicker": "Administration"
   },
   "library": {
     "title": "Albums & playlists favoris",
@@ -320,6 +334,33 @@
     "poster_layout": "{n} albums → grille de {cols} colonnes × {rows} lignes, pochettes d'environ {size} mm.",
     "poster_generate": "Générer l'affiche A3",
     "poster_wait": "Téléchargement des pochettes et mise en page…",
-    "poster_download": "Télécharger l'affiche (PDF A3)"
+    "poster_download": "Télécharger l'affiche (PDF A3)",
+    "kicker": "Bibliothèque Deezer"
+  },
+  "explore": {
+    "title": "Explorations",
+    "lead": "Tes écoutes vues autrement : en spirale, en orbite, en constellation et en empreinte.",
+    "spiral_title": "La spirale du temps",
+    "spiral_kicker": "Chaque point est une écoute",
+    "spiral_help": "Le temps s'enroule depuis le centre ; l'angle donne l'heure de la journée. La taille d'un point suit la durée écoutée, sa couleur le genre. Survole un point pour voir le titre.",
+    "turn_day": "Un tour = un jour",
+    "turn_week": "Un tour = une semaine",
+    "dot_size": "Taille = minutes écoutées",
+    "hours": [
+      "minuit",
+      "6 h",
+      "midi",
+      "18 h"
+    ],
+    "orbit_title": "L'orbite des pochettes",
+    "orbit_kicker": "Tes albums en spirale dorée",
+    "orbit_help": "Les albums les plus écoutés sont les plus grands. Survole une pochette pour voir son nom.",
+    "constellation_title": "La constellation d'artistes",
+    "constellation_kicker": "Une particule par écoute",
+    "constellation_help": "Chaque nuage rassemble les écoutes d'un artiste, coloré par son genre. Passe la souris pour disperser les particules.",
+    "fingerprint_title": "Empreinte sonore",
+    "fingerprint_kicker": "Œuvre générative",
+    "fingerprint_help": "Un anneau par heure de la journée, de minuit au centre à 23 h à l'extérieur. Plus tu écoutes à cette heure-là, plus l'anneau ondule ; sa couleur est le genre dominant. Chaque période donne une empreinte unique.",
+    "download_svg": "Télécharger l'empreinte (SVG)"
   }
 }

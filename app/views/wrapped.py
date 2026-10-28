@@ -10,7 +10,7 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from app.components import charts, data, ui
+from app.components import charts, data, theme, ui, viz
 from app.i18n import fmt_date, fmt_duration, fmt_int, fmt_month, fmt_plays, get_lang, t
 from core import stats
 
@@ -19,7 +19,7 @@ MODES = ["day", "week", "month", "year"]
 f = data.get_filters()
 tz = data.timezone_name()
 everything = stats.filter_frame(data.all_plays(), min_seconds=f.min_seconds)
-ui.header(t("wrapped.title"))
+theme.page_header(t("wrapped.title"), kicker=t("wrapped.kicker"), dot="peach")
 if everything.empty:
     ui.empty_state()
     st.stop()
@@ -96,15 +96,12 @@ top_genre = stats.top(df, "genre", "minutes", 1)
 busiest = stats.busiest_day(df)
 fav_hour = int(df["played_local"].dt.hour.value_counts().idxmax())
 
-st.markdown(
-    f"""<div class="ds-wrapped">
-<div class="ds-muted">{escape(t('wrapped.your_period', period=period_name))}</div>
-<div class="ds-hero">{escape(fmt_duration(k['minutes']))}</div>
-<div class="ds-sub" style="margin-top:.4rem">{escape(t('wrapped.summary', plays=fmt_int(k['plays']),
-    artists=fmt_int(k['artists']), new=fmt_int(new_artists)))}</div>
-</div>""",
-    unsafe_allow_html=True,
-)
+theme.hero(period_name, t("wrapped.your_period", period=period_name), [
+    (t("common.listening_time"), fmt_duration(k["minutes"])),
+    (t("common.plays"), fmt_int(k["plays"])),
+    (t("common.artists"), fmt_int(k["artists"])),
+    (t("wrapped.new_artists"), fmt_int(new_artists)),
+], palette=("#F7CDB8", "#D7C8F2", "#C9D0F7", "#F6E2A8"))
 
 c_img, c_txt = st.columns([1, 2], gap="large", vertical_alignment="center")
 with c_img:
@@ -112,8 +109,8 @@ with c_img:
         st.image(top_artist["image"].replace("250x250", "500x500"), width="stretch")
 with c_txt:
     st.caption(t("wrapped.top_artist"))
-    st.markdown(f"<div class='ds-hero' style='font-size:2.4rem'>{escape(str(top_artist['label']))}</div>",
-                unsafe_allow_html=True)
+    st.markdown(f"<div class='ds-hero-num' style='font-size:clamp(2.2rem,1.4rem + 2.4vw,3.6rem)'>"
+                f"{escape(str(top_artist['label']))}</div>", unsafe_allow_html=True)
     st.markdown(t("wrapped.top_artist_detail", time=fmt_duration(top_artist["minutes"]),
                   plays=fmt_int(top_artist["plays"])))
     facts = []
@@ -127,7 +124,7 @@ with c_txt:
 
 left, right = st.columns(2, gap="large")
 with left:
-    st.subheader(t("wrapped.top_tracks"))
+    theme.section(t("wrapped.top_tracks"))
     tracks = stats.top(df, "track", "plays", 5)
     for row in tracks.itertuples():
         a, b = st.columns([1, 5], vertical_alignment="center")
@@ -135,10 +132,10 @@ with left:
             a.image(row.image, width="stretch")
         b.markdown(f"**{row.rank}. {row.label}**  \n{row.sublabel} · {fmt_plays(row.plays)}")
 with right:
-    st.subheader(t("wrapped.top_albums"))
+    theme.section(t("wrapped.top_albums"))
     ui.cover_grid(stats.top(df, "album", "plays", 6), "album", ui.value_formatter("plays"), columns=3, key="wr_al")
 
-st.subheader(t("wrapped.rhythm"))
+theme.section(t("wrapped.rhythm"))
 if mode == "day":
     per_hour = df.groupby(df["played_local"].dt.hour)["minutes"].sum().reindex(range(24), fill_value=0)
     charts.show(charts.bar_categories([f"{h}h" for h in per_hour.index], per_hour.round(0).tolist(),
@@ -150,4 +147,9 @@ else:
         full = pd.date_range(start.tz_localize(None), periods=7, freq="D")
         tl = tl.set_index("period").reindex(full, fill_value=0).rename_axis("period").reset_index()
     charts.show(charts.bar_timeline(tl, "minutes", freq, t("common.minutes"), height=220), key="wr_tl")
+theme.section(t("explore.fingerprint_title"), t("explore.fingerprint_kicker"))
+svg = viz.fingerprint_svg(df, t("explore.fingerprint_title"), period_name)
+st.markdown(svg, unsafe_allow_html=True)
+st.download_button(t("explore.download_svg"), svg.encode("utf-8"), file_name="empreinte_sonore.svg",
+                   mime="image/svg+xml", icon=":material/download:", key="wr_fp_dl")
 st.caption(t("wrapped.share_hint"))

@@ -17,7 +17,7 @@ from core.db import get_engine, session_scope
 from core.models import Alias, play_key
 from core.stats import search_history
 
-ui.header(t("admin.title"), t("admin.subtitle"))
+ui.header(t("admin.title"), t("admin.kicker"), lead=t("admin.subtitle"), dot="butter")
 
 password = get_settings().admin_password
 if not password:

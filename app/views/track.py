@@ -1,6 +1,6 @@
 import streamlit as st
 
-from app.components import charts, data, detail, ui
+from app.components import charts, data, detail, theme, ui
 from app.i18n import fmt_date, fmt_datetime_short, fmt_duration, fmt_int, fmt_pct, fmt_seconds, t
 from core import stats
 
@@ -37,10 +37,10 @@ ui.kpi_row([
     (t("habits.skip_rate"), fmt_pct(stats.skip_rate(mine, 30)), t("habits.skip_rate_help", s=30)),
 ])
 
-st.subheader(t("detail.listening_curve"))
+theme.section(t("detail.listening_curve"))
 charts.show(charts.bar_timeline(stats.timeline(mine, "M"), "plays", "M", t("common.plays"), height=220), key="tr_curve")
 
-st.subheader(t("detail.all_plays"))
+theme.section(t("detail.all_plays"))
 st.dataframe(
     {
         t("common.time"): [fmt_datetime_short(x) for x in mine["played_local"]],

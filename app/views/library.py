@@ -5,11 +5,11 @@ import math
 import pandas as pd
 import streamlit as st
 
-from app.components import charts, data, ui
+from app.components import charts, data, theme, ui
 from app.i18n import fmt_date, fmt_duration, fmt_int, fmt_pct, get_lang, t
 from core.poster import best_layout
 
-ui.header(t("library.title"), t("library.subtitle"))
+ui.header(t("library.title"), t("library.kicker"), lead=t("library.subtitle"), dot="mint")
 
 fav = data.favorite_albums()
 pls = data.playlists()
@@ -53,24 +53,24 @@ with tab_albums:
 
         left, right = st.columns(2, gap="large")
         with left:
-            st.subheader(t("library.by_decade"))
+            theme.section(t("library.by_decade"))
             dec = (years // 10 * 10).astype(int).value_counts().sort_index()
             charts.show(charts.bar_categories([f"{d}s" for d in dec.index], dec.tolist(), t("library.albums")),
                         key="lib_dec")
         with right:
-            st.subheader(t("library.top_artists"))
+            theme.section(t("library.top_artists"))
             top_art = fav.groupby("artist_name").size().sort_values(ascending=False).head(10)
             charts.show(charts.hbar(top_art.index.tolist(), top_art.tolist(), t("library.albums")), key="lib_art")
         left, right = st.columns(2, gap="large")
         with left:
-            st.subheader(t("library.genres"))
+            theme.section(t("library.genres"))
             g = fav["genre"].dropna().value_counts().head(10)
             if g.empty:
                 ui.empty_state(t("tops.no_genre"))
             else:
                 charts.show(charts.hbar(g.index.tolist(), g.tolist(), t("library.albums")), key="lib_genre")
         with right:
-            st.subheader(t("library.added_per_month"))
+            theme.section(t("library.added_per_month"))
             added = pd.to_datetime(fav["added_at"], errors="coerce").dropna()
             if added.empty:
                 ui.empty_state()
@@ -81,7 +81,7 @@ with tab_albums:
                 tl = pd.DataFrame({"period": per_month.index, "albums": per_month.values})
                 charts.show(charts.bar_timeline(tl, "albums", "M", t("library.albums"), height=300), key="lib_added")
 
-        st.subheader(t("library.all_favorites"))
+        theme.section(t("library.all_favorites"))
         c1, c2, c3 = st.columns([2, 2, 2])
         order = c1.selectbox(t("library.sort"), list(SORTS), format_func=lambda s: t(f"library.sort_{s}"),
                              key="lib_sort")
@@ -149,18 +149,18 @@ with tab_playlists:
 
         left, right = st.columns(2, gap="large")
         with left:
-            st.subheader(t("library.most_played_playlists"))
+            theme.section(t("library.most_played_playlists"))
             top_pl = shown.sort_values("plays", ascending=False).head(10)
             charts.show(charts.hbar(top_pl["title"].tolist(), top_pl["plays"].tolist(), t("common.plays")),
                         key="pl_top")
         with right:
-            st.subheader(t("library.artists_in_playlists"))
+            theme.section(t("library.artists_in_playlists"))
             in_shown = tracks_all[tracks_all["playlist_id"].isin(shown["id"])]
             arts = in_shown.dropna(subset=["artist_name"]).groupby("artist_name").size()
             arts = arts.sort_values(ascending=False).head(10)
             charts.show(charts.hbar(arts.index.tolist(), arts.tolist(), t("library.tracks")), key="pl_art")
 
-        st.subheader(t("library.all_playlists"))
+        theme.section(t("library.all_playlists"))
         event = st.dataframe(
             pd.DataFrame({
                 "picture": shown["picture"], "title": shown["title"], "creator": shown["creator_name"].fillna("–"),
@@ -181,7 +181,7 @@ with tab_playlists:
         st.caption(t("library.pick_playlist"))
         if event.selection.rows:
             pl = shown.iloc[event.selection.rows[0]]
-            st.subheader(pl["title"])
+            theme.section(pl["title"])
             pt = tracks_all[tracks_all["playlist_id"] == pl["id"]]
             ui.kpi_row([
                 (t("library.tracks"), fmt_int(len(pt)), None),
@@ -207,7 +207,7 @@ with tab_playlists:
 # --- exports: Excel and A3 poster -------------------------------------------------------
 
 with tab_export:
-    st.subheader(t("library.excel_title"))
+    theme.section(t("library.excel_title"))
     st.caption(t("library.excel_help"))
     st.download_button(t("library.excel_button"), data.library_xlsx(get_lang()),
                        file_name="bibliotheque_deezer.xlsx" if get_lang() == "fr" else "deezer_library.xlsx",
@@ -215,7 +215,7 @@ with tab_export:
                        icon=":material/table_view:", key="lib_xlsx")
 
     st.divider()
-    st.subheader(t("library.poster_title"))
+    theme.section(t("library.poster_title"))
     st.caption(t("library.poster_help"))
     if fav.empty:
         ui.empty_state(t("library.no_albums"))
