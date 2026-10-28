@@ -14,9 +14,18 @@ DEFAULT_LANG = "fr"
 _DIR = Path(__file__).parent
 
 
-@lru_cache(maxsize=None)
-def load(lang: str) -> dict:
+def _mtime(lang: str) -> float:
+    return (_DIR / f"{lang}.json").stat().st_mtime
+
+
+@lru_cache(maxsize=8)
+def _load(lang: str, mtime: float) -> dict:
     return json.loads((_DIR / f"{lang}.json").read_text(encoding="utf-8"))
+
+
+def load(lang: str) -> dict:
+    """Translations, re-read whenever the JSON file changes (no restart needed)."""
+    return _load(lang, _mtime(lang))
 
 
 def flatten(d: dict, prefix: str = "") -> dict[str, object]:
@@ -30,9 +39,13 @@ def flatten(d: dict, prefix: str = "") -> dict[str, object]:
     return out
 
 
-@lru_cache(maxsize=None)
+@lru_cache(maxsize=8)
+def _flat_cached(lang: str, mtime: float) -> dict[str, object]:
+    return flatten(_load(lang, mtime))
+
+
 def _flat(lang: str) -> dict[str, object]:
-    return flatten(load(lang))
+    return _flat_cached(lang, _mtime(lang))
 
 
 def get_lang() -> str:

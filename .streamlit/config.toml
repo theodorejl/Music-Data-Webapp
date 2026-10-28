@@ -30,6 +30,10 @@ secondaryBackgroundColor = "#EFEEEA"
 
 [server]
 headless = true
+# Apply code changes without restarting: the page reruns as soon as a file is saved.
+runOnSave = true
+fileWatcherType = "auto"
+folderWatchBlacklist = [".venv", "data", "logs", "Exports Excel", "tests", ".git"]
 
 [browser]
 gatherUsageStats = false

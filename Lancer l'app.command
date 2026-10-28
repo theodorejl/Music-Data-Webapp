@@ -21,7 +21,9 @@ echo "Synchro des dernières écoutes Deezer…"
 
 echo
 echo "Lancement de l'app…"
-.venv/bin/streamlit run app/Home.py --server.port 8501 --server.headless true &
+# runOnSave + watched translations: code changes show up without restarting the app.
+.venv/bin/streamlit run app/Home.py --server.port 8501 --server.headless true --server.runOnSave true \
+  --server.folderWatchList "$(pwd)/app/i18n" &
 APP_PID=$!
 trap 'kill $APP_PID 2>/dev/null' EXIT
 
