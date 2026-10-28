@@ -370,5 +370,18 @@
   },
   "chart_words": [
     "avg"
-  ]
+  ],
+  "refresh": {
+    "button": "Refresh my plays",
+    "help": "Fetch your latest Deezer plays right now.",
+    "step1": "Connecting to Deezer…",
+    "step2": "Reading your latest plays…",
+    "step3": "Filing them into your stats…",
+    "up_to_date": "Already up to date: no new play.",
+    "new": "{n} new plays added",
+    "new_one": "1 new play added",
+    "cookie": "Deezer cookie expired: update DEEZER_ARL in .env.",
+    "timeout": "Deezer is taking too long, try again later.",
+    "failed": "The sync failed."
+  }
 }

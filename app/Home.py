@@ -9,7 +9,7 @@ if str(ROOT) not in sys.path:  # make `core` and `app` importable (local and Str
 
 import streamlit as st  # noqa: E402
 
-from app.components import data, theme, ui  # noqa: E402
+from app.components import data, refresh, theme, ui  # noqa: E402
 from app.i18n import DEFAULT_LANG, LANGS, t  # noqa: E402
 
 st.set_page_config(page_title="Deezer Stats", page_icon="🎧", layout="wide")
@@ -49,6 +49,7 @@ nav = st.navigation({
 }, expanded=True)
 
 theme.background(nav.url_path)
+refresh.refresh_button()
 st.session_state["filters"] = data.sidebar_filters()
 try:
     ui.sync_status(data.sync_runs(), len(data.all_plays()), data.timezone_name())

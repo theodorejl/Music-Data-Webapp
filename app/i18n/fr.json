@@ -370,5 +370,18 @@
   },
   "chart_words": [
     "moy."
-  ]
+  ],
+  "refresh": {
+    "button": "Actualiser mes écoutes",
+    "help": "Récupère tout de suite tes dernières écoutes Deezer.",
+    "step1": "Connexion à Deezer…",
+    "step2": "Lecture des dernières écoutes…",
+    "step3": "Rangement dans tes stats…",
+    "up_to_date": "Déjà à jour : aucune nouvelle écoute.",
+    "new": "{n} nouvelles écoutes ajoutées",
+    "new_one": "1 nouvelle écoute ajoutée",
+    "cookie": "Cookie Deezer expiré : mets à jour DEEZER_ARL dans .env.",
+    "timeout": "Deezer met trop de temps à répondre, réessaie plus tard.",
+    "failed": "La synchro a échoué."
+  }
 }
