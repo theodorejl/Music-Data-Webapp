@@ -117,7 +117,9 @@
     "last_failed": "The last sync failed.",
     "gaps": "Possible gaps ({n})",
     "gap_between": "Possible gap between {start} and {end}",
-    "title": "Collection"
+    "title": "Collection",
+    "plays_short": "{n} plays",
+    "gaps_short": "{n} gap(s)"
   },
   "overview": {
     "title": "Overview",
@@ -152,7 +154,23 @@
     "no_genre": "No genre known yet (enrichment runs in the background).",
     "unknown_genre": "{n} plays without a known genre are not counted.",
     "count_all": "All",
-    "lead": "Your favorite artists, albums, tracks and genres, ranked by plays or by minutes."
+    "lead": "Your favorite artists, albums, tracks and genres, ranked by plays or by minutes.",
+    "hero_lead": "Leading: {artist} ({value}). Most played album: {album}. Top track: {track}.",
+    "by_plays": "by plays",
+    "by_minutes": "by listening time",
+    "artists_note": "Colours follow each artist's main genre.",
+    "podium": "The podium",
+    "next": "The rest of the chart",
+    "albums_note": "Each cover's area is proportional to its listening.",
+    "mosaic_title": "The album mosaic",
+    "tracks_title": "Your tracks",
+    "genres_note": "Genres and the artists behind them.",
+    "sunburst_title": "Genres and artists",
+    "sunburst_meta": "click a genre to zoom",
+    "genre_bars": "Your genres",
+    "tables_title": "Every chart",
+    "tables_note": "Full tables, sortable, exportable to Excel or CSV.",
+    "total": "{n} plays · {time}"
   },
   "evolution": {
     "title": "Trends",
@@ -198,7 +216,21 @@
     "first_play": "First play",
     "plays_since": "Plays since",
     "none": "No discovery in this period.",
-    "lead": "The artists and albums that entered your musical life, month after month."
+    "lead": "The artists and albums that entered your musical life, month after month.",
+    "hero_lead": "{artists} artists and {albums} albums heard for the first time, {share} of your listening.",
+    "hero_star": "The crush: {artist}, already {plays} plays.",
+    "fresh_share": "Share of new music",
+    "fresh_share_cap": "{time} on newly found artists",
+    "swarm_section": "Your discoveries, one by one",
+    "swarm_note": "Each bubble is an artist, placed on the day you first played them; its size is how much you listened since, its colour its genre.",
+    "swarm_title": "The swarm of discoveries",
+    "growth_title": "Your collection grows",
+    "growth_note": "Total artists and albums heard at least once.",
+    "split_title": "New or familiar?",
+    "split_note": "Each square is 0.5% of your listening time.",
+    "fresh": "Discoveries",
+    "known": "Already known",
+    "lists_title": "The lists"
   },
   "detail": {
     "choose_artist": "Artist",
@@ -218,7 +250,8 @@
     "preview_title": "Preview",
     "preview": "30 s preview",
     "no_preview": "No preview available.",
-    "back_tops": "Back to top charts"
+    "back_tops": "Back to top charts",
+    "artist_lead": "Main genre: {genre}. {plays} plays, {time} in total, since {date}."
   },
   "history": {
     "title": "History",
@@ -227,7 +260,10 @@
     "count": "{n} plays",
     "page": "Page (of {total})",
     "star_note": "* estimated duration",
-    "lead": "Every timestamped play, searchable and exportable."
+    "lead": "Every timestamped play, searchable and exportable.",
+    "hero_lead": "{n} plays in the period, {time} of music.",
+    "hero_last": "Latest: {track} — {artist}, {when}.",
+    "giant_cap": "plays recorded in the period"
   },
   "wrapped": {
     "title": "Recap",
@@ -251,13 +287,22 @@
     "pick_week": "Week",
     "week_of": "Week of {date}",
     "week_period": "week of {date}",
-    "kicker": "Shareable recap",
+    "kicker": "Tell your period",
     "new_artists": "New artists",
     "finding": "{artist} leads with {time}",
     "new_artists_cap": "first play in the period",
     "top_genre_plain": "Favourite genre: {genre}",
     "busiest_day_plain": "Biggest day: {date} ({time})",
-    "fav_hour_plain": "Favourite hour: {hour}:00"
+    "fav_hour_plain": "Favourite hour: {hour}:00",
+    "finding_html": "your artist of the moment: {artist} ({time}).",
+    "giant_cap": "of listening · {plays}",
+    "facts": "In short",
+    "fact_genre": "Leading genre",
+    "fact_day": "Biggest day",
+    "fact_hour": "Favourite hour",
+    "fact_hour_cap": "the hour you start the most tracks",
+    "fact_tracks": "Different tracks",
+    "fact_tracks_cap": "across {albums} albums"
   },
   "admin": {
     "title": "Corrections",
@@ -359,7 +404,8 @@
     "poster_wait": "Downloading covers and laying out…",
     "poster_download": "Download the poster (A3 PDF)",
     "kicker": "Deezer library",
-    "listened_share_short": "at least one track in the history"
+    "listened_share_short": "at least one track in the history",
+    "hero_lead": "{albums} favourite albums by {artists} artists and {playlists} playlists, analysed, exportable to Excel or as an A3 poster."
   },
   "explore": {
     "title": "Explorations",
@@ -385,7 +431,9 @@
     "fingerprint_title": "Listening fingerprint",
     "fingerprint_kicker": "Generative artwork",
     "fingerprint_help": "One ring per hour of the day, midnight in the centre, 11 pm outside. The more you listen at that hour, the more the ring waves; its colour is the dominant genre. Every period gives a unique print.",
-    "download_svg": "Download the fingerprint (SVG)"
+    "download_svg": "Download the fingerprint (SVG)",
+    "hero_lead": "{plays} plays, {artists} artists, {genres} genres: your music, drawn differently.",
+    "fingerprint_story": "A one-of-a-kind print: one ring per hour of the day, midnight at the centre, 11 pm at the edge. The more you listen at that hour, the more the ring ripples; its colour is the leading genre. Download it, print it, share it."
   },
   "chart_words": [
     "avg"
@@ -402,5 +450,61 @@
     "cookie": "Deezer cookie expired: update DEEZER_ARL in .env.",
     "timeout": "Deezer is taking too long, try again later.",
     "failed": "The sync failed."
+  },
+  "rail": {
+    "home": "Home",
+    "tops": "Charts",
+    "rhythms": "Rhythms",
+    "discoveries": "Discover",
+    "explore": "Universe",
+    "wrapped": "Recaps",
+    "library": "Library",
+    "history": "Journal",
+    "admin": "Settings"
+  },
+  "search": {
+    "label": "Search",
+    "placeholder": "Search an artist, an album, a track…",
+    "artist": "Artist",
+    "album": "Album",
+    "track": "Track"
+  },
+  "home": {
+    "title": "Your listening",
+    "lead": "{time} of music, {share} of it with {artist}. Your biggest day: {day} ({day_time}).",
+    "giant_cap": "of listening · {plays} tracks played",
+    "per_day": "{n} per active day",
+    "new_artists": "{n} of them new",
+    "albums": "across {n} albums",
+    "active_days": "Listening days",
+    "avg_listen": "{time} per play on average",
+    "bar_colour_note": "Each bar wears the colour of the artist's main genre.",
+    "genres_center": "genres",
+    "average": "average",
+    "record": "record",
+    "clock_title": "The clock of your listening",
+    "clock_meta": "minutes per hour",
+    "albums_title": "Your albums as a mosaic",
+    "albums_meta": "area = listening time"
+  },
+  "rhythms": {
+    "lead": "You mostly listen on {day}s, around {hour}. Current streak: {streak} days (record: {best}).",
+    "clock_cap": "listening minutes per hour",
+    "days_unit": "d",
+    "streak_cap": "days in a row with at least one play",
+    "time_section": "Over time",
+    "time_note": "Each bar takes a deeper colour when you listened more.",
+    "bars_note": "From yellow (little) to violet (a lot).",
+    "bump_title": "The artists' race",
+    "bump_note": "The rank of your 6 favourite artists, period after period (1 = leading).",
+    "too_short": "Pick a longer period to see a change.",
+    "stream_note": "Each genre's share of your listening.",
+    "week_section": "Your typical week",
+    "week_note": "When the music plays, day by day and hour by hour.",
+    "ridge_title": "Each day, its own skyline",
+    "ridge_meta": "minutes per hour",
+    "matrix_meta": "day × hour",
+    "matrix_note": "Size = amount, colour = time of day (violet night, golden morning, blue evening).",
+    "skip_section": "Skipped tracks"
   }
 }

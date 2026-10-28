@@ -160,11 +160,20 @@ python -m scripts.sync --enrich-only --enrich-budget 900
 
 ### 3.2 Lancer l'app
 
+Le plus simple : double-clique sur **« Lancer l'app.command »** (et **« Arrêter l'app.command »** pour l'arrêter). En ligne de commande :
+
 ```bash
-streamlit run app/Home.py
+python -m scripts.dev_server --port 8501
 ```
 
 Ton navigateur s'ouvre sur <http://localhost:8501>. Pour arrêter l'app : **Ctrl + C** dans le terminal.
+
+Tu n'as **jamais besoin de relancer l'app** après une modification :
+- code (`app/`, `core/`) : la page ouverte se met à jour toute seule en 2 à 3 secondes ; une sauvegarde à moitié finie affiche l'erreur, la sauvegarde suivante la répare (`app/devreload.py`) ;
+- réglages (`.streamlit/config.toml`, `.env`, `requirements.txt`) : le superviseur redémarre l'app et la page se reconnecte d'elle-même (`scripts/dev_server.py`) ;
+- plantage : le superviseur relance l'app automatiquement.
+
+L'app s'organise autour d'un rail à gauche (Accueil, Classements, Rythmes, Découvertes, Univers, Récaps, Bibliothèque, Journal, Réglages) et d'une recherche en haut qui ouvre la fiche d'un artiste, d'un album ou d'un titre. La période se choisit dans l'en-tête de chaque page et reste la même d'une page à l'autre.
 
 ### 3.3 (Optionnel) Essayer l'app avec des données fictives
 
@@ -327,7 +336,7 @@ Le site lit une copie de la base publiée et la rafraîchit toutes les 10 minute
 
 ### Le cookie a expiré
 
-**Symptômes** : tu reçois un e-mail d'échec de GitHub Actions, ou la synchro locale affiche `DEEZER COOKIE PROBLEM`. La barre latérale de l'app indique aussi « La dernière synchro a échoué ».
+**Symptômes** : tu reçois un e-mail d'échec de GitHub Actions, ou la synchro locale affiche `DEEZER COOKIE PROBLEM`. Dans l'app, le point en bas du rail de navigation (à gauche) passe au rose.
 
 1. Reconnecte-toi sur deezer.com et récupère le nouveau `arl` (étape 2).
 2. Remplace-le dans `.env` (local) **et** dans le secret GitHub `DEEZER_ARL` (Settings > Secrets and variables > Actions > `DEEZER_ARL` > Update).
@@ -372,10 +381,10 @@ Après chaque synchro locale, deux classeurs sont réécrits dans le dossier **`
 
 - Si un fichier est ouvert dans Excel au moment de la synchro, il n'est pas mis à jour cette fois-là : un message le signale.
 - Ces fichiers contiennent tes données personnelles : ils sont exclus de git.
-- Dans l'app, des boutons « Télécharger en Excel » existent aussi : page Historique (écoutes filtrées) et page Albums & playlists (bibliothèque).
+- Dans l'app, des boutons « Télécharger en Excel » existent aussi : page Journal (écoutes filtrées), page Classements (tableaux) et page Bibliothèque.
 - Pour désactiver ces copies, mets `EXCEL_DIR=off` dans `.env`.
 
-### Page « Albums & playlists »
+### Page « Bibliothèque » (albums & playlists)
 
 La synchro relève aussi, toutes les 6 heures au plus, les **albums favoris** et les **playlists** du profil : les siennes et celles ajoutées en favori, avec tous leurs titres. La page les croise avec ton historique :
 
@@ -424,7 +433,7 @@ Les dates du fichier sont supposées en UTC. Si les heures importées sont déca
 - Chaque écoute a un horodatage (`TS`, le début de l'écoute) et la durée du **morceau**.
 - **Deezer ne donne pas le temps réellement écouté.**
 - **Fréquence choisie : toutes les 30 minutes.** Pour perdre des écoutes, il faudrait en enchaîner plus de 100 en 30 minutes, soit un titre toutes les 18 secondes. En revanche, **sur TBTC, une journée sans synchro suffit à perdre des écoutes** : d'où l'importance de la phase 2.
-- Si une synchro voit que les 100 écoutes reçues ne rejoignent pas les dernières déjà enregistrées, elle note un **« trou possible entre X et Y »**. Tu le vois discrètement dans la barre latérale de l'app.
+- Si une synchro voit que les 100 écoutes reçues ne rejoignent pas les dernières déjà enregistrées, elle note un **« trou possible entre X et Y »**. Tu le vois discrètement en bas du rail de navigation de l'app (« n trou(s) »).
 
 ### Durée d'écoute estimée
 
@@ -432,7 +441,7 @@ Comme Deezer ne fournit pas le temps écouté, l'app l'estime :
 
 > **durée écoutée ≈ min(durée du titre, début de l'écoute suivante − début de cette écoute)**
 
-La dernière écoute d'une session reçoit la durée complète du titre. Ces durées sont marquées comme estimées : astérisque `*` dans les tableaux et note sous les chiffres. Elles alimentent le curseur **« Durée d'écoute minimale »** de la barre latérale, qui sert à exclure les titres passés. Si une future source fournit la vraie durée, elle sera utilisée telle quelle.
+La dernière écoute d'une session reçoit la durée complète du titre. Ces durées sont marquées comme estimées : astérisque `*` dans les tableaux et note sous les chiffres. Elles servent au seuil « titre passé » de la page Rythmes, qui repère les écoutes très courtes. Si une future source fournit la vraie durée, elle sera utilisée telle quelle.
 
 ### Genres
 
@@ -453,9 +462,12 @@ Les corrections sont stockées à part, dans la table `aliases`, et appliquées 
 
 ```
 app/                 application Streamlit (lecture seule, sauf la page admin)
-  Home.py            point d'entrée : streamlit run app/Home.py
+  Home.py            point d'entrée, minuscule et stable : streamlit run app/Home.py
+  shell.py           rail de navigation, recherche, actualisation, fond vivant
+  devreload.py       rechargement à chaud de tout le projet (aucune relance nécessaire)
   views/             une page par fichier (pas « pages/ » : ce nom active un ancien mode de Streamlit)
-  components/        blocs réutilisables : tuiles, grilles de pochettes, graphiques
+  components/        thème « Noto » (panneaux en dégradé), blocs, graphiques Plotly, visualisations
+  assets/theme.css   tout le style : familles de couleurs, panneaux, rail, puces
   i18n/              fr.json, en.json + t("clé")
 core/
   config.py          réglages : variables d'environnement > st.secrets > .env
@@ -465,7 +477,7 @@ core/
   musicbrainz.py     tags de genres (1 requête par seconde)
   sync.py            relevé → dédoublonnage → stockage → enrichissement
   stats.py           toutes les statistiques (fonctions pures sur des DataFrames)
-scripts/             sync, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
+scripts/             sync, dev_server, cloud_db, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest
 .github/workflows/   synchro toutes les 30 min
 ```
@@ -476,7 +488,7 @@ tests/               pytest
 
 - **API non officielle.** L'app lit ton historique via l'API interne du lecteur web Deezer. Elle peut changer ou casser à tout moment (voir l'étape 7). Cet usage **n'est pas prévu par les conditions d'utilisation de Deezer** : utilise-la pour toi seul, avec modération (une requête toutes les 30 minutes).
 - **Fenêtre d'historique limitée par Deezer** aux 100 dernières écoutes : des pertes sont possibles si la synchro ne tourne pas assez souvent (ordinateur éteint en phase 1). Pour le passé, voir l'import de l'export Deezer ci-dessus.
-- **Durées d'écoute estimées**, voir plus haut. Le seuil « titre passé » de la page Habitudes permet de repérer les écoutes très courtes. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
+- **Durées d'écoute estimées**, voir plus haut. Le seuil « titre passé » de la page Rythmes permet de repérer les écoutes très courtes. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
 - **Titres passés très vite** : il n'est pas encore confirmé que Deezer inscrive dans l'historique les titres passés au bout de quelques secondes.
   - Pour le vérifier : écoute un titre 5 secondes puis passe au suivant, lance `python -m scripts.sync`, puis regarde la page Historique.
   - Si le titre n'apparaît pas, c'est Deezer qui ne l'enregistre pas : aucun outil basé sur cet historique ne pourra le voir.

@@ -1,30 +1,30 @@
 [theme]
 base = "light"
-# taste-skill app style "pastel-consumer": #f3f5f7 ground, white panels, ink text, one cobalt accent on data.
-primaryColor = "#1d5fd6"
-backgroundColor = "#f3f5f7"
-secondaryBackgroundColor = "#f2f8fd"
-textColor = "#1b1d1f"
-linkColor = "#1d5fd6"
+# "Noto" direction: white page, grainy pastel mesh panels, Google Sans Flex, vivid pastel data colours.
+primaryColor = "#1f1f1f"
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f0f4f9"
+textColor = "#1f1f1f"
+linkColor = "#0b57d0"
 linkUnderline = false
-borderColor = "#e6e6e6"
-dataframeBorderColor = "#f4f4f4"
-dataframeHeaderBackgroundColor = "#ffffff"
+borderColor = "#e3e8ef"
+dataframeBorderColor = "#eef1f5"
+dataframeHeaderBackgroundColor = "#f6f8fb"
 showWidgetBorder = false
 showSidebarBorder = false
-baseRadius = "10px"
-buttonRadius = "10px"
-font = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap"
-headingFont = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600&display=swap"
+baseRadius = "16px"
+buttonRadius = "999px"
+font = "Google Sans Flex:https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&display=swap"
+headingFont = "Google Sans Flex:https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800&display=swap"
 baseFontSize = 15
-metricValueFontSize = "26px"
+metricValueFontSize = "40px"
 metricValueFontWeight = 400
-# taste-skill pastel-consumer chart hues (one hue per chart).
-chartCategoricalColors = ["#1d5fd6", "#b45309", "#2a8798"]
-chartSequentialColors = ["#f5f8fe", "#eef4fd", "#dcf1ff", "#c7defa", "#b9d3f6", "#8fb3ee", "#5f8de3", "#1d5fd6", "#164ca9", "#0a3a80"]
+# Validated categorical order (dataviz validator: CVD ΔE ≥ 9.9): sky, coral, lilac, lime, rose, butter, teal.
+chartCategoricalColors = ["#1e9fd8", "#ff6f4d", "#8b6cf0", "#4fae2c", "#e8558e", "#d39a06", "#119f86"]
+chartSequentialColors = ["#f3fbe9", "#e2f5c8", "#c4ebb0", "#9fdcb0", "#6cc9b4", "#3fb3b0", "#1e9fd8", "#2f7fd0", "#4a5fc4", "#3a2584"]
 
 [theme.sidebar]
-backgroundColor = "#f3f5f7"
+backgroundColor = "#f0f4f9"
 secondaryBackgroundColor = "#ffffff"
 
 [server]

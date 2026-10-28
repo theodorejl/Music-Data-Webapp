@@ -109,27 +109,43 @@ def period_bounds(period: str, tz: str, custom: tuple[date, date] | None = None)
     return None, None
 
 
-def sidebar_filters() -> Filters:
+def current_filters() -> Filters:
+    """The period chosen in the page header, kept across pages (plain session keys, so it
+    survives pages that do not show the period chips)."""
     tz = timezone_name()
-    with st.sidebar:
-        st.markdown(f"**{t('filters.title')}**")
-        period = st.selectbox(t("filters.period"), PERIODS, index=PERIODS.index("month"), key="f_period",
-                              format_func=lambda p: t(f"period.{p}"))
-        custom = None
-        if period == "custom":
-            today = pd.Timestamp.now(tz=tz).date()
-            value = st.date_input(t("filters.dates"), value=(today - timedelta(days=30), today), key="f_dates",
-                                  format="DD/MM/YYYY")
-            if isinstance(value, (tuple, list)) and len(value) == 2:
-                custom = (value[0], value[1])
-            elif isinstance(value, (tuple, list)) and len(value) == 1:
-                custom = (value[0], value[0])
+    period = st.session_state.get("period", "month")
+    custom = st.session_state.get("period_dates")
+    if period == "custom" and not custom:
+        today = pd.Timestamp.now(tz=tz).date()
+        custom = (today - timedelta(days=30), today)
     start, end = period_bounds(period, tz, custom)
     return Filters(period, start, end, 0)
 
 
+def _sync_period() -> None:
+    st.session_state["period"] = st.session_state["f_period_w"]
+
+
+def _sync_dates() -> None:
+    value = st.session_state.get("f_dates_w")
+    if isinstance(value, (tuple, list)) and value:
+        st.session_state["period_dates"] = (value[0], value[-1])
+
+
+def period_control() -> None:
+    """Period chips for the page header (plus a date range for "custom")."""
+    st.session_state["f_period_w"] = st.session_state.get("period", "month")
+    st.segmented_control(t("filters.period"), PERIODS, key="f_period_w", on_change=_sync_period, required=True,
+                         format_func=lambda p: t(f"period.{p}"), label_visibility="collapsed")
+    if st.session_state.get("period") == "custom":
+        f = current_filters()
+        st.session_state["f_dates_w"] = (f.start.date(), (f.end - timedelta(days=1)).date())
+        st.date_input(t("filters.dates"), key="f_dates_w", on_change=_sync_dates, format="DD/MM/YYYY",
+                      label_visibility="collapsed", width=280)
+
+
 def get_filters() -> Filters:
-    return st.session_state["filters"]
+    return st.session_state.get("filters") or current_filters()
 
 
 def period_pills(key: str) -> tuple[pd.Timestamp | None, pd.Timestamp | None, str]:
@@ -172,6 +188,44 @@ def scope_frame(df: pd.DataFrame, key: str, col: str) -> pd.DataFrame:
 def filtered_plays() -> pd.DataFrame:
     f = get_filters()
     return stats.filter_frame(all_plays(), f.start, f.end, f.min_seconds)
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def genre_order() -> list[str]:
+    """Genres by listening time over the whole history: fixes each genre's colour."""
+    plays = all_plays()
+    if plays.empty:
+        return []
+    return list(plays.dropna(subset=["genre"]).groupby("genre")["minutes"].sum().sort_values(ascending=False).index)
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def artist_genres() -> dict[int, str]:
+    """Main genre of each artist (most played genre among their plays)."""
+    plays = all_plays().dropna(subset=["genre", "artist_id"])
+    if plays.empty:
+        return {}
+    g = plays.groupby(["artist_id", "genre"])["minutes"].sum().reset_index().sort_values("minutes", ascending=False)
+    return {int(k): v for k, v in g.drop_duplicates("artist_id").set_index("artist_id")["genre"].items()}
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def search_index() -> list[tuple[str, str]]:
+    """(target, label) for the search box: artists, then albums, then tracks, most played first."""
+    plays = all_plays()
+    out: list[tuple[str, str]] = []
+    if plays.empty:
+        return out
+    for kind, key, label, sub in (("artist", "artist_id", "artist_name", None),
+                                  ("album", "album_id", "album_title", "artist_name"),
+                                  ("track", "track_id", "track_title", "artist_name")):
+        d = plays.dropna(subset=[key])
+        g = d.groupby(key).agg(n=("play_id", "count"), label=(label, "first"),
+                               **({"sub": (sub, "first")} if sub else {})).sort_values("n", ascending=False)
+        for k, r in g.iterrows():
+            text = f"{r['label']} — {r['sub']}" if sub and isinstance(r.get("sub"), str) else str(r["label"])
+            out.append((f"{kind}:{int(k)}", f"{t('search.' + kind)} · {text}"))
+    return out
 
 
 # --- library (favorite albums & playlists) ----------------------------------------

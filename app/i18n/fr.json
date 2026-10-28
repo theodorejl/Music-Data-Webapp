@@ -117,7 +117,9 @@
     "last_failed": "La dernière synchro a échoué.",
     "gaps": "Trous possibles ({n})",
     "gap_between": "Trou possible entre {start} et {end}",
-    "title": "Collecte"
+    "title": "Collecte",
+    "plays_short": "{n} écoutes",
+    "gaps_short": "{n} trou(s)"
   },
   "overview": {
     "title": "Vue d'ensemble",
@@ -152,7 +154,23 @@
     "no_genre": "Pas encore de genre connu (l'enrichissement tourne en arrière-plan).",
     "unknown_genre": "{n} écoutes sans genre connu ne sont pas comptées.",
     "count_all": "Tous",
-    "lead": "Tes artistes, albums, titres et genres préférés, classés par écoutes ou par minutes."
+    "lead": "Tes artistes, albums, titres et genres préférés, classés par écoutes ou par minutes.",
+    "hero_lead": "En tête : {artist} ({value}). Album le plus joué : {album}. Titre phare : {track}.",
+    "by_plays": "par écoutes",
+    "by_minutes": "par temps d'écoute",
+    "artists_note": "Les couleurs suivent le genre principal de chaque artiste.",
+    "podium": "Le podium",
+    "next": "La suite du classement",
+    "albums_note": "Chaque pochette occupe une surface proportionnelle à son écoute.",
+    "mosaic_title": "La mosaïque des albums",
+    "tracks_title": "Tes titres",
+    "genres_note": "Les genres et les artistes qui les portent.",
+    "sunburst_title": "Genres et artistes",
+    "sunburst_meta": "clique un genre pour zoomer",
+    "genre_bars": "Tes genres",
+    "tables_title": "Tous les classements",
+    "tables_note": "Tableaux complets, triables, exportables en Excel ou CSV.",
+    "total": "{n} écoutes · {time}"
   },
   "evolution": {
     "title": "Évolution",
@@ -198,7 +216,21 @@
     "first_play": "Première écoute",
     "plays_since": "Écoutes depuis",
     "none": "Aucune découverte sur cette période.",
-    "lead": "Les artistes et albums entrés dans ta vie musicale, mois après mois."
+    "lead": "Les artistes et albums entrés dans ta vie musicale, mois après mois.",
+    "hero_lead": "{artists} artistes et {albums} albums entendus pour la première fois, soit {share} de ton écoute.",
+    "hero_star": "Le coup de cœur : {artist}, déjà {plays} écoutes.",
+    "fresh_share": "Part de nouveautés",
+    "fresh_share_cap": "{time} sur des artistes découverts",
+    "swarm_section": "Tes découvertes, une à une",
+    "swarm_note": "Chaque bulle est un artiste, placée au jour de sa première écoute ; sa taille dit combien tu l'as écouté depuis, sa couleur son genre.",
+    "swarm_title": "L'essaim des découvertes",
+    "growth_title": "Ta collection grandit",
+    "growth_note": "Nombre total d'artistes et d'albums entendus au moins une fois.",
+    "split_title": "Nouveau ou familier ?",
+    "split_note": "Chaque carré vaut 0,5 % de ton temps d'écoute.",
+    "fresh": "Découvertes",
+    "known": "Déjà connus",
+    "lists_title": "Les listes"
   },
   "detail": {
     "choose_artist": "Artiste",
@@ -218,7 +250,8 @@
     "preview_title": "Extrait",
     "preview": "Extrait de 30 s",
     "no_preview": "Pas d'extrait disponible.",
-    "back_tops": "Retour aux tops"
+    "back_tops": "Retour aux tops",
+    "artist_lead": "Genre principal : {genre}. {plays} écoutes, {time} au total, depuis le {date}."
   },
   "history": {
     "title": "Historique",
@@ -227,7 +260,10 @@
     "count": "{n} écoutes",
     "page": "Page (sur {total})",
     "star_note": "* durée estimée",
-    "lead": "Toutes tes écoutes horodatées, cherchables et exportables."
+    "lead": "Toutes tes écoutes horodatées, cherchables et exportables.",
+    "hero_lead": "{n} écoutes sur la période, {time} de musique.",
+    "hero_last": "Dernière : {track} — {artist}, {when}.",
+    "giant_cap": "écoutes enregistrées sur la période"
   },
   "wrapped": {
     "title": "Récap",
@@ -251,13 +287,22 @@
     "pick_week": "Semaine",
     "week_of": "Semaine du {date}",
     "week_period": "semaine du {date}",
-    "kicker": "Récapitulatif partageable",
+    "kicker": "Raconte ta période",
     "new_artists": "Nouveaux artistes",
     "finding": "{artist} en tête avec {time}",
     "new_artists_cap": "première écoute dans la période",
     "top_genre_plain": "Genre préféré : {genre}",
     "busiest_day_plain": "Plus grosse journée : {date} ({time})",
-    "fav_hour_plain": "Heure favorite : {hour} h"
+    "fav_hour_plain": "Heure favorite : {hour} h",
+    "finding_html": "ton artiste du moment : {artist} ({time}).",
+    "giant_cap": "d'écoute · {plays}",
+    "facts": "En bref",
+    "fact_genre": "Genre dominant",
+    "fact_day": "Plus gros jour",
+    "fact_hour": "Heure préférée",
+    "fact_hour_cap": "l'heure où tu lances le plus de titres",
+    "fact_tracks": "Titres différents",
+    "fact_tracks_cap": "sur {albums} albums"
   },
   "admin": {
     "title": "Corrections",
@@ -359,7 +404,8 @@
     "poster_wait": "Téléchargement des pochettes et mise en page…",
     "poster_download": "Télécharger l'affiche (PDF A3)",
     "kicker": "Bibliothèque Deezer",
-    "listened_share_short": "au moins un titre dans l'historique"
+    "listened_share_short": "au moins un titre dans l'historique",
+    "hero_lead": "{albums} albums favoris de {artists} artistes et {playlists} playlists, analysés, exportables en Excel ou en affiche A3."
   },
   "explore": {
     "title": "Explorations",
@@ -385,7 +431,9 @@
     "fingerprint_title": "Empreinte sonore",
     "fingerprint_kicker": "Œuvre générative",
     "fingerprint_help": "Un anneau par heure de la journée, de minuit au centre à 23 h à l'extérieur. Plus tu écoutes à cette heure-là, plus l'anneau ondule ; sa couleur est le genre dominant. Chaque période donne une empreinte unique.",
-    "download_svg": "Télécharger l'empreinte (SVG)"
+    "download_svg": "Télécharger l'empreinte (SVG)",
+    "hero_lead": "{plays} écoutes, {artists} artistes, {genres} genres : ta musique dessinée autrement.",
+    "fingerprint_story": "Une empreinte unique : un anneau par heure de la journée, de minuit au centre à 23 h au bord. Plus tu écoutes à cette heure, plus l'anneau ondule ; sa couleur est le genre dominant. À télécharger, imprimer, partager."
   },
   "chart_words": [
     "moy."
@@ -402,5 +450,61 @@
     "cookie": "Cookie Deezer expiré : mets à jour DEEZER_ARL dans .env.",
     "timeout": "Deezer met trop de temps à répondre, réessaie plus tard.",
     "failed": "La synchro a échoué."
+  },
+  "rail": {
+    "home": "Accueil",
+    "tops": "Classements",
+    "rhythms": "Rythmes",
+    "discoveries": "Découvertes",
+    "explore": "Univers",
+    "wrapped": "Récaps",
+    "library": "Bibliothèque",
+    "history": "Journal",
+    "admin": "Réglages"
+  },
+  "search": {
+    "label": "Rechercher",
+    "placeholder": "Rechercher un artiste, un album, un titre…",
+    "artist": "Artiste",
+    "album": "Album",
+    "track": "Titre"
+  },
+  "home": {
+    "title": "Ton écoute",
+    "lead": "{time} de musique, dont {share} avec {artist}. Ton plus gros jour : {day} ({day_time}).",
+    "giant_cap": "d'écoute · {plays} titres joués",
+    "per_day": "{n} par jour actif",
+    "new_artists": "dont {n} découverts",
+    "albums": "sur {n} albums",
+    "active_days": "Jours d'écoute",
+    "avg_listen": "{time} par écoute en moyenne",
+    "bar_colour_note": "La couleur de chaque barre est celle du genre principal de l'artiste.",
+    "genres_center": "genres",
+    "average": "moyenne",
+    "record": "record",
+    "clock_title": "L'horloge de tes écoutes",
+    "clock_meta": "minutes par heure",
+    "albums_title": "Tes albums, en mosaïque",
+    "albums_meta": "surface = temps d'écoute"
+  },
+  "rhythms": {
+    "lead": "Tu écoutes surtout le {day}, vers {hour}. Série en cours : {streak} jours (record : {best}).",
+    "clock_cap": "minutes d'écoute par heure",
+    "days_unit": "j",
+    "streak_cap": "jours d'affilée avec au moins une écoute",
+    "time_section": "Au fil du temps",
+    "time_note": "Chaque barre prend une couleur plus profonde quand tu as écouté davantage.",
+    "bars_note": "Du jaune (peu) au violet (beaucoup).",
+    "bump_title": "La course des artistes",
+    "bump_note": "Le rang de tes 6 artistes favoris, période après période (1 = en tête).",
+    "too_short": "Choisis une période plus longue pour voir une évolution.",
+    "stream_note": "La part de chaque genre dans ton écoute.",
+    "week_section": "Ta semaine type",
+    "week_note": "Quand la musique tourne, jour par jour et heure par heure.",
+    "ridge_title": "Chaque jour, son relief",
+    "ridge_meta": "minutes par heure",
+    "matrix_meta": "jour × heure",
+    "matrix_note": "Taille = quantité, couleur = moment de la journée (nuit violette, matin doré, soirée bleue).",
+    "skip_section": "Les titres zappés"
   }
 }

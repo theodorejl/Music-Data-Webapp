@@ -261,6 +261,24 @@ def share_over_time(df: pd.DataFrame, dim: str, freq: str = "M", top_n: int = 6,
     return g.sort_values(["period", "label"]).reset_index(drop=True)
 
 
+def ranks_over_time(df: pd.DataFrame, dim: str = "artist", freq: str = "M", n: int = 6,
+                    metric: str = "minutes", depth: int = 10) -> pd.DataFrame:
+    """Rank per period of the n overall leaders: period, label, rank (ranks deeper than
+    `depth` are left out, so a line breaks when the leader drops out of sight)."""
+    key, _, _, _ = _DIM_COLS[dim]
+    data = df.dropna(subset=[key])
+    if data.empty:
+        return pd.DataFrame(columns=["period", "label", "rank"])
+    leaders = top(data, dim, metric, n)
+    names = dict(zip(leaders["key"], leaders["label"]))
+    value = data["minutes"] if metric == "minutes" else 1
+    g = data.assign(period=_period(data, freq), value=value).groupby(["period", key])["value"].sum().reset_index()
+    g["rank"] = g.groupby("period")["value"].rank(ascending=False, method="first")
+    g = g[g[key].isin(list(names)) & (g["rank"] <= depth)].copy()
+    g["label"] = g[key].map(names)
+    return g[["period", "label", "rank"]].reset_index(drop=True)
+
+
 # --- habits -------------------------------------------------------------------------
 
 def heatmap(df: pd.DataFrame, metric: str = "plays") -> pd.DataFrame:

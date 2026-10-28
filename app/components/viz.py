@@ -19,13 +19,13 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-STRONG = ["#6C7FE8", "#EE8E66", "#9B7FD9", "#3FB58E", "#D9A93A", "#E07FA8"]
-OTHER = "#B9B5AD"
-FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600'
+STRONG = ["#1e9fd8", "#ff6f4d", "#8b6cf0", "#4fae2c", "#e8558e", "#d39a06", "#119f86"]  # validated chart order
+OTHER = "#c4c9d0"
+FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:opsz,wght@6..144,300..800'
          '&display=swap" rel="stylesheet">')
-BASE_CSS = """html,body{margin:0;background:transparent;font-family:Manrope,system-ui,sans-serif;color:#1b1d1f;
+BASE_CSS = """html,body{margin:0;background:transparent;font-family:'Google Sans Flex',system-ui,sans-serif;color:#1f1f1f;
 -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
-.card{position:relative;background:#FFFFFF;border:1px solid #e6e6e6;border-radius:20px;overflow:hidden}
+.card{position:relative;background:rgba(255,255,255,.5);border-radius:24px;overflow:hidden}
 .lab{font-size:13px;color:#5c6064}
 .legend{position:absolute;left:22px;top:20px;display:flex;flex-direction:column;gap:7px;z-index:2}
 .legend span{display:flex;align-items:center;gap:8px;font-size:12.5px;color:#4A4843}
@@ -37,7 +37,13 @@ line-height:1.35;opacity:0;transform:translateY(4px);transition:opacity .18s,tra
 
 
 def _palette(labels: list[str]) -> dict[str, str]:
-    return {lab: STRONG[i] if i < len(STRONG) else OTHER for i, lab in enumerate(labels)}
+    """Genres keep the colour they have in every chart of the app."""
+    try:
+        from app.components.charts import category_colors
+
+        return category_colors(list(labels))
+    except Exception:
+        return {lab: STRONG[i] if i < len(STRONG) else OTHER for i, lab in enumerate(labels)}
 
 
 def _legend(colors: dict[str, str], other: str | None) -> str:
@@ -91,7 +97,7 @@ pos=P.map(p=>{{const a=p[1]*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(p[0]/maxTurn
 function guide(){{ctx.strokeStyle='rgba(23,23,26,.07)';ctx.lineWidth=1;ctx.beginPath();
 const turns=Math.ceil(maxTurn);for(let i=0;i<=turns*120;i++){{const tt=i/120;const a=(tt%1)*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(tt/maxTurn);
 const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}}ctx.stroke();
-ctx.fillStyle='#5c6064';ctx.font='12px Manrope, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillStyle='#5c6064';ctx.font='12px Google Sans Flex, system-ui, sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
 H.forEach((h,i)=>{{const a=i/H.length*Math.PI*2-Math.PI/2;ctx.fillText(h,cx+Math.cos(a)*(R1+24),cy+Math.sin(a)*(R1+24))}})}}
 let shown=still?P.length:0,hover=-1;
 function draw(){{ctx.clearRect(0,0,W,Hh);guide();
@@ -150,7 +156,7 @@ el.onmouseleave=()=>cap.innerHTML=`<span class="lab">{escape(plays_label)}</span
 
 # --- 3. artist constellation (genre territories) ------------------------------------------
 
-GLOW = ["#8E9CFF", "#FFB08A", "#BBA2FF", "#5FE0B0", "#FFD36B", "#FF9CC6"]  # luminous on the night card
+GLOW = ["#7fd0f5", "#ff9e85", "#b9a6ff", "#98dd72", "#ff8fbb", "#ffd25e", "#5fdcc2"]  # STRONG, made luminous for the night card
 GLOW_OTHER = "#C9C4D8"
 
 
@@ -161,7 +167,8 @@ def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> N
     if df.empty:
         return
     genres = df["genre"].dropna().value_counts().head(6).index.tolist()
-    gcol = {g: GLOW[i] for i, g in enumerate(genres)}
+    base = _palette(genres)
+    gcol = {g: GLOW[STRONG.index(base[g])] if base[g] in STRONG else GLOW_OTHER for g in genres}
     d = df.assign(group=df["genre"].where(df["genre"].isin(genres), labels["other"]))
     by_artist = d.groupby("artist_name").agg(plays=("play_id", "count"),
                                              group=("group", lambda s: s.mode().iloc[0]))
@@ -226,10 +233,10 @@ const onFrame=(Math.abs(p[0]-q[0])<.5&&(Math.abs(p[0]-m)<.5||Math.abs(p[0]-(W-m)
 if(!onFrame){{ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}}}}});
 ctx.textAlign='center';ctx.textBaseline='middle';
 cells.forEach((cell,i)=>{{const ce=centroid(cell);let lx=ce[0],ly=ce[1]-Math.min(W,H)*.2;if(!inside(cell,lx,ly))ly=ce[1];
-ctx.font='600 20px Manrope, system-ui, sans-serif';ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
+ctx.font='600 20px Google Sans Flex, system-ui, sans-serif';ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
 ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(G[i][0],lx,ly);ctx.shadowBlur=0;
-ctx.font='12px Manrope, system-ui, sans-serif';ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20)}});
-ctx.textAlign='left';ctx.font='12px Manrope, system-ui, sans-serif';const shown=G.map(()=>0);
+ctx.font='12px Google Sans Flex, system-ui, sans-serif';ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20)}});
+ctx.textAlign='left';ctx.font='12px Google Sans Flex, system-ui, sans-serif';const shown=G.map(()=>0);
 C.forEach((c,i)=>{{if(shown[c.g]<2||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10,y=c.y-c.s*.6;ctx.strokeStyle='rgba(255,255,255,.4)';
 ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#fff':'rgba(255,255,255,.72)';
 ctx.fillText(A[i][0]+'  '+A[i][1],x,y)}}}});
@@ -248,13 +255,13 @@ cv.addEventListener('mouseleave',()=>{{mouse.x=mouse.y=-1e4;hoverA=hoverG=-1;tip
 
 # --- 4. generative fingerprint -----------------------------------------------------------------
 
-def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900) -> str:
+def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900, framed: bool = True) -> str:
     """One closed, noise-distorted ring per hour of the day (midnight inside, 23h outside).
     Ring wobble = listening time at that hour; colour = dominant genre at that hour.
     Deterministic for a given dataset, so the same period always gives the same print."""
     cx = cy = size / 2
-    top_genres = df["genre"].dropna().value_counts().head(3).index.tolist()
-    colors = {g: ["#1d5fd6", "#b45309", "#2a8798"][i] for i, g in enumerate(top_genres)}
+    top_genres = df["genre"].dropna().value_counts().head(6).index.tolist()
+    colors = _palette(top_genres)
     by_hour = df.groupby(df["played_local"].dt.hour)
     minutes = by_hour["minutes"].sum().reindex(range(24), fill_value=0.0)
     dominant = by_hour["genre"].agg(lambda s: s.dropna().mode().iloc[0] if s.notna().any() else None)
@@ -276,15 +283,21 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
                 pts.append(f"{cx + math.cos(a) * r:.1f},{cy + math.sin(a) * r:.1f}")
             paths.append(f'<polyline points="{" ".join(pts)}" fill="none" stroke="{color}" '
                          f'stroke-width="{1.0 - layer * .18:.2f}" stroke-opacity="{.92 - layer * .2:.2f}"/>')
+    if not framed:  # bare rings, for a page header
+        return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" width="100%" '
+                f'style="max-width:{size}px;display:block;margin:auto">{"".join(paths)}</svg>')
     legend = "".join(
         f'<circle cx="{size - 150}" cy="{46 + i * 19}" r="5" fill="{c}"/>'
         f'<text x="{size - 138}" y="{50 + i * 19}" font-size="13" fill="#4A4843">{escape(str(g))}</text>'
         for i, (g, c) in enumerate(colors.items()))
     return (f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {size} {size}" width="100%" '
             f'style="max-width:{size}px;display:block;margin:auto">'
-            f'<rect width="{size}" height="{size}" rx="20" fill="#FFFFFF"/>'
-            f'<text x="40" y="58" font-family="Manrope, system-ui, sans-serif" font-size="28" font-weight="600" letter-spacing="-0.5" '
+            f'<defs><radialGradient id="fpa" cx="20%" cy="18%" r="80%"><stop offset="0" stop-color="#ddd2ff"/><stop offset="1" stop-color="#ddd2ff" stop-opacity="0"/></radialGradient>'
+            f'<radialGradient id="fpb" cx="85%" cy="85%" r="75%"><stop offset="0" stop-color="#ffcde0"/><stop offset="1" stop-color="#ffcde0" stop-opacity="0"/></radialGradient></defs>'
+            f'<rect width="{size}" height="{size}" rx="36" fill="#f6f3ff"/><rect width="{size}" height="{size}" rx="36" fill="url(#fpa)"/>'
+            f'<rect width="{size}" height="{size}" rx="36" fill="url(#fpb)"/>'
+            f'<text x="40" y="58" font-family="Google Sans Flex, system-ui, sans-serif" font-size="34" font-weight="400" letter-spacing="-1" '
             f'fill="#17171A">{escape(title)}</text>'
-            f'<text x="40" y="84" font-family="Manrope, system-ui, sans-serif" font-size="14" '
+            f'<text x="40" y="84" font-family="Google Sans Flex, system-ui, sans-serif" font-size="14" '
             f'fill="#5c6064">{escape(subtitle)}</text>'
-            f'<g font-family="Manrope, system-ui, sans-serif">{legend}</g>{"".join(paths)}</svg>')
+            f'<g font-family="Google Sans Flex, system-ui, sans-serif">{legend}</g>{"".join(paths)}</svg>')
