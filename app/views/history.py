@@ -3,7 +3,7 @@ import math
 import streamlit as st
 
 from app.components import data, ui
-from app.i18n import fmt_datetime_short, fmt_int, fmt_seconds, t
+from app.i18n import fmt_datetime_short, fmt_int, fmt_seconds, get_lang, t
 from core import stats
 
 PAGE_SIZE = 50
@@ -45,4 +45,11 @@ if event.selection.rows:
     ui.open_detail("track", chunk.iloc[event.selection.rows[0]]["track_id"])
 st.caption(t("common.click_row") + " · " + t("history.star_note"))
 
-ui.csv_download(ui.export_plays(found), "deezer_plays.csv", key="hist_dl")
+c1, c2 = st.columns([1, 1])
+with c1:
+    ui.csv_download(ui.export_plays(found), "deezer_plays.csv", key="hist_dl")
+with c2:
+    st.download_button(t("common.download_excel"), data.history_xlsx(get_lang(), tuple(int(i) for i in found["play_id"])),
+                       file_name="historique_deezer.xlsx" if get_lang() == "fr" else "deezer_history.xlsx",
+                       mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                       icon=":material/table_view:", key="hist_xlsx")

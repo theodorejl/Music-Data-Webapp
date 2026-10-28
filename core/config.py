@@ -76,6 +76,7 @@ class Settings:
     history_window: int
     musicbrainz_contact: str
     log_dir: Path
+    excel_dir: Path | None  # local Excel copies of the data; empty EXCEL_DIR disables them
 
 
 def get_settings() -> Settings:
@@ -89,7 +90,16 @@ def get_settings() -> Settings:
         history_window=int(get_setting("HISTORY_WINDOW", "100")),
         musicbrainz_contact=get_setting("MUSICBRAINZ_CONTACT", "personal project"),
         log_dir=Path(get_setting("LOG_DIR", str(ROOT / "logs"))),
+        excel_dir=_excel_dir(),
     )
+
+
+def _excel_dir() -> Path | None:
+    value = get_setting("EXCEL_DIR", str(ROOT / "Exports Excel"))
+    if value in ("", "0", "off", "none"):
+        return None
+    path = Path(value)
+    return path if path.is_absolute() else ROOT / path
 
 
 # --- secret redaction -------------------------------------------------------

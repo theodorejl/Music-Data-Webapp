@@ -38,7 +38,9 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
 5. [Passer en ligne : GitHub + Neon + GitHub Actions](#5-passer-en-ligne--github--neon--github-actions)
 6. [Publier l'app sur Streamlit Community Cloud](#6-publier-lapp-sur-streamlit-community-cloud)
 7. [En cas de problème](#7-en-cas-de-problème)
-8. [Limites connues](#limites-connues)
+8. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
+9. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
+10. [Limites connues](#limites-connues)
 
 Les commandes sont à taper dans un **terminal** :
 - **macOS** : app « Terminal » (Cmd + Espace, puis tape « Terminal »).
@@ -368,6 +370,60 @@ L'app utilise une API **non officielle** : Deezer peut la modifier sans préveni
 
 ---
 
+## Excel, albums & playlists, affiche A3
+
+### Tes données en Excel, mises à jour automatiquement
+
+Après chaque synchro locale, deux classeurs sont réécrits dans le dossier **`Exports Excel/`** du projet :
+
+| Fichier | Onglets |
+|---|---|
+| `Historique des écoutes.xlsx` | Écoutes (toutes, sans limite), Titres, Albums, Artistes, Par jour |
+| `Bibliothèque - albums et playlists.xlsx` | Albums favoris, Playlists, Titres des playlists |
+
+- Si un fichier est ouvert dans Excel au moment de la synchro, il n'est pas mis à jour cette fois-là : un message le signale.
+- Ces fichiers contiennent tes données personnelles : ils sont exclus de git.
+- Dans l'app, des boutons « Télécharger en Excel » existent aussi : page Historique (écoutes filtrées) et page Albums & playlists (bibliothèque).
+- Pour désactiver ces copies, mets `EXCEL_DIR=off` dans `.env`.
+
+### Page « Albums & playlists »
+
+La synchro relève aussi, toutes les 6 heures au plus, les **albums favoris** et les **playlists** du profil : les siennes et celles ajoutées en favori, avec tous leurs titres. La page les croise avec ton historique :
+
+- **Albums favoris** : répartition par décennie de sortie, artistes et genres les plus présents, ajouts par mois, et la liste complète, triable et cherchable.
+- **Playlists** : playlists les plus écoutées, artistes les plus présents, part de chaque playlist réellement écoutée. Clique sur une playlist pour voir ses titres.
+- **Exports** :
+  - tout télécharger en Excel ;
+  - générer l'**affiche A3 paysage** (PDF) de tous tes albums favoris : pochettes en grille, avec sous chacune le nom de l'album, sa date de sortie et l'artiste. La taille des pochettes s'adapte pour que tout tienne sur la page. Avec 336 albums, ça donne une grille de 24 × 14 et des pochettes d'environ 14 mm.
+
+Pour forcer un rechargement immédiat de la bibliothèque : `python -m scripts.sync --library`.
+
+---
+
+## Récupérer l'historique plus ancien (export Deezer)
+
+L'historique de Deezer ne renvoie **que les 100 dernières écoutes** : c'est une limite de Deezer, pas de l'app. L'app, elle, garde **tout** ce qu'elle a relevé, sans limite.
+
+Pour récupérer les écoutes **antérieures**, Deezer fournit sur demande une copie de tes données personnelles, avec ton historique d'écoute complet et la durée réellement écoutée :
+
+1. Sur deezer.com, **connecté au profil voulu** (TBTC), ouvre Mon compte > Paramètres > Confidentialité > **Mes données personnelles**, et demande l'export. Deezer envoie un lien par e-mail, en général sous quelques jours.
+2. Télécharge le fichier `.xlsx`, puis prévisualise l'import sans rien écrire :
+   ```bash
+   python -m scripts.import_deezer_export "chemin/vers/le/fichier.xlsx" --dry-run
+   ```
+3. Si le résumé est correct, lance l'import :
+   ```bash
+   python -m scripts.import_deezer_export "chemin/vers/le/fichier.xlsx"
+   ```
+
+Les écoutes déjà relevées par la synchro ne sont pas importées une deuxième fois : même titre à 3 minutes près. Tu peux relancer l'import sans risque.
+
+Les dates du fichier sont supposées en UTC. Si les heures importées sont décalées, relance avec `--tz Europe/Zurich`.
+
+> Le format exact de ce fichier n'est pas documenté publiquement. L'import reconnaît les colonnes par leur nom, en anglais ou en français. S'il ne trouve pas la feuille d'historique, il affiche la liste des feuilles et colonnes trouvées : envoie-la-moi pour l'adapter.
+
+---
+
 ## Fonctionnement et choix techniques
 
 ### Ce que Deezer fournit (mesuré le 28/10/2026)
@@ -430,7 +486,7 @@ tests/               pytest
 ## Limites connues
 
 - **API non officielle.** L'app lit ton historique via l'API interne du lecteur web Deezer. Elle peut changer ou casser à tout moment (voir l'étape 7). Cet usage **n'est pas prévu par les conditions d'utilisation de Deezer** : utilise-la pour toi seul, avec modération (une requête toutes les 30 minutes).
-- **Fenêtre d'historique limitée** aux 100 dernières écoutes : pas d'import du passé, et des pertes possibles si la synchro ne tourne pas assez souvent (ordinateur éteint en phase 1).
+- **Fenêtre d'historique limitée par Deezer** aux 100 dernières écoutes : des pertes sont possibles si la synchro ne tourne pas assez souvent (ordinateur éteint en phase 1). Pour le passé, voir l'import de l'export Deezer ci-dessus.
 - **Durées d'écoute estimées**, voir plus haut. Une pause longue au milieu d'un titre, ou un titre passé juste avant de fermer l'app, peuvent fausser l'estimation.
 - **Titres passés très vite** : il n'est pas encore confirmé que Deezer inscrive dans l'historique les titres passés au bout de quelques secondes.
   - Pour le vérifier : écoute un titre 5 secondes puis passe au suivant, lance `python -m scripts.sync`, puis regarde la page Historique.

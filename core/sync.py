@@ -19,7 +19,7 @@ from core.config import get_settings, redact
 from core.db import init_db, insert_ignore
 from core.deezer_gw import HistorySource, PlayRecord
 from core.deezer_public import DeezerPublicClient, artist_picture_url, cover_url
-from core.models import Album, Artist, Play, SyncRun, Tag, Track, TrackArtist, utcnow
+from core.models import Album, Artist, FavoriteAlbum, Play, SyncRun, Tag, Track, TrackArtist, utcnow
 from core.musicbrainz import MusicBrainzClient, extract_tags, pick_release_group
 
 log = logging.getLogger(__name__)
@@ -172,7 +172,15 @@ def enrich_public(session: Session, client: DeezerPublicClient, deadline: float)
     """Fill tracks/albums/artists from api.deezer.com (each object fetched once)."""
     done = 0
     now = utcnow
-    for track in session.scalars(select(Track).where(Track.fetched_at.is_(None)).limit(500)).all():
+    # Only what the stats need: played tracks, their albums/artists, and favorite albums.
+    # (Tracks that only appear in playlists keep the metadata given by the playlist.)
+    played = select(Play.track_id).distinct()
+    played_albums = select(Track.album_id).where(Track.id.in_(played))
+    played_artists = select(Track.artist_id).where(Track.id.in_(played))
+    favorite_albums = select(FavoriteAlbum.album_id)
+    favorite_artists = select(Album.artist_id).where(Album.id.in_(favorite_albums))
+    for track in session.scalars(select(Track).where(Track.fetched_at.is_(None), Track.id.in_(played))
+                                 .limit(500)).all():
         if time.monotonic() > deadline:
             return done
         data = client.track(track.id)
@@ -210,7 +218,8 @@ def enrich_public(session: Session, client: DeezerPublicClient, deadline: float)
         session.commit()
         done += 1
 
-    for album in session.scalars(select(Album).where(Album.fetched_at.is_(None)).limit(500)).all():
+    for album in session.scalars(select(Album).where(
+            Album.fetched_at.is_(None), Album.id.in_(played_albums) | Album.id.in_(favorite_albums)).limit(500)).all():
         if time.monotonic() > deadline:
             return done
         data = client.album(album.id)
@@ -227,7 +236,8 @@ def enrich_public(session: Session, client: DeezerPublicClient, deadline: float)
         session.commit()
         done += 1
 
-    for artist in session.scalars(select(Artist).where(Artist.fetched_at.is_(None)).limit(500)).all():
+    for artist in session.scalars(select(Artist).where(
+            Artist.fetched_at.is_(None), Artist.id.in_(played_artists) | Artist.id.in_(favorite_artists)).limit(500)).all():
         if time.monotonic() > deadline:
             return done
         data = client.artist(artist.id)
@@ -250,7 +260,8 @@ def _store_tags(session: Session, entity_type: str, entity_id: int, tags) -> Non
 def enrich_musicbrainz(session: Session, client: MusicBrainzClient, deadline: float) -> int:
     done = 0
     tracks = session.scalars(
-        select(Track).where(Track.mb_checked_at.is_(None)).order_by(Track.id).limit(300)
+        select(Track).where(Track.mb_checked_at.is_(None), Track.id.in_(select(Play.track_id).distinct()))
+        .order_by(Track.id).limit(300)
     ).all()
     for track in tracks:
         if time.monotonic() > deadline:

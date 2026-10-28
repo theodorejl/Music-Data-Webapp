@@ -123,3 +123,51 @@ def get_filters() -> Filters:
 def filtered_plays() -> pd.DataFrame:
     f = get_filters()
     return stats.filter_frame(all_plays(), f.start, f.end, f.min_seconds)
+
+
+# --- library (favorite albums & playlists) ----------------------------------------
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def library() -> stats.LibraryData:
+    return stats.load_library(_engine())
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def favorite_albums() -> pd.DataFrame:
+    raw = raw_data()
+    genres = stats.album_genres(raw.albums, raw.tags, raw.aliases)
+    return stats.favorite_albums_view(library(), all_plays(), genres)
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def playlists() -> pd.DataFrame:
+    return stats.playlists_view(library(), all_plays())
+
+
+@st.cache_data(ttl=STATS_TTL, show_spinner=False)
+def playlist_tracks() -> pd.DataFrame:
+    return stats.playlist_tracks_view(library(), all_plays())
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=8)
+def library_xlsx(lang: str) -> bytes:
+    from core.excel import library_sheets, to_xlsx
+
+    return to_xlsx(library_sheets(favorite_albums(), playlists(), playlist_tracks(), lang))
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=8)
+def history_xlsx(lang: str, play_ids: tuple[int, ...]) -> bytes:
+    from core.excel import history_sheets, to_xlsx
+
+    plays = all_plays()
+    return to_xlsx(history_sheets(plays[plays["play_id"].isin(play_ids)], lang))
+
+
+@st.cache_data(ttl=3600, show_spinner=False, max_entries=4)
+def album_poster(albums: tuple[tuple[str, str, str, str, str], ...], title: str | None) -> bytes:
+    """albums: (title, artist, release text, cover 250px, cover 500px)."""
+    from core.poster import album_poster_pdf
+
+    return album_poster_pdf([{"title": a, "artist": b, "release": c, "cover_url": d, "cover_url_big": e}
+                             for a, b, c, d, e in albums], title)

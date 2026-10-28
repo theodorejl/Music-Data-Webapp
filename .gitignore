@@ -18,3 +18,7 @@ venv/
 
 # Editor
 .vscode/
+
+# Personal data exported by the sync
+Exports Excel/
+*.xlsx

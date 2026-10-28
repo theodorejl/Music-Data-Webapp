@@ -15,7 +15,8 @@ from sqlalchemy import select
 
 from core.config import DEFAULT_SQLITE, redact
 from core.db import get_engine, init_db, insert_ignore
-from core.models import Alias, Album, Artist, Play, SyncRun, Tag, Track, TrackArtist
+from core.models import (Alias, Album, Artist, FavoriteAlbum, Play, Playlist, PlaylistTrack, SyncRun,
+                         SyncState, Tag, Track, TrackArtist)
 from sqlalchemy.orm import Session
 
 # (model, conflict columns, columns to skip because they are auto ids)
@@ -28,6 +29,10 @@ TABLES = [
     (Tag, ["entity_type", "entity_id", "tag", "source"], ["id"]),
     (Alias, ["kind", "source_key"], ["id"]),
     (SyncRun, ["started_at"], ["id"]),
+    (FavoriteAlbum, ["album_id"], []),
+    (Playlist, ["id"], []),
+    (PlaylistTrack, ["playlist_id", "position"], []),
+    (SyncState, ["key"], []),
 ]
 
 

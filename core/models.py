@@ -152,6 +152,56 @@ class SyncRun(Base):
     duration_s: Mapped[float | None] = mapped_column(Float)
 
 
+class FavoriteAlbum(Base):
+    """Snapshot of the profile's favorite albums (replaced at each library refresh)."""
+
+    __tablename__ = "favorite_albums"
+
+    album_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    profile_id: Mapped[int | None] = mapped_column(BigInteger)
+    added_at: Mapped[datetime | None] = mapped_column(DateTime)
+    raw_json: Mapped[dict | None] = mapped_column(JSON)
+
+
+class Playlist(Base):
+    """Playlists of the profile: its own and the ones it added to favorites."""
+
+    __tablename__ = "playlists"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    profile_id: Mapped[int | None] = mapped_column(BigInteger)
+    title: Mapped[str] = mapped_column(String(500))
+    creator_id: Mapped[int | None] = mapped_column(BigInteger)
+    creator_name: Mapped[str | None] = mapped_column(String(300))
+    is_own: Mapped[bool] = mapped_column(Boolean, default=False)
+    nb_songs: Mapped[int | None] = mapped_column(Integer)
+    duration: Mapped[int | None] = mapped_column(Integer)  # seconds
+    picture: Mapped[str | None] = mapped_column(Text)
+    added_at: Mapped[datetime | None] = mapped_column(DateTime)  # favorite / creation date
+    modified_at: Mapped[datetime | None] = mapped_column(DateTime)
+    checksum: Mapped[str | None] = mapped_column(String(64))  # tracks reloaded when it changes
+    tracks_fetched_at: Mapped[datetime | None] = mapped_column(DateTime)
+    raw_json: Mapped[dict | None] = mapped_column(JSON)
+
+
+class PlaylistTrack(Base):
+    __tablename__ = "playlist_tracks"
+
+    playlist_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    position: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    track_id: Mapped[int] = mapped_column(BigInteger, index=True)
+    added_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class SyncState(Base):
+    """Small key/value store (e.g. last library refresh)."""
+
+    __tablename__ = "sync_state"
+
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str | None] = mapped_column(Text)
+
+
 def play_key(track_id: int, played_at: datetime) -> str:
     """Stable identifier of a play, used by `hide_play` aliases (portable across DBs)."""
     return f"{track_id}@{played_at.replace(microsecond=0).isoformat()}"

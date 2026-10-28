@@ -31,6 +31,7 @@ pages = {
     "habits": st.Page(P / "habits.py", title=t("nav.habits"), icon=":material/schedule:", url_path="habits"),
     "discoveries": st.Page(P / "discoveries.py", title=t("nav.discoveries"), icon=":material/explore:", url_path="discoveries"),
     "wrapped": st.Page(P / "wrapped.py", title=t("nav.wrapped"), icon=":material/auto_awesome:", url_path="wrapped"),
+    "library": st.Page(P / "library.py", title=t("nav.library"), icon=":material/library_music:", url_path="library"),
     "history": st.Page(P / "history.py", title=t("nav.history"), icon=":material/history:", url_path="history"),
     "artist": st.Page(P / "artist.py", title=t("nav.artist"), icon=":material/person:", url_path="artist"),
     "album": st.Page(P / "album.py", title=t("nav.album"), icon=":material/album:", url_path="album"),
@@ -41,7 +42,7 @@ ui.PAGES.update(pages)
 
 nav = st.navigation({
     t("nav.section_stats"): [pages[k] for k in ("overview", "tops", "evolution", "habits", "discoveries", "wrapped")],
-    t("nav.section_library"): [pages[k] for k in ("history", "artist", "album", "track")],
+    t("nav.section_library"): [pages[k] for k in ("library", "history", "artist", "album", "track")],
     t("nav.section_settings"): [pages["admin"]],
 })
 

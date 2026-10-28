@@ -373,3 +373,89 @@ def busiest_day(df: pd.DataFrame) -> tuple | None:
         return None
     g = df.groupby(df["played_local"].dt.date)["minutes"].sum()
     return g.idxmax(), float(g.max())
+
+
+# --- library: favorite albums & playlists ------------------------------------------
+
+@dataclass
+class LibraryData:
+    favorites: pd.DataFrame
+    playlists: pd.DataFrame
+    playlist_tracks: pd.DataFrame
+
+
+def load_library(engine: Engine) -> LibraryData:
+    from core.models import FavoriteAlbum, Playlist, PlaylistTrack
+
+    favorites = _read(engine, select(
+        FavoriteAlbum.album_id, FavoriteAlbum.added_at, Album.title, Album.artist_id,
+        Artist.name.label("artist_name"), Album.release_date, Album.label, Album.record_type,
+        Album.cover_medium, Album.cover_big, Album.cover_xl, Album.deezer_genres,
+    ).join(Album, Album.id == FavoriteAlbum.album_id, isouter=True)
+     .join(Artist, Artist.id == Album.artist_id, isouter=True))
+    playlists = _read(engine, select(
+        Playlist.id, Playlist.title, Playlist.creator_name, Playlist.is_own, Playlist.nb_songs,
+        Playlist.duration, Playlist.picture, Playlist.added_at, Playlist.modified_at,
+    ))
+    tracks = _read(engine, select(
+        PlaylistTrack.playlist_id, PlaylistTrack.position, PlaylistTrack.track_id, PlaylistTrack.added_at,
+        Track.title.label("track_title"), Track.duration, Track.artist_id, Artist.name.label("artist_name"),
+        Track.album_id, Album.title.label("album_title"), Album.cover_medium.label("cover"),
+    ).join(Track, Track.id == PlaylistTrack.track_id, isouter=True)
+     .join(Artist, Artist.id == Track.artist_id, isouter=True)
+     .join(Album, Album.id == Track.album_id, isouter=True))
+    return LibraryData(favorites, playlists, tracks)
+
+
+def _plays_by(plays: pd.DataFrame, key: str) -> pd.DataFrame:
+    if plays.empty:
+        return pd.DataFrame(columns=[key, "plays", "minutes", "last_played"]).set_index(key)
+    return plays.groupby(key).agg(plays=("play_id", "count"), minutes=("minutes", "sum"),
+                                  last_played=("played_local", "max"))
+
+
+def favorite_albums_view(lib: LibraryData, plays: pd.DataFrame, genres: dict[int, str] | None = None) -> pd.DataFrame:
+    """One row per favorite album, with release year, genre and listening figures."""
+    fav = lib.favorites.copy()
+    if fav.empty:
+        return fav.assign(genre=None, release_year=None, plays=0, minutes=0.0, last_played=None)
+    fav["title"] = fav["title"].fillna("?")
+    fav["artist_name"] = fav["artist_name"].fillna("?")
+    release = pd.to_datetime(fav["release_date"], errors="coerce")
+    fav["release_year"] = release.dt.year.astype("Int64")
+    genres = genres or {}
+    fav["genre"] = [genres.get(int(a)) if pd.notna(a) else None for a in fav["album_id"]]
+    by_album = _plays_by(plays, "album_id")
+    fav = fav.join(by_album, on="album_id")
+    fav["plays"] = fav["plays"].fillna(0).astype(int)
+    fav["minutes"] = fav["minutes"].fillna(0.0)
+    return fav.sort_values("added_at", ascending=False, na_position="last").reset_index(drop=True)
+
+
+def playlists_view(lib: LibraryData, plays: pd.DataFrame) -> pd.DataFrame:
+    """One row per playlist: size, artists, and how much of it was listened to."""
+    pl = lib.playlists.copy()
+    if pl.empty:
+        return pl.assign(tracks=0, artists=0, played_tracks=0, plays=0, played_share=0.0)
+    pt = lib.playlist_tracks
+    per_track = _plays_by(plays, "track_id")["plays"] if not plays.empty else pd.Series(dtype=int)
+    t = pt.assign(plays=pt["track_id"].map(per_track).fillna(0).astype(int))
+    agg = t.groupby("playlist_id").agg(tracks=("track_id", "count"), artists=("artist_id", "nunique"),
+                                       played_tracks=("plays", lambda s: int((s > 0).sum())),
+                                       plays=("plays", "sum"))
+    pl = pl.join(agg, on="id")
+    for col in ("tracks", "artists", "played_tracks", "plays"):
+        pl[col] = pl[col].fillna(0).astype(int)
+    pl["played_share"] = (pl["played_tracks"] / pl["tracks"].where(pl["tracks"] > 0)).fillna(0.0)
+    return pl.sort_values(["plays", "added_at"], ascending=False).reset_index(drop=True)
+
+
+def playlist_tracks_view(lib: LibraryData, plays: pd.DataFrame, playlist_id: int | None = None) -> pd.DataFrame:
+    pt = lib.playlist_tracks
+    if playlist_id is not None:
+        pt = pt[pt["playlist_id"] == playlist_id]
+    per_track = _plays_by(plays, "track_id")
+    out = pt.join(per_track, on="track_id")
+    out["plays"] = out["plays"].fillna(0).astype(int)
+    out["minutes"] = out["minutes"].fillna(0.0)
+    return out.sort_values(["playlist_id", "position"]).reset_index(drop=True)

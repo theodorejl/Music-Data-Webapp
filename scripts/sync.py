@@ -5,6 +5,8 @@ Usage:
     python -m scripts.sync --no-enrich     # fetch + store only
     python -m scripts.sync --enrich-only   # only resume metadata/genre enrichment
     python -m scripts.sync --enrich-budget 600
+    python -m scripts.sync --library       # force a refresh of favorite albums & playlists
+    python -m scripts.sync --no-library    # skip favorites & playlists
 
 Exit code 1 when the cookie is invalid or the history cannot be fetched, so that
 GitHub Actions marks the run as failed and sends an email.
@@ -19,7 +21,9 @@ import sys
 
 from core.config import get_settings, redact, setup_logging
 from core.db import get_engine, init_db
-from core.deezer_gw import DeezerAPIError, DeezerAuthError, DeezerHistorySource
+from core.deezer_gw import DeezerAPIError, DeezerAuthError, DeezerGatewayClient, DeezerHistorySource
+from core.excel import write_exports
+from core.library import refresh_library
 from core.sync import run_enrichment, run_sync
 
 log = logging.getLogger("sync")
@@ -30,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--no-enrich", action="store_true", help="skip metadata/genre enrichment")
     parser.add_argument("--enrich-only", action="store_true", help="only run enrichment")
     parser.add_argument("--enrich-budget", type=float, default=120, help="max seconds spent enriching")
+    parser.add_argument("--library", action="store_true", help="force refresh of favorite albums & playlists")
+    parser.add_argument("--no-library", action="store_true", help="skip favorite albums & playlists")
+    parser.add_argument("--no-excel", action="store_true", help="do not rewrite the Excel copies")
     args = parser.parse_args(argv)
 
     setup_logging()
@@ -43,11 +50,12 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.enrich_only:
         run_enrichment(engine, args.enrich_budget)
+        write_excel(engine, args, settings)
         return 0
 
     try:
-        result = run_sync(engine, DeezerHistorySource(), enrich=not args.no_enrich,
-                          enrich_budget=args.enrich_budget)
+        client = DeezerGatewayClient()
+        result = run_sync(engine, DeezerHistorySource(client), enrich=False)
     except DeezerAuthError as exc:
         log.error("DEEZER COOKIE PROBLEM: %s", redact(exc))
         return 1
@@ -58,10 +66,29 @@ def main(argv: list[str] | None = None) -> int:
         log.error("Sync failed: %s: %s", type(exc).__name__, redact(exc))
         return 1
 
+    if not args.no_library:
+        refresh_library(engine, client, force=args.library)
+    if not args.no_enrich:
+        run_enrichment(engine, args.enrich_budget)
+    write_excel(engine, args, settings)
+
     print(f"OK: {result.fetched} plays fetched, {result.inserted} new.")
     if result.gap_warning:
         print(f"WARNING: {result.gap_warning}")
     return 0
+
+
+def write_excel(engine, args, settings) -> None:
+    """Keep Excel copies of the history and library next to the project (local runs only)."""
+    if args.no_excel or os.environ.get("GITHUB_ACTIONS") or not settings.excel_dir:
+        return
+    try:
+        paths = write_exports(engine, settings.excel_dir, settings.timezone)
+        print("Excel:", " | ".join(str(p) for p in paths))
+    except PermissionError:
+        log.warning("Excel files are open in Excel: close them to let the sync update them.")
+    except Exception as exc:
+        log.warning("Excel export failed: %s", redact(exc))
 
 
 if __name__ == "__main__":

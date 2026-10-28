@@ -126,6 +126,11 @@ def parse_history_item(item: dict, source: str = "deezer_gw") -> PlayRecord:
     )
 
 
+def parse_song_metadata(item: dict, source: str = "deezer_gw") -> PlayRecord:
+    """Track metadata from any song item (playlist, album...) that has no play timestamp."""
+    return parse_history_item({**item, "TS": item.get("TS") or 0}, source)
+
+
 def extract_history_items(response: dict) -> list[dict]:
     """Return the list of song dicts from a `user.getSongsHistory` or
     `deezer.pageProfile` response. Raises DeezerAPIError if the shape is unknown."""
@@ -182,6 +187,7 @@ class DeezerGatewayClient:
         self._api_token: str | None = None
         self.user_id: int | None = None
         self.profile_name: str | None = None
+        self._profile_ready = False
 
     def _post(self, method: str, body: dict | None = None, api_token: str = "null") -> dict:
         params = {"method": method, "input": "3", "api_version": "1.0", "api_token": api_token}
@@ -268,12 +274,58 @@ class DeezerGatewayClient:
             data = self._post(method, body, api_token=self._api_token or "null")
         return data
 
-    def get_history_raw(self, nb: int = 100) -> dict:
-        """Raw history response. Tries the confirmed method first, then the fallback."""
+    def ensure_profile(self) -> None:
+        """Log in and switch to DEEZER_PROFILE once per client."""
+        if self._profile_ready:
+            return
         if self.user_id is None:
             self.login()
         if self.profile:
             self.switch_profile(self.profile)
+        self._profile_ready = True
+
+    def _profile_tab(self, tab: str) -> list[dict]:
+        self.ensure_profile()
+        data = self.call("deezer.pageProfile", {"USER_ID": self.user_id, "tab": tab, "nb": 10000})
+        try:
+            items = data["results"]["TAB"][tab]["data"]
+        except (KeyError, TypeError):
+            save_raw_response(f"pageProfile_{tab}", data)
+            raise DeezerAPIError(f"unexpected answer for profile tab '{tab}'")
+        return items if isinstance(items, list) else []
+
+    def get_favorite_albums(self) -> list[dict]:
+        return self._profile_tab("albums")
+
+    def get_playlists(self) -> list[dict]:
+        """Own playlists and playlists added to favorites."""
+        return self._profile_tab("playlists")
+
+    def get_playlist(self, playlist_id: int, page_size: int = 2000) -> tuple[dict, list[dict]]:
+        """(playlist info, all its songs), paginating through long playlists."""
+        self.ensure_profile()
+        songs: list[dict] = []
+        info: dict = {}
+        while True:
+            data = self.call("deezer.pagePlaylist", {
+                "playlist_id": str(playlist_id), "nb": page_size, "start": len(songs),
+                "lang": "fr", "tab": 0, "tags": True, "header": True,
+            })
+            results = data.get("results") or {}
+            if data.get("error") or not isinstance(results, dict):
+                save_raw_response("deezer.pagePlaylist", data)
+                raise DeezerAPIError(f"playlist {playlist_id}: {data.get('error')}")
+            info = results.get("DATA") or info
+            block = results.get("SONGS") or {}
+            page = block.get("data") or []
+            songs.extend(page)
+            total = int(block.get("total") or 0)
+            if not page or len(songs) >= total:
+                return info, songs
+
+    def get_history_raw(self, nb: int = 100) -> dict:
+        """Raw history response. Tries the confirmed method first, then the fallback."""
+        self.ensure_profile()
         attempts = [
             ("user.getSongsHistory", {"USER_ID": self.user_id, "nb": nb, "start": 0}),
             ("deezer.pageProfile", {"USER_ID": self.user_id, "tab": "history", "nb": nb}),
