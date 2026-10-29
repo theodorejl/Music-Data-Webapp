@@ -421,14 +421,13 @@ def classify(ids: list[int], ev: dict[int, dict[str, Evidence]], weights: dict[t
 
 # --- Stored at each sync ------------------------------------------------------------------------------
 
-def run(engine) -> dict:
-    """Decide the genre of every artist of the library (played, in playlists or in favourite albums) from
-    everything the database knows, and replace the table artist_genre. Returns a summary."""
-    from sqlalchemy import delete, select
-    from sqlalchemy.orm import Session
+def inputs(engine) -> dict:
+    """Everything the model reads from the database: the library artists (played, in playlists or in
+    favourite albums), their evidence (Every Noise included), the neighbour graph and the playlists."""
+    from sqlalchemy import select
 
     from core import everynoise, stats
-    from core.models import ArtistGenre, ArtistRelated, utcnow
+    from core.models import ArtistRelated
 
     raw, lib = stats.load_raw(engine), stats.load_library(engine)
     plays = stats.assemble(raw, "UTC")
@@ -457,9 +456,22 @@ def run(engine) -> dict:
             e = everynoise_evidence(index.genres_of(sid))
             if e.mass > 0:
                 ev.setdefault(a, {})[key] = e
+    return {"ids": ids, "ev": ev, "edges": edges, "external": external, "playlist_tracks": pt,
+            "names": {int(a): n for a, n in zip(raw.artists["id"], raw.artists["name"])}}
 
+
+def run(engine) -> dict:
+    """Decide the genre of every artist of the library from everything the database knows, and replace the
+    table artist_genre. Returns a summary."""
+    from sqlalchemy import delete
+    from sqlalchemy.orm import Session
+
+    from core.models import ArtistGenre, utcnow
+
+    data = inputs(engine)
+    ids, ev = data["ids"], data["ev"]
     weights = reliability(ev)
-    decisions = classify(ids, ev, weights, edges, external)
+    decisions = classify(ids, ev, weights, data["edges"], data["external"])
     now = utcnow()
     with Session(engine) as s:
         s.execute(delete(ArtistGenre))
@@ -476,3 +488,78 @@ def run(engine) -> dict:
 def _unit(x: np.ndarray) -> np.ndarray:
     s = x.sum()
     return x / s if s > 0 else x
+
+
+# --- Evaluation -------------------------------------------------------------------------------------------
+
+def reference(ev: dict[int, dict[str, Evidence]]) -> dict[int, int]:
+    """Artists whose sub-genre is sure: two source families (MusicBrainz counted once) agree on it, or
+    Every Noise knows the artist by its Spotify id. Artist -> that sub-genre."""
+    out: dict[int, int] = {}
+    for a, row in ev.items():
+        fam: dict[str, Counter] = {}
+        for source, e in row.items():
+            for sub, x in e.sub.items():
+                fam.setdefault(FAMILY.get(source, source), Counter())[sub] += x
+        tops = Counter(max(c, key=lambda k: (c[k], -k)) for c in fam.values() if c)
+        if "everynoise" in fam:
+            out[a] = max(fam["everynoise"], key=lambda k: (fam["everynoise"][k], -k))
+        elif tops and tops.most_common(1)[0][1] >= 2:
+            out[a] = tops.most_common(1)[0][0]
+    return out
+
+
+def evaluate(ev: dict[int, dict[str, Evidence]], weights: dict[tuple[str, int], float], edges, external: dict[int, Evidence],
+             ids: list[int] | None = None, playlist_tracks: pd.DataFrame | None = None, folds: int = 5) -> dict:
+    """How often the model finds the sure genre of the reference artists again:
+    - cold: their own evidence hidden (a fifth of them at a time), only their neighbours left, against the
+      old way (the main genre of the artists sharing their playlists);
+    - single: one source of theirs kept at random (seed 0), to see one source's errors corrected."""
+    ids = list(ev) if ids is None else ids
+    ref = reference(ev)
+    sub_main = _shape()[0]
+    if not ref:
+        return {"reference": 0}
+    hits: Counter = Counter()
+    for k in range(folds):
+        hidden = {a for a in ref if a % folds == k}
+        if not hidden:
+            continue
+        cold = classify(ids, {a: r for a, r in ev.items() if a not in hidden}, weights, edges, external)
+        old = _playlist_guess(ev, hidden, playlist_tracks)
+        for a in hidden:
+            d = cold.get(a)
+            hits["cold_main"] += bool(d and d.main == sub_main[ref[a]])
+            hits["cold_sub"] += bool(d and d.sub == ref[a])
+            hits["cold_main_old"] += old.get(a) == sub_main[ref[a]]
+    rng = np.random.default_rng(0)
+    single = dict(ev)
+    for a in ref:
+        keep = sorted(ev[a])[int(rng.integers(len(ev[a])))]
+        single[a] = {keep: ev[a][keep]}
+    got = classify(ids, single, weights, edges, external)
+    for a in ref:
+        d = got.get(a)
+        hits["single_main"] += bool(d and d.main == sub_main[ref[a]])
+        hits["single_sub"] += bool(d and d.sub == ref[a])
+    n = len(ref)
+    return {"reference": n, **{k: round(hits[k] / n, 3) for k in
+                               ("cold_main", "cold_sub", "cold_main_old", "single_main", "single_sub")}}
+
+
+def _playlist_guess(ev: dict[int, dict[str, Evidence]], hidden: set, pt: pd.DataFrame | None) -> dict[int, int]:
+    """The old way (atlas.place): an artist takes the main genre most shared by the artists of its playlists."""
+    if pt is None or pt.empty:
+        return {}
+    known = {a: int(np.argmax(sum(e.main for e in row.values()))) for a, row in ev.items() if a not in hidden and row}
+    pairs = pt.dropna(subset=["artist_id"])[["playlist_id", "artist_id"]].drop_duplicates()
+    pairs = pairs.assign(artist_id=pairs["artist_id"].astype(int))
+    pairs = pairs.assign(main=pairs["artist_id"].map(known))
+    mix = pairs.dropna(subset=["main"]).groupby(["playlist_id", "main"]).size()
+    if mix.empty:
+        return {}
+    share = (mix / mix.groupby(level=0).transform("sum")).rename("share").reset_index()
+    asked = pairs[pairs["artist_id"].isin(hidden)][["playlist_id", "artist_id"]]
+    guess = asked.merge(share, on="playlist_id").groupby(["artist_id", "main"])["share"].sum().reset_index()
+    guess = guess.sort_values("share", ascending=False).drop_duplicates("artist_id")
+    return {int(a): int(m) for a, m in zip(guess["artist_id"], guess["main"])}

@@ -170,3 +170,17 @@ def test_run_writes_one_decision_per_artist_and_replaces_them(engine):
     with Session(engine) as s:
         assert s.scalar(select(func.count()).select_from(ArtistGenre)) == 2
         assert s.get(ArtistGenre, 1).genre == "nu disco" and s.get(ArtistGenre, 2).genre == "deep house"
+
+
+# --- Evaluation --------------------------------------------------------------------------------------
+
+def test_evaluation_reports_cold_and_single_source_accuracy():
+    two = [("deep house", "mb_genre", 1.0), ("Deep House", "discogs", 1.0)]   # two families agree: a reference
+    ev = {a: genremodel.word_evidence(two) for a in range(1, 11)}
+    edges = [(a, b, 1.0) for a in range(1, 11) for b in range(a + 1, 11)]
+    pt = pd.DataFrame({"playlist_id": [1] * 10, "track_id": range(10), "artist_id": [float(a) for a in range(1, 11)]})
+    got = genremodel.evaluate(ev, genremodel.reliability(ev), edges, {}, ids=list(ev), playlist_tracks=pt)
+    assert got["reference"] == 10
+    assert got["cold_main"] == 1.0 and got["cold_sub"] == 1.0      # hidden, each one is found again by its neighbours
+    assert got["cold_main_old"] == 1.0                                 # the playlist guess finds the main genre too
+    assert 0 <= got["single_sub"] <= 1 and got["single_main"] == 1.0
