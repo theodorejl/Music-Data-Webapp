@@ -371,155 +371,195 @@ render();
 
 @lru_cache(maxsize=1)
 def _genre_table() -> str:
-    """The 6,300 genres of the map as compact JSON for the page: names, colours, x, y, label size."""
+    """The 6,300 genres of the map and their nested regions, as compact JSON for the page."""
+    from core import soundmap
+
     data = json.loads((Path(__file__).resolve().parents[1] / "assets" / "genre_map.json").read_text(encoding="utf-8"))
     g = data["genres"]
+    levels = soundmap.hierarchy()["levels"]
     return js_data({"n": [r[0] for r in g], "c": [r[1] for r in g], "x": [r[2] for r in g], "y": [r[3] for r in g],
-                    "s": [r[5] for r in g]})
+                    "s": [r[5] for r in g], "levels": levels})
 
 
-def sound_map(home: list[tuple[str, float]], seeds: list[dict], recs: list[dict], paths: list[tuple[str, str]],
-              labels: dict, color: str, height: int = 760) -> None:
-    """Every genre of Every Noise at Once on one zoomable map: more sub-genres appear as you zoom
-    in. Your territory glows; your artists (white discs) and the discoveries (covers ringed in
-    the mode's colour) sit at their sub-genre; for sub-genres, arrows go from your genres to the
-    ones explored. Search flies to any genre; click a cover to hear it.
-    home: (genre, weight); seeds: {name, img, x, y, minutes} with x, y in 0..1;
-    recs: {title, artist, img, track_id, reason, x, y, seed (index or -1), subgenre};
-    paths: (from genre, to genre)."""
-    hint = escape(labels["hint"])
-    legend = (f"<span><b class='halo'></b>{escape(labels['territory'])}</span>"
-              f"<span><i class='me'></i>{escape(labels['you'])}</span>"
-              f"<span><i style='border-color:{color}'></i>{escape(labels['found'])}</span>"
-              + (f"<span><i class='dash' style='border-color:{color}'></i>{escape(labels['explored'])}</span>" if paths else ""))
+def sound_map(mine: list[dict], recs: list[dict], paths: list[tuple[str, str]], labels: dict, color: str,
+              height: int = 780) -> None:
+    """The map of sound, in the manner of a research-space map: the 6,291 genres of Every Noise at
+    Once as a nebula (density in magma colours), cut into nested regions whose names appear and
+    fade as you zoom (families, then smaller families, then every sub-genre). Each sub-genre is a
+    cloud of points, denser when the genre is popular, in the hue of its family (a shade per smaller
+    family), that shows as you zoom while the nebula dims.
+    Your tracks (white) and the discoveries (the mode's colour) are clouds of points around their
+    sub-genre that turn into album covers when you zoom in; click a discovery to hear it.
+    mine: {title, artist, img, x, y}; recs: {title, artist, img, track_id, reason, x, y, subgenre};
+    x, y in 0..1; paths: (from genre, to genre) for the sub-genres mode."""
+    legend = (f"<span><b class='neb'></b>{escape(labels['density'])}</span>"
+              f"<span><b class='dust'></b>{escape(labels['clouds'])}</span>"
+              f"<span><i class='me'></i>{escape(labels['mine'])}</span>"
+              f"<span><i style='background:{color};box-shadow:0 0 8px {color}'></i>{escape(labels['found'])}</span>")
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
 html,body{{margin:0;background:transparent;font-family:{FONT};-webkit-font-smoothing:antialiased;overflow:hidden}}
-.night{{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#1d1a33 0%,#100e1c 62%,#0a0912 100%)}}
+.space{{position:relative;border-radius:22px;overflow:hidden;background:#090a18}}
 .top{{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 16px 6px;font-size:12px;color:rgba(255,255,255,.82)}}
 .top span{{display:flex;align-items:center;gap:7px}}
-.top i{{width:12px;height:12px;border-radius:50%;border:2.5px solid;display:inline-block}} .top i.me{{border-color:#fff;background:#fff}}
-.top i.dash{{border-style:dashed}}
-.top b.halo{{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,107,.9),rgba(255,214,107,0) 70%)}}
+.top i{{width:9px;height:9px;border-radius:50%;display:inline-block}} .top i.me{{background:#fff;box-shadow:0 0 8px #fff}}
+.top b.neb{{width:34px;height:10px;border-radius:5px;background:linear-gradient(90deg,#2a0f5c,#812581,#e55964,#fec287,#fcfdbf)}}
+.top b.dust{{width:26px;height:10px;background:radial-gradient(circle,#ff8fb1 1.4px,transparent 1.8px) 0 0/7px 6px,
+ radial-gradient(circle,#7fd6ff 1.4px,transparent 1.8px) 3px 3px/7px 6px,radial-gradient(circle,#ffd36e 1.2px,transparent 1.6px) 5px 1px/9px 5px}}
 .top input{{margin-left:auto;font:500 12px {FONT};padding:7px 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,.28);
  background:rgba(255,255,255,.08);color:#fff;outline:none;width:240px}} .top input::placeholder{{color:rgba(255,255,255,.5)}}
-canvas{{display:block;width:100%;height:{height - 92}px}}
 .chips{{display:flex;gap:6px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none}} .chips::-webkit-scrollbar{{display:none}}
 .chips button{{flex:none;font:500 11.5px {FONT};color:#fff;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.22);
  border-radius:999px;padding:5px 11px;cursor:pointer;white-space:nowrap}} .chips button b{{color:{color};margin-left:6px;font-weight:600}}
 .chips button:hover,.chips button.on{{background:rgba(255,255,255,.18);border-color:{color}}}
-.tip{{position:absolute;pointer-events:none;display:flex;gap:12px;align-items:center;background:#fbfaf8;color:#17171a;padding:10px 14px 10px 10px;
- border-radius:16px;font-size:12px;line-height:1.45;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;max-width:340px;z-index:7}}
+canvas{{display:block;width:100%;height:{height - 92}px}}
+.tip{{position:absolute;pointer-events:none;display:flex;gap:12px;align-items:center;background:rgba(14,15,34,.92);color:#fff;padding:10px 14px 10px 10px;
+ border:1px solid rgba(255,255,255,.18);border-radius:14px;font-size:12px;line-height:1.45;opacity:0;transform:translateY(4px);
+ transition:opacity .15s,transform .15s;max-width:340px;z-index:7;backdrop-filter:blur(8px)}}
 .tip.on{{opacity:1;transform:none}}.tip img{{width:56px;height:56px;border-radius:10px;object-fit:cover}}.tip b{{display:block;font-size:13px}}
-.tip small{{display:block;color:#6b6f73}}.tip em{{display:block;font-style:normal;font-weight:600;margin-top:2px}}
-.axis{{position:absolute;font-size:10.5px;color:rgba(255,255,255,.38);pointer-events:none;letter-spacing:.02em}}
+.tip small{{display:block;color:rgba(255,255,255,.62)}}.tip em{{display:block;font-style:normal;font-weight:600;margin-top:2px}}
 {ZOOM_CSS}</style></head><body>
-<div class="night"><div class="top">{legend}<input id="find" list="gl" placeholder="{escape(labels['search'])}"><datalist id="gl"></datalist></div>
+<div class="space"><div class="top">{legend}<input id="find" list="gl" placeholder="{escape(labels['search'])}"><datalist id="gl"></datalist></div>
 <div class="chips" id="chips"></div><canvas id="c"></canvas><div class="tip" id="tip"></div>
-<div class="axis" style="left:50%;top:104px;transform:translateX(-50%)">↑ {escape(labels['up'])}</div>
-<div class="axis" style="left:50%;bottom:10px;transform:translateX(-50%)">↓ {escape(labels['down'])}</div>
-<div class="axis" style="left:14px;top:50%">← {escape(labels['left'])}</div>
-<div class="axis" style="right:14px;top:50%;text-align:right">{escape(labels['right'])} →</div>
 <div class="zoom"><button id="zfit" title="{escape(labels['fit'])}">◎</button><button id="zin">+</button><button id="zout">−</button><button id="zreset" title="{escape(labels['whole'])}">⟲</button></div>
-<div class="hint" style="bottom:30px">{hint}</div></div>
+<div class="hint">{escape(labels['hint'])}</div></div>
 <script>
-window.KMAX=60;window.EDGE=.08;
-const GM={_genre_table()},HOME={js_data([[n, w] for n, w in home])},S={js_data(seeds)},R={js_data(recs)},P={js_data(paths)};
-const MC={js_data(color)},L={js_data({k: labels[k] for k in ("play", "pause", "no_preview", "territory_share", "explored_tip", "because")})};
+window.KMAX=80;window.EDGE=.06;
+const GM={_genre_table()},U={js_data(mine)},R={js_data(recs)},P={js_data(paths)},MC={js_data(color)};
+const L={js_data({k: labels[k] for k in ("play", "pause", "no_preview", "because", "yours", "in", "count")})};
 {ESC_JS}
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');let W=0,H=0,dirty=true;
-const idx={{}};GM.n.forEach((n,i)=>idx[n]=i);
-const homeW={{}};HOME.forEach(([n,w])=>{{if(idx[n]!==undefined)homeW[idx[n]]=w}});
-const explored=new Set(),pathIdx=P.map(([a,b])=>[idx[a],idx[b]]).filter(([a,b])=>a!==undefined&&b!==undefined);pathIdx.forEach(([a,b])=>explored.add(b));
-R.forEach(r=>{{if(r.subgenre&&idx[r.subgenre]!==undefined)explored.add(idx[r.subgenre])}});
-document.getElementById('gl').innerHTML=GM.n.slice(0,6300).map(n=>'<option value="'+esc(n)+'">').join('');
+const N=GM.n.length,idx={{}};GM.n.forEach((n,i)=>idx[n]=i);const L1=GM.levels[0],L2=GM.levels[1];
+const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
+document.getElementById('gl').innerHTML=GM.n.map(n=>'<option value="'+esc(n)+'">').join('');
+const explored=new Set();R.forEach(r=>{{if(r.subgenre&&idx[r.subgenre]!==undefined)explored.add(idx[r.subgenre])}});
+const pathIdx=P.map(([a,b])=>[idx[a],idx[b]]).filter(([a,b])=>a!==undefined&&b!==undefined);
+// clouds: each point is scattered around its sub-genre, the same way every time
+const hash=i=>{{let h=(i+1)*2654435761>>>0;h^=h>>>15;h=Math.imul(h,2246822519)>>>0;h^=h>>>13;return (h>>>0)/4294967296}};
+const scatter=(arr,seed,sigma)=>arr.forEach((p,i)=>{{const u=Math.max(1e-6,hash(seed+i*2)),v=hash(seed+i*2+1),r=sigma*Math.sqrt(-2*Math.log(u));
+ p.px=p.x+Math.cos(6.283*v)*r/1.6;p.py=p.y+Math.sin(6.283*v)*r}});
+scatter(U,11,.0042);scatter(R,977,.0048);
+// each sub-genre's own cloud, in the hue of its family (14 hues placed so that neighbouring families
+// never look alike) with a shade per smaller family; more points and a wider spread when the genre
+// is popular; a share of the points shows at first, all of them once zoomed in
+const FH=(()=>{{const n=L1.names.length,hues=[],free=[...Array(n).keys()].map(i=>i*360/n),d=(a,b)=>Math.hypot((L1.cx[a]-L1.cx[b])*1.6,L1.cy[a]-L1.cy[b]);
+ [...Array(n).keys()].sort((a,b)=>L1.cy[a]-L1.cy[b]||L1.cx[a]-L1.cx[b]).forEach(a=>{{let best=0,bs=-1;
+  free.forEach((h,fi)=>{{let sc=1e9;hues.forEach((hb,b)=>{{if(hb===undefined)return;const hd=Math.min(Math.abs(h-hb),360-Math.abs(h-hb));sc=Math.min(sc,hd+300*Math.max(0,d(a,b)-.15))}});if(sc>bs){{bs=sc;best=fi}}}});
+  hues[a]=free.splice(best,1)[0]}});return hues}})();
+const GC=GM.n.map((_,i)=>{{const f=L1.of[i],s=L2.of[i]%4;return `hsl(${{Math.round(FH[f]+(s-1.5)*7)}},${{86-s*4}}%,${{60+s*5}}%)`}});
+const DO=new Int32Array(N+1),DSIG=new Float32Array(N);for(let i=0;i<N;i++){{const c=Math.round(5+40/Math.sqrt(1+i/25));DO[i+1]=DO[i]+c;DSIG[i]=.0018+.0028*(c-5)/40}}
+const DX=new Float32Array(DO[N]),DY=new Float32Array(DO[N]);
+for(let i=0;i<N;i++)for(let j=DO[i];j<DO[i+1];j++){{const u=Math.max(1e-6,hash(j*2+31)),v=hash(j*2+32),r=DSIG[i]*Math.sqrt(-2*Math.log(u));
+ DX[j]=GM.x[i]+Math.cos(6.283*v)*r/1.6;DY[j]=GM.y[i]+Math.sin(6.283*v)*r}}
 const imgs={{}};function img(u){{if(!u)return null;if(!imgs[u]){{const i=new Image();i.onload=()=>dirty=true;i.src=u;imgs[u]=i}}return imgs[u]}}
-const mix=(c,t)=>{{const n=parseInt(c.slice(1),16);const r=n>>16,g=(n>>8)&255,b=n&255;return `rgb(${{Math.round(r+(255-r)*t)}},${{Math.round(g+(255-g)*t)}},${{Math.round(b+(255-b)*t)}})`}};
-const rgba=(c,a)=>{{const n=parseInt(c.slice(1),16);return `rgba(${{n>>16}},${{(n>>8)&255}},${{n&255}},${{a}})`}};
-function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;dirty=true}}
-const sx=x=>x*W*view.k+view.x, sy=y=>y*H*view.k+view.y;
+// the nebula: points splatted in grey on a small canvas, then coloured with the magma scale
+const STOPS=[[0,[9,10,24]],[.12,[28,16,68]],[.25,[79,18,123]],[.4,[129,37,129]],[.55,[181,54,122]],[.68,[229,89,100]],[.8,[251,135,97]],[.9,[254,194,135]],[1,[252,253,191]]];
+const LUT=new Uint8ClampedArray(256*4);for(let i=0;i<256;i++){{const t=i/255;let a=STOPS[0],b=STOPS[STOPS.length-1];
+ for(let j=0;j<STOPS.length-1;j++)if(t>=STOPS[j][0]&&t<=STOPS[j+1][0]){{a=STOPS[j];b=STOPS[j+1];break}}
+ const f=(t-a[0])/Math.max(1e-6,b[0]-a[0]);for(let c=0;c<3;c++)LUT[i*4+c]=a[1][c]+(b[1][c]-a[1][c])*f;LUT[i*4+3]=Math.min(235,Math.pow(t,.75)*330)}}
+const sprite=(()=>{{const s=document.createElement('canvas');s.width=s.height=64;const g=s.getContext('2d');const r=g.createRadialGradient(32,32,0,32,32,32);
+ r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.35,'rgba(255,255,255,.45)');r.addColorStop(1,'rgba(255,255,255,0)');g.fillStyle=r;g.fillRect(0,0,64,64);return s}})();
+const dc=document.createElement('canvas'),dctx=dc.getContext('2d',{{willReadFrequently:true}}),cc=document.createElement('canvas'),cctx=cc.getContext('2d');
+let cells1=[],cells2=[];
+{TERRITORY_JS}
+function voronoi(L){{const pts=L.cx.map((x,j)=>[x*W,L.cy[j]*H]),frame=[[-W,-H],[2*W,-H],[2*W,2*H],[-W,2*H]];
+ return pts.map((s,i)=>{{let poly=frame.slice();pts.forEach((o,j)=>{{if(i===j)return;const a=o[0]-s[0],b=o[1]-s[1],c=(o[0]*o[0]+o[1]*o[1]-s[0]*s[0]-s[1]*s[1])/2;poly=clip(poly,a,b,c)}});return poly}})}}
+function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
+ dc.width=cc.width=Math.ceil(W/4);dc.height=cc.height=Math.ceil(H/4);cells1=voronoi(L1);cells2=voronoi(L2);dirty=true}}
+const sx=x=>x*W*view.k+view.x,sy=y=>y*H*view.k+view.y;
+// density in floating point (no saturation): a gaussian per point, popular genres and your
+// tracks weigh more, then an automatic exposure (99.2nd percentile) and the magma scale
+const ramp=(k,a,b)=>Math.max(0,Math.min(1,(k-a)/(b-a)));
+let G=null;const GWT=new Float32Array(N);for(let i=0;i<N;i++)GWT[i]=.25+4/Math.sqrt(i+4);
+function nebula(){{const k=view.k,q=1/4,w=dc.width,h=dc.height;if(!G||G.length!==w*h)G=new Float32Array(w*h);else G.fill(0);
+ const R=Math.max(1.3,11*Math.pow(k,.5)*q),s2=2*(R*.55)**2,rad=Math.ceil(R*1.5),K=[];
+ for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++){{const v=Math.exp(-(dx*dx+dy*dy)/s2);if(v>.03)K.push(dx+dy*w,dx,dy,v)}}
+ const splat=(x,y,wt)=>{{const cx=Math.round(x),cy=Math.round(y);if(cx<-rad||cy<-rad||cx>=w+rad||cy>=h+rad)return;const base=cy*w+cx;
+  for(let j=0;j<K.length;j+=4){{const X=cx+K[j+1],Y=cy+K[j+2];if(X<0||Y<0||X>=w||Y>=h)continue;G[base+K[j]]+=K[j+3]*wt}}}};
+ for(let i=0;i<N;i++)splat(sx(GM.x[i])*q,sy(GM.y[i])*q,GWT[i]);
+ for(const p of U)splat(sx(p.px)*q,sy(p.py)*q,.35);
+ const sample=[];for(let p=0;p<G.length;p+=5)if(G[p]>0)sample.push(G[p]);sample.sort((a,b)=>a-b);
+ const top=sample.length?sample[Math.floor(sample.length*.992)]:1;
+ const out=cctx.createImageData(w,h),o=out.data;for(let p=0,j=0;p<G.length;p++,j+=4){{const v=G[p];if(v<=0)continue;
+  const t=Math.min(255,Math.round(Math.pow(v/top,1.15)*255))*4;o[j]=LUT[t];o[j+1]=LUT[t+1];o[j+2]=LUT[t+2];o[j+3]=LUT[t+3]}}
+ cctx.putImageData(out,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=1-.5*ramp(k,3,12);ctx.drawImage(cc,0,0,W,H);ctx.globalAlpha=1}}
+function dust(){{const k=view.k,share=.18+.82*ramp(k,1,3.2),r=Math.min(4.6,1.1+k*.22),h=r/2,round=k>=5;ctx.globalAlpha=.35+.55*ramp(k,1.2,4);
+ for(let i=0;i<N;i++){{const x=sx(GM.x[i]),y=sy(GM.y[i]),m=DSIG[i]*4*W*k;if(x<-m||y<-m*1.6||x>W+m||y>H+m*1.6)continue;
+  const end=DO[i]+Math.max(1,Math.round((DO[i+1]-DO[i])*share));ctx.fillStyle=GC[i];ctx.beginPath();
+  for(let j=DO[i];j<end;j++){{const px=sx(DX[j]),py=sy(DY[j]);if(round){{ctx.moveTo(px+h,py);ctx.arc(px,py,h,0,6.283)}}else ctx.rect(px-h,py-h,r,r)}}ctx.fill()}}
+ ctx.globalAlpha=1}}
+function borders(cells,alpha,width){{if(alpha<=0)return;const k=view.k;ctx.save();ctx.setTransform((devicePixelRatio||1)*k,0,0,(devicePixelRatio||1)*k,(devicePixelRatio||1)*view.x,(devicePixelRatio||1)*view.y);
+ ctx.strokeStyle=`rgba(214,224,255,${{alpha}})`;ctx.lineWidth=width/k;cells.forEach(c=>{{ctx.beginPath();c.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.stroke()}});ctx.restore()}}
 let nodes=[],labelsDrawn=[],hover=null,fly=null,pulse=null,state={{}};
-function disc(x,y,r,src,ring,w){{const im=img(src);ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.closePath();
- if(im&&im.complete&&im.naturalWidth){{ctx.clip();ctx.drawImage(im,x-r,y-r,r*2,r*2)}}else{{ctx.fillStyle='#3a3550';ctx.fill()}}ctx.restore();
- ctx.beginPath();ctx.arc(x,y,r+w/2,0,6.283);ctx.strokeStyle=ring;ctx.lineWidth=w;ctx.stroke()}}
-function draw(t){{const dpr=devicePixelRatio||1,k=view.k;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
- // your territory: soft halos in each genre's colour
- ctx.globalCompositeOperation='lighter';
- for(const [i,w] of Object.entries(homeW)){{const x=sx(GM.x[i]),y=sy(GM.y[i]);if(x<-300||y<-300||x>W+300||y>H+300)continue;
-  const r=(26+170*Math.sqrt(w))*Math.pow(k,.35);const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rgba(GM.c[i],.55));g.addColorStop(1,rgba(GM.c[i],0));
-  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill()}}
- ctx.globalCompositeOperation='source-over';
- // paths from your genres to the sub-genres explored
- pathIdx.forEach(([a,b])=>{{const x1=sx(GM.x[a]),y1=sy(GM.y[a]),x2=sx(GM.x[b]),y2=sy(GM.y[b]);const mx=(x1+x2)/2+(y2-y1)*.18,my=(y1+y2)/2-(x2-x1)*.18;
-  ctx.strokeStyle=rgba(MC,.55);ctx.lineWidth=1.4;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();ctx.setLineDash([]);
-  const ang=Math.atan2(y2-my,x2-mx);ctx.fillStyle=rgba(MC,.8);ctx.beginPath();ctx.moveTo(x2-Math.cos(ang)*12,y2-Math.sin(ang)*12);
-  ctx.lineTo(x2-Math.cos(ang)*20-Math.sin(ang)*5,y2-Math.sin(ang)*20+Math.cos(ang)*5);ctx.lineTo(x2-Math.cos(ang)*20+Math.sin(ang)*5,y2-Math.sin(ang)*20-Math.cos(ang)*5);ctx.fill()}});
- // genre labels: the most popular first, more as you zoom in, never overlapping
- const limit=110*Math.pow(k,1.55),cell=10,grid=new Set();labelsDrawn=[];
- const place=(i,force)=>{{const x=sx(GM.x[i]),y=sy(GM.y[i]);if(x<-50||y<-20||x>W+50||y>H+20)return;
-  const special=homeW[i]!==undefined||explored.has(i)||pulse===i;const fs=(9.5+(GM.s[i]-100)/60*6)*(special?1.12:1);
-  const w=GM.n[i].length*fs*.6,x0=x-w/2,y0=y-fs/2;const cells=[];
-  for(let cx=Math.floor(x0/cell);cx<=Math.floor((x0+w)/cell);cx++)for(let cy=Math.floor(y0/cell);cy<=Math.floor((y0+fs)/cell);cy++)cells.push(cx+','+cy);
-  if(!force&&cells.some(c=>grid.has(c)))return;cells.forEach(c=>grid.add(c));
-  ctx.font=`${{special?600:450}} ${{fs}}px Geist Mono, monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
-  ctx.fillStyle=pulse===i?'#fff':homeW[i]!==undefined?mix(GM.c[i],.55):explored.has(i)?MC:rgba(GM.c[i].length?GM.c[i]:'#888888',.35+.5*Math.max(0,1-i/(limit*1.2)));
-  if(special){{ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=6}}ctx.fillText(GM.n[i],x,y);ctx.shadowBlur=0;
-  if(explored.has(i)){{ctx.strokeStyle=MC;ctx.setLineDash([3,3]);ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(x,y+fs,4,0,6.283);ctx.stroke();ctx.setLineDash([])}}
-  labelsDrawn.push([i,x0,y0,w,fs])}};
- if(pulse!==null)place(pulse,true);
- Object.keys(homeW).forEach(i=>place(+i,false));explored.forEach(i=>place(i,false));
- for(let i=0;i<GM.n.length&&i<limit;i++)place(i,false);
- // your artists and the discoveries around them (or around their sub-genre)
- nodes=[];const rr=8+Math.min(k,5)*1.2,groups={{}};
- S.forEach((s,i)=>{{const x=sx(s.x),y=sy(s.y);nodes.push({{kind:'s',i,x,y,r:rr+4}})}});
- R.forEach((r,i)=>{{const key=r.seed>=0?'s'+r.seed:(r.x+','+r.y);const n=groups[key]=(groups[key]||0)+1;
-  const ox=r.seed>=0?sx(S[r.seed].x):sx(r.x),oy=r.seed>=0?sy(S[r.seed].y):sy(r.y);const j=n-(r.seed>=0?0:1),a=j*2.39996,d=rr*2.25*Math.sqrt(j+(r.seed>=0?.9:.2));
-  nodes.push({{kind:'r',i,x:ox+Math.cos(a)*d,y:oy+Math.sin(a)*d,r:rr}})}});
- for(let pass=0;pass<5;pass++)for(let a=0;a<nodes.length;a++)for(let b=a+1;b<nodes.length;b++){{const p=nodes[a],q=nodes[b];
-  if(p.kind==='s'&&q.kind==='s')continue;let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+3;if(d>=m)continue;
-  const f=(m-d)/d/(p.kind==='s'||q.kind==='s'?1:2);dx*=f;dy*=f;if(p.kind==='r'){{p.x-=dx;p.y-=dy}}if(q.kind==='r'){{q.x+=dx;q.y+=dy}}}}
- nodes.forEach(n=>{{if(n.x<-30||n.y<-30||n.x>W+30||n.y>H+30)return;
-  if(n.kind==='s'){{disc(n.x,n.y,n.r,S[n.i].img,'#ffffff',2.5);if(k>1.6||hover===n){{ctx.font='500 11px Geist Mono, monospace';ctx.fillStyle='rgba(255,255,255,.9)';
-   ctx.textAlign='center';ctx.fillText(S[n.i].name,n.x,n.y+n.r+11)}}}}
-  else{{const r=R[n.i],playing=state.id===r.track_id;if(playing||hover===n){{ctx.beginPath();ctx.arc(n.x,n.y,n.r+7+(playing?2*Math.sin(t/180):0),0,6.283);ctx.fillStyle=rgba(MC,.35);ctx.fill()}}
-   disc(n.x,n.y,n.r,r.img,MC,2.5);
-   if(playing||hover===n){{ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.fillStyle='#fff';
-    if(playing&&state.s!=='loading'){{ctx.fillRect(n.x-4,n.y-5,3,10);ctx.fillRect(n.x+1,n.y-5,3,10)}}else{{ctx.beginPath();ctx.moveTo(n.x-3,n.y-6);ctx.lineTo(n.x+6,n.y);ctx.lineTo(n.x-3,n.y+6);ctx.fill()}}}}
-   if(k>6){{ctx.font='10px Geist Mono, monospace';ctx.fillStyle='rgba(255,255,255,.7)';ctx.textAlign='center';ctx.fillText(r.title.length>20?r.title.slice(0,19)+'…':r.title,n.x,n.y+n.r+10)}}}}}});
-}}
-function frame(t){{if(fly){{const e=Math.min(1,(t-fly.t0)/700),q=1-Math.pow(1-e,3);view.k=fly.k0+(fly.k1-fly.k0)*q;view.x=fly.x0+(fly.x1-fly.x0)*q;view.y=fly.y0+(fly.y1-fly.y0)*q;dirty=true;if(e>=1)fly=null}}
+function draw(t){{const dpr=devicePixelRatio||1,k=view.k;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.fillStyle='#090a18';ctx.fillRect(0,0,W,H);
+ nebula();dust();
+ borders(cells1,.5*(1-ramp(k,6,14)),1.3);borders(cells2,.24*ramp(k,1.2,1.8)*(1-ramp(k,20,40)),1);
+ // stars: every sub-genre, brighter when popular
+ for(let i=0;i<N;i++){{const x=sx(GM.x[i]),y=sy(GM.y[i]);if(x<0||y<0||x>W||y>H)continue;const r=(.55+(GM.s[i]-100)/60*.9)*Math.min(2.2,.8+k*.06);
+  ctx.fillStyle=explored.has(i)?MC:`rgba(255,255,255,${{.35+.5*Math.max(0,1-i/N)}})`;ctx.fillRect(x-r/2,y-r/2,r,r)}}
+ // discovery paths
+ pathIdx.forEach(([a,b])=>{{const x1=sx(GM.x[a]),y1=sy(GM.y[a]),x2=sx(GM.x[b]),y2=sy(GM.y[b]),mx=(x1+x2)/2+(y2-y1)*.2,my=(y1+y2)/2-(x2-x1)*.2;
+  ctx.strokeStyle=MC;ctx.globalAlpha=.55;ctx.lineWidth=1.2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1}});
+ // labels: families, then smaller families, then every sub-genre, never overlapping
+ const cell=10,grid=new Set();labelsDrawn=[];
+ const put=(text,x,y,fs,weight,fill,alpha,force,info)=>{{if(alpha<=.03||x<-80||y<-20||x>W+80||y>H+20)return;const w=text.length*fs*.6,x0=x-w/2,y0=y-fs/2,cs=[];
+  for(let cx=Math.floor(x0/cell);cx<=Math.floor((x0+w)/cell);cx++)for(let cy=Math.floor(y0/cell);cy<=Math.floor((y0+fs)/cell);cy++)cs.push(cx+','+cy);
+  if(!force&&cs.some(c=>grid.has(c)))return;cs.forEach(c=>grid.add(c));ctx.globalAlpha=alpha;ctx.font=`${{weight}} ${{fs}}px Geist Mono, monospace`;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.strokeStyle='rgba(9,10,24,.85)';ctx.lineWidth=Math.max(3,fs*.28);ctx.strokeText(text,x,y);
+  ctx.fillStyle=fill;ctx.fillText(text,x,y);ctx.globalAlpha=1;labelsDrawn.push([info,x0,y0,w,fs])}};
+ const a1=1-ramp(k,2.4,4.2),a2=ramp(k,1.25,1.9)*(1-ramp(k,14,26)),a3=ramp(k,2.8,4.2);
+ if(pulse!==null)put(cap(GM.n[pulse]),sx(GM.x[pulse]),sy(GM.y[pulse])-10,14,700,'#ffffff',1,true,['g',pulse]);
+ L1.names.forEach((n,j)=>put(n,sx(L1.cx[j]),sy(L1.cy[j]),22,650,'#ffffff',a1,false,['l1',j]));
+ L2.names.forEach((n,j)=>put(n,sx(L2.cx[j]),sy(L2.cy[j]),14,560,'#d9e2ff',a2*.95,false,['l2',j]));
+ explored.forEach(i=>put(GM.n[i],sx(GM.x[i]),sy(GM.y[i])-9,12,650,MC,Math.max(a3,.85*ramp(k,1.5,2.5)),false,['g',i]));
+ if(a3>0){{const limit=Math.min(N,Math.round(40*Math.pow(k,1.75)));for(let i=0;i<limit;i++)put(GM.n[i],sx(GM.x[i]),sy(GM.y[i])-8,11,450,'rgba(236,238,255,.92)',a3*.9,false,['g',i])}}
+ // your tracks and the discoveries: glowing points, album covers once close enough
+ const covers=k>=5,rc=7+Math.min(10,Math.max(0,k-5))*.55;nodes=[];
+ U.forEach((p,i)=>nodes.push({{kind:'u',i,x:sx(p.px),y:sy(p.py),r:covers?rc*.85:2}}));R.forEach((p,i)=>nodes.push({{kind:'r',i,x:sx(p.px),y:sy(p.py),r:covers?rc:2.8}}));
+ const vis=nodes.filter(n=>n.x>-30&&n.y>-30&&n.x<W+30&&n.y<H+30);
+ if(covers&&vis.length<400)for(let pass=0;pass<4;pass++)for(let a=0;a<vis.length;a++)for(let b=a+1;b<vis.length;b++){{const p=vis[a],q=vis[b];
+  let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+2;if(d>=m)continue;const f=(m-d)/d/2;dx*=f;dy*=f;p.x-=dx;p.y-=dy;q.x+=dx;q.y+=dy}}
+ vis.forEach(n=>{{const p=n.kind==='u'?U[n.i]:R[n.i],ring=n.kind==='u'?'#ffffff':MC;
+  if(!covers){{ctx.shadowColor=ring;ctx.shadowBlur=n.kind==='u'?6:10;ctx.fillStyle=ring;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.shadowBlur=0;return}}
+  const im=img(p.img),playing=n.kind==='r'&&state.id===p.track_id;
+  if(playing||hover===n){{ctx.beginPath();ctx.arc(n.x,n.y,n.r+6+(playing?2*Math.sin(t/180):0),0,6.283);ctx.fillStyle=n.kind==='u'?'rgba(255,255,255,.25)':MC+'55';ctx.fill()}}
+  ctx.save();ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.closePath();if(im&&im.complete&&im.naturalWidth){{ctx.clip();ctx.drawImage(im,n.x-n.r,n.y-n.r,2*n.r,2*n.r)}}else{{ctx.fillStyle='#2b2950';ctx.fill()}}ctx.restore();
+  ctx.beginPath();ctx.arc(n.x,n.y,n.r+1.2,0,6.283);ctx.strokeStyle=ring;ctx.lineWidth=n.kind==='u'?1.6:2.4;ctx.stroke();
+  if(n.kind==='r'&&(playing||hover===n)){{ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.fillStyle='#fff';
+   if(playing&&state.s!=='loading'){{ctx.fillRect(n.x-4,n.y-5,3,10);ctx.fillRect(n.x+1,n.y-5,3,10)}}else{{ctx.beginPath();ctx.moveTo(n.x-3,n.y-6);ctx.lineTo(n.x+6,n.y);ctx.lineTo(n.x-3,n.y+6);ctx.fill()}}}}
+  if(k>=12){{ctx.font='10px Geist Mono, monospace';ctx.textAlign='center';ctx.fillStyle='rgba(255,255,255,.75)';ctx.fillText(p.title.length>18?p.title.slice(0,17)+'…':p.title,n.x,n.y+n.r+10)}}}});
+ nodes=vis}}
+function frame(t){{if(fly){{const e=Math.min(1,(t-fly.t0)/750),q=1-Math.pow(1-e,3);view.k=fly.k0+(fly.k1-fly.k0)*q;view.x=fly.x0+(fly.x1-fly.x0)*q;view.y=fly.y0+(fly.y1-fly.y0)*q;dirty=true;if(e>=1)fly=null}}
  const key=view.k+','+view.x+','+view.y;if(dirty||key!==frame.last||state.id){{draw(t);dirty=false;frame.last=key}}requestAnimationFrame(frame)}}
 function flyTo(x01,y01,k){{const k1=Math.min(window.KMAX,Math.max(1,k)),mx=W*window.EDGE,my=H*window.EDGE;
- const x1=Math.min(mx,Math.max(W-W*k1-mx,W/2-x01*W*k1)),y1=Math.min(my,Math.max(H-H*k1-my,H/2-y01*H*k1));
- fly={{t0:performance.now(),k0:view.k,x0:view.x,y0:view.y,k1,x1,y1}}}}
-function fitMine(){{// frame the heart of the discoveries: their anchors and the genres they grew from, extremes left out
- let pts=R.map(r=>r.seed>=0?[S[r.seed].x,S[r.seed].y]:[r.x,r.y]).concat(pathIdx.map(([a])=>[GM.x[a],GM.y[a]]));
- if(!pts.length)pts=S.map(s=>[s.x,s.y]);if(!pts.length)return;
+ const x1=Math.min(mx,Math.max(W-W*k1-mx,W/2-x01*W*k1)),y1=Math.min(my,Math.max(H-H*k1-my,H/2-y01*H*k1));fly={{t0:performance.now(),k0:view.k,x0:view.x,y0:view.y,k1,x1,y1}}}}
+function fitMine(){{let pts=R.map(r=>[r.x,r.y]);if(!pts.length)pts=U.map(u=>[u.x,u.y]);if(!pts.length)return;
  const q=(arr,f)=>{{const s=arr.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.max(0,Math.round(f*(s.length-1))))]}};
  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=q(xs,.1),x1=q(xs,.9),y0=q(ys,.1),y1=q(ys,.9);
- const k=Math.min(1/Math.max(.03,(x1-x0)*1.6),1/Math.max(.03,(y1-y0)*1.6),24);flyTo((x0+x1)/2,(y0+y1)/2,Math.max(1.4,k))}}
+ flyTo((x0+x1)/2,(y0+y1)/2,Math.max(1.6,Math.min(1/Math.max(.03,(x1-x0)*1.5),1/Math.max(.03,(y1-y0)*1.5),18)))}}
 {ZOOM_JS}
 document.getElementById('zfit').onclick=fitMine;
 {PLAYER_JS}
 function setPlaying(id,s){{state={{id,s}};dirty=true}}
 function noPreview(id){{tip.innerHTML='<div><b>'+esc(L.no_preview)+'</b></div>';tip.classList.add('on')}}
-function pick(mx,my){{let best=null,bd=1e9;nodes.forEach(n=>{{const d=(n.x-mx)**2+(n.y-my)**2;if(d<(n.r+4)**2&&d<bd){{bd=d;best=n}}}});return best}}
-function genreAt(mx,my){{for(let j=labelsDrawn.length-1;j>=0;j--){{const[i,x0,y0,w,h]=labelsDrawn[j];if(mx>=x0&&mx<=x0+w&&my>=y0&&my<=y0+h)return i}}return null}}
-cv.addEventListener('mousemove',e=>{{dirty=true;if(drag){{tip.classList.remove('on');return}}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;hover=pick(mx,my);
- let html='';if(hover&&hover.kind==='s'){{const s=S[hover.i];html=(s.img?'<img src="'+esc(s.img)+'">':'')+'<div><b>'+esc(s.name)+'</b><small>'+esc(s.subgenre||'')+'</small></div>'}}
- else if(hover){{const r=R[hover.i];html=(r.img?'<img src="'+esc(r.img)+'">':'')+'<div><b>'+esc(r.title)+'</b><small>'+esc(r.artist)+'</small><em style="color:'+MC+'">'+esc(r.subgenre||'')+'</em><small>'+esc(L.because+' '+r.reason)+'</small><small>'+esc(state.id===r.track_id?L.pause:L.play)+'</small></div>'}}
- else{{const g=genreAt(mx,my);if(g!==null){{const w=homeW[g];html='<div><b>'+esc(GM.n[g])+'</b>'+(w!==undefined?'<small>'+esc(L.territory_share.replace('{{p}}',Math.max(1,Math.round(w*100))))+'</small>':explored.has(g)?'<small style="color:'+MC+'">'+esc(L.explored_tip)+'</small>':'')+'</div>'}}}}
- cv.style.cursor=hover&&hover.kind==='r'?'pointer':'grab';
- if(!html){{tip.classList.remove('on');return}}tip.innerHTML=html;tip.style.left=Math.min(mx+18,W-350)+'px';tip.style.top=Math.min(my+70,H-40)+'px';tip.classList.add('on')}});
+function pick(mx,my){{let best=null,bd=1e9;nodes.forEach(n=>{{const d=(n.x-mx)**2+(n.y-my)**2,r=Math.max(n.r,5)+3;if(d<r*r&&d<bd){{bd=d;best=n}}}});return best}}
+function labelAt(mx,my){{for(let j=labelsDrawn.length-1;j>=0;j--){{const[info,x0,y0,w,h]=labelsDrawn[j];if(mx>=x0&&mx<=x0+w&&my>=y0&&my<=y0+h)return info}}return null}}
+cv.addEventListener('mousemove',e=>{{dirty=true;if(drag){{tip.classList.remove('on');return}}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;hover=pick(mx,my);let html='';
+ if(hover){{const p=hover.kind==='u'?U[hover.i]:R[hover.i];html=(p.img?'<img src="'+esc(p.img)+'">':'')+'<div><b>'+esc(p.title)+'</b><small>'+esc(p.artist)+'</small>'+
+  (hover.kind==='u'?'<small>'+esc(L.yours)+'</small>':'<em style="color:'+MC+'">'+esc(p.subgenre||'')+'</em><small>'+esc(L.because+' '+p.reason)+'</small><small>'+esc(state.id===p.track_id?L.pause:L.play)+'</small>')+'</div>'}}
+ else{{const info=labelAt(mx,my);if(info){{if(info[0]==='g'){{const i=info[1];html='<div><b>'+esc(cap(GM.n[i]))+'</b><small>'+esc(L.in+' '+L2.names[L2.of[i]]+' · '+L1.names[L1.of[i]])+'</small></div>'}}
+  else{{const lv=info[0]==='l1'?L1:L2,j=info[1],count=lv.of.filter(o=>o===j).length;html='<div><b>'+esc(lv.names[j])+'</b><small>'+esc(L.count.replace('{{n}}',count))+'</small></div>'}}}}}}
+ cv.style.cursor=hover&&hover.kind==='r'?'pointer':'grab';if(!html){{tip.classList.remove('on');return}}
+ tip.innerHTML=html;tip.style.left=Math.min(mx+18,W-350)+'px';tip.style.top=Math.min(my+100,H+40)+'px';tip.classList.add('on')}});
 cv.addEventListener('mouseleave',()=>{{hover=null;tip.classList.remove('on');dirty=true}});
-cv.addEventListener('click',e=>{{if(moved)return;const b=cv.getBoundingClientRect(),n=pick(e.clientX-b.left,e.clientY-b.top);if(n&&n.kind==='r')toggle(R[n.i].track_id)}});
-// one chip per sub-genre where discoveries landed: a click flies there
+cv.addEventListener('click',e=>{{if(moved)return;const b=cv.getBoundingClientRect(),n=pick(e.clientX-b.left,e.clientY-b.top);
+ if(n&&n.kind==='r'){{toggle(R[n.i].track_id);return}}const info=labelAt(e.clientX-b.left,e.clientY-b.top);
+ if(info&&info[0]!=='g'){{const lv=info[0]==='l1'?L1:L2;flyTo(lv.cx[info[1]],lv.cy[info[1]],info[0]==='l1'?3.4:7)}}}});
 const counts={{}};R.forEach(r=>{{if(r.subgenre)counts[r.subgenre]=(counts[r.subgenre]||0)+1}});
 document.getElementById('chips').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([g,c])=>'<button data-g="'+esc(g)+'">'+esc(g)+'<b>'+c+'</b></button>').join('');
 document.querySelectorAll('#chips button').forEach(bt=>bt.addEventListener('click',()=>{{const g=bt.dataset.g,i=idx[g];
- document.querySelectorAll('#chips button').forEach(x=>x.classList.toggle('on',x===bt));
- const own=R.filter(r=>r.subgenre===g).map(r=>r.seed>=0?[S[r.seed].x,S[r.seed].y]:[r.x,r.y]);
- const p=own.length?own[0]:(i!==undefined?[GM.x[i],GM.y[i]]:null);if(!p)return;if(i!==undefined)pulse=i;flyTo(p[0],p[1],Math.max(view.k,12))}}));
-document.getElementById('find').addEventListener('change',e=>{{const i=idx[e.target.value.trim().toLowerCase()]??idx[e.target.value.trim()];if(i===undefined)return;pulse=i;flyTo(GM.x[i],GM.y[i],Math.max(view.k,16))}});
-layout();addEventListener('resize',layout);requestAnimationFrame(frame);setTimeout(fitMine,60);
+ document.querySelectorAll('#chips button').forEach(x=>x.classList.toggle('on',x===bt));const own=R.filter(r=>r.subgenre===g);
+ const p=own.length?[own[0].x,own[0].y]:(i!==undefined?[GM.x[i],GM.y[i]]:null);if(!p)return;if(i!==undefined)pulse=i;flyTo(p[0],p[1],Math.max(view.k,9))}}));
+document.getElementById('find').addEventListener('change',e=>{{const i=idx[e.target.value.trim().toLowerCase()]??idx[e.target.value.trim()];if(i===undefined)return;pulse=i;flyTo(GM.x[i],GM.y[i],Math.max(view.k,12))}});
+layout();addEventListener('resize',layout);requestAnimationFrame(frame);
 </script></body></html>"""
     _frame(html, height)

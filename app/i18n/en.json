@@ -581,7 +581,7 @@
     "map_title": "Where the recommendations come from",
     "map_meta": "{n} tracks · {seeds} of your artists",
     "map_you": "Your artists",
-    "map_hint": "wheel or pinch: zoom · drag: move · click a cover: listen",
+    "map_hint": "wheel or pinch: zoom · drag: move · click a family: enter it · click a cover: listen",
     "play": "Click: play 30 s",
     "pause": "Click: pause",
     "no_preview": "No preview for this track",
@@ -650,8 +650,8 @@
     "bold_bold_help": "Lesser-known artists and further sub-genres: real finds.",
     "step_search": "Looking for playlists of {detail}…",
     "step_playlists": "Listening to each sub-genre's playlists…",
-    "map_note_seeds": "The 6,291 genres of Every Noise at Once, placed by how they sound: up is more mechanical and electric, down more organic, left denser and more atmospheric, right spikier and bouncier. Your territory glows; your artists are the white discs, and around them the “{mode}” discoveries. Zoom in to reveal finer and finer sub-genres.",
-    "map_note_paths": "The 6,291 genres of Every Noise at Once, placed by how they sound. Your territory glows; arrows go from your sub-genres to the ones the “{mode}” mode explored, and each discovery sits on its sub-genre. Zoom in to reveal finer and finer sub-genres.",
+    "map_note_seeds": "The 6,291 sub-genres of Every Noise at Once form a nebula: the brighter, the tighter the sub-genres. It is cut into large families, then smaller ones, then sub-genres that appear as you zoom in. Your tracks are the white points, the “{mode}” discoveries the coloured ones; up close they turn into their covers.",
+    "map_note_paths": "The 6,291 sub-genres of Every Noise at Once form a nebula, cut into large families, then smaller ones, then sub-genres that appear as you zoom in. Your tracks are the white points, the “{mode}” discoveries the coloured ones, and dotted lines go from your sub-genres to the ones explored; up close each point turns into its cover.",
     "map_territory": "Your territory",
     "map_found": "Discoveries · {mode}",
     "map_explored": "Sub-genres explored",
@@ -665,6 +665,12 @@
     "axis_down": "organic",
     "axis_left": "dense, atmospheric",
     "axis_right": "spiky, bouncy",
-    "subgenre": "Sub-genre"
+    "subgenre": "Sub-genre",
+    "map_density": "Density of sub-genres",
+    "map_clouds": "Sub-genre clouds",
+    "map_mine": "Your listening",
+    "map_yours": "In your listening",
+    "map_in": "in",
+    "map_count": "{n} sub-genres"
   }
 }

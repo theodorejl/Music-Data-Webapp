@@ -581,7 +581,7 @@
     "map_title": "D'où viennent les recommandations",
     "map_meta": "{n} titres · {seeds} de tes artistes",
     "map_you": "Tes artistes",
-    "map_hint": "molette ou pincer : zoom · glisser : se déplacer · clic sur une pochette : écouter",
+    "map_hint": "molette ou pincer : zoom · glisser : se déplacer · clic sur une famille : y entrer · clic sur une pochette : écouter",
     "play": "Clic : écouter 30 s",
     "pause": "Clic : pause",
     "no_preview": "Pas d'extrait disponible pour ce titre",
@@ -650,8 +650,8 @@
     "bold_bold_help": "Des artistes confidentiels et des sous-genres plus lointains : de vraies trouvailles.",
     "step_search": "Cherche les playlists {detail}…",
     "step_playlists": "Écoute les playlists de chaque sous-genre…",
-    "map_note_seeds": "Les 6 291 genres d'Every Noise at Once, placés selon leur son : en haut le plus mécanique et électrique, en bas le plus organique, à gauche le dense et atmosphérique, à droite le nerveux et rebondissant. Ton territoire brille ; tes artistes sont les disques blancs, et autour d'eux, les découvertes du mode « {mode} ». Zoome pour voir apparaître des sous-genres de plus en plus fins.",
-    "map_note_paths": "Les 6 291 genres d'Every Noise at Once, placés selon leur son. Ton territoire brille ; les flèches partent de tes sous-genres vers ceux que le mode « {mode} » est allé explorer, et chaque découverte est posée sur son sous-genre. Zoome pour voir apparaître des sous-genres de plus en plus fins.",
+    "map_note_seeds": "Les 6 291 sous-genres d'Every Noise at Once forment une nébuleuse : plus elle brille, plus les sous-genres y sont serrés. Elle est découpée en grandes familles, puis en familles plus petites, puis en sous-genres qui apparaissent à mesure que tu zoomes. Tes morceaux sont les points blancs, les découvertes du mode « {mode} » les points de couleur ; de près, ils deviennent leurs pochettes.",
+    "map_note_paths": "Les 6 291 sous-genres d'Every Noise at Once forment une nébuleuse, découpée en grandes familles, puis en familles plus petites, puis en sous-genres qui apparaissent à mesure que tu zoomes. Tes morceaux sont les points blancs, les découvertes du mode « {mode} » les points de couleur, et les pointillés vont de tes sous-genres vers ceux qui ont été explorés ; de près, chaque point devient sa pochette.",
     "map_territory": "Ton territoire",
     "map_found": "Découvertes · {mode}",
     "map_explored": "Sous-genres explorés",
@@ -665,6 +665,12 @@
     "axis_down": "organique",
     "axis_left": "dense, atmosphérique",
     "axis_right": "nerveux, rebondissant",
-    "subgenre": "Sous-genre"
+    "subgenre": "Sous-genre",
+    "map_density": "Densité des sous-genres",
+    "map_clouds": "Nuages de sous-genres",
+    "map_mine": "Ton écoute",
+    "map_yours": "Dans ton écoute",
+    "map_in": "dans",
+    "map_count": "{n} sous-genres"
   }
 }

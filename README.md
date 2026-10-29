@@ -420,16 +420,22 @@ Chaque mode garde ses résultats (dossier `data/recommendations/`) jusqu'à ce q
 
 ### La carte du son
 
-La carte place les **6 291 genres d'Every Noise at Once** selon leur son. En haut : le plus mécanique et électrique. En bas : le plus organique. À gauche : le dense et atmosphérique. À droite : le nerveux et rebondissant.
+La carte place les **6 291 genres d'Every Noise at Once** selon leur son. En haut : le plus mécanique et électrique. En bas : le plus organique. À gauche : le dense et atmosphérique. À droite : le nerveux et rebondissant. Elle se lit comme une carte du ciel, à la manière de [Global Research Space](https://globalresearchspace.com/space) :
 
-- **Ton territoire** brille en halos colorés, calculés à partir des tags MusicBrainz de tes artistes, sinon de leur genre Deezer, et pondérés par ton écoute.
-- **Tes artistes** sont les disques blancs.
-- **Les découvertes** sont posées sur leur sous-genre. En mode Sous-genres, des flèches partent de tes sous-genres vers ceux qui ont été explorés.
-- **Plus tu zoomes, plus des sous-genres fins apparaissent.**
-- Les **pastilles** au-dessus de la carte t'emmènent directement vers chaque sous-genre exploré. La recherche vole jusqu'à n'importe quel genre, et ◎ recentre sur tes découvertes.
-- Clique sur une pochette pour écouter **30 s**.
+- **La nébuleuse** montre où les genres se concentrent : violet sombre là où il y en a peu, puis orange, puis blanc là où ils sont nombreux et populaires. Ton écoute la fait briller un peu plus.
+- **Les régions** sont dessinées par un fin réseau de frontières.
+  - Vue entière : **14 grandes familles**, nommées d'après leurs genres les plus populaires (« Pop & House », « Rap & Hip hop », « Soul & Jazz »…).
+  - À partir de ×2 environ : **110 familles plus petites**.
+  - Vers ×4 : **chaque sous-genre** a son nom. Plus tu zoomes, plus il en apparaît, sans que les noms se chevauchent.
+  - Clique sur le nom d'une famille pour y entrer.
+- **Chaque sous-genre est un nuage de points colorés**, plus dense quand le genre est populaire.
+  - Chaque famille a sa couleur, et chaque petite famille sa nuance.
+  - Les nuages apparaissent à mesure que tu zoomes, et la nébuleuse s'efface.
+- **Ton écoute** (points blancs) et **les découvertes** (points de la couleur du mode) sont des nuages autour de leur sous-genre. À partir de ×5, ils deviennent des **pochettes d'album**. En mode Sous-genres, des flèches partent de tes sous-genres vers ceux qui ont été explorés.
+- **Navigation** : les **pastilles** au-dessus de la carte t'emmènent vers chaque sous-genre exploré. La recherche vole jusqu'à n'importe quel genre, ◎ recentre sur tes découvertes, et ⟲ montre la carte entière.
+- Clique sur une pochette de découverte pour écouter **30 s**.
 
-Les positions des genres viennent d'[Every Noise at Once](https://everynoise.com) (Glenn McDonald). Elles sont rangées dans `app/assets/genre_map.json`, reconstruit par `python -m scripts.build_genre_map`.
+Les familles sont calculées à partir des positions (regroupement k-means, toujours le même) dans `core/soundmap.py`. Les positions des genres viennent d'[Every Noise at Once](https://everynoise.com) (Glenn McDonald). Elles sont rangées dans `app/assets/genre_map.json`, reconstruit par `python -m scripts.build_genre_map`.
 
 **Le tableau** dessous liste chaque découverte avec son sous-genre. Il permet d'écouter, de trier, de filtrer et d'exporter en Excel.
 

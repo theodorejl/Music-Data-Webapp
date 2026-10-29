@@ -178,30 +178,38 @@ meta_line = t("reco.meta", n=fmt_int(len(recs)), ago=ago(meta["at"]), period=met
 
 # --- the map of sound ---------------------------------------------------------------------------------
 theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subgenres' else 'seeds'}", mode=mode_name))
-seeds = meta["seeds"]
-seed_pos = {s["id"]: i for i, s in enumerate(seeds)}
-points = []
-for r in recs.itertuples(index=False):
-    seed = seed_pos.get(int(r.seed_artist_id)) if mode != "subgenres" and pd.notna(r.seed_artist_id) else None
-    if seed is None and (pd.isna(r.anchor_x) or pd.isna(r.anchor_y)):
-        continue
-    points.append({"title": r.title, "artist": r.artist_name, "img": r.cover, "track_id": int(r.track_id),
-                   "reason": r.reason, "subgenre": r.subgenre, "seed": seed if seed is not None else -1,
-                   "x": (r.anchor_x / soundmap.WIDTH) if pd.notna(r.anchor_x) else None,
-                   "y": (r.anchor_y / soundmap.HEIGHT) if pd.notna(r.anchor_y) else None})
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _placed(n_plays: int) -> dict[int, tuple[float, float]]:
+    """Where each of your artists sits on the map (its main sub-genre), 0..1."""
+    placed = soundmap.artist_genres(everything, data.raw_data().tags)
+    return {aid: (gs[0][0].x / soundmap.WIDTH, gs[0][0].y / soundmap.HEIGHT) for aid, gs in placed.items() if gs}
+
+
+where = _placed(len(everything))
+listened = (base.dropna(subset=["artist_id"]).groupby("track_id")
+            .agg(title=("track_title", "first"), artist=("artist_name", "first"), artist_id=("artist_id", "first"),
+                 img=("cover", "first"), minutes=("minutes", "sum"))
+            .sort_values("minutes", ascending=False).head(1200))
+mine = [{"title": r.title, "artist": r.artist, "img": r.img if isinstance(r.img, str) else "",
+         "x": where[int(r.artist_id)][0], "y": where[int(r.artist_id)][1]}
+        for r in listened.itertuples(index=False) if int(r.artist_id) in where]
+points = [{"title": r.title, "artist": r.artist_name, "img": r.cover, "track_id": int(r.track_id), "reason": r.reason,
+           "subgenre": r.subgenre, "x": r.anchor_x / soundmap.WIDTH, "y": r.anchor_y / soundmap.HEIGHT}
+          for r in recs.itertuples(index=False) if pd.notna(r.anchor_x) and pd.notna(r.anchor_y)]
 paths = sorted({(r.reason.split(" → ")[0], r.subgenre) for r in recs.itertuples(index=False)
                 if mode == "subgenres" and r.frontier and " → " in str(r.reason)})
 with theme.panel("night", "reco-map"):
     theme.head(t("reco.map_title_mode", mode=mode_name), meta_line)
     interactive.sound_map(
-        [tuple(h) for h in meta.get("home", [])], seeds, points, paths,
-        {"territory": t("reco.map_territory"), "you": t("reco.map_you"), "found": t("reco.map_found", mode=mode_name),
-         "explored": t("reco.map_explored"), "search": t("reco.map_search"), "up": t("reco.axis_up"), "down": t("reco.axis_down"),
-         "left": t("reco.axis_left"), "right": t("reco.axis_right"), "fit": t("reco.map_fit"), "whole": t("reco.map_whole"),
-         "hint": t("reco.map_hint"), "play": t("reco.play"), "pause": t("reco.pause"), "no_preview": t("reco.no_preview"),
-         "territory_share": t("reco.map_share"), "explored_tip": t("reco.map_explored_tip"),
-         "because": t(f"reco.because_{mode}")},
-        studio.MODE_COLORS[mode][0], height=780)
+        mine, points, paths,
+        {"density": t("reco.map_density"), "clouds": t("reco.map_clouds"), "mine": t("reco.map_mine"), "found": t("reco.map_found", mode=mode_name),
+         "search": t("reco.map_search"), "fit": t("reco.map_fit"), "whole": t("reco.map_whole"), "hint": t("reco.map_hint"),
+         "play": t("reco.play"), "pause": t("reco.pause"), "no_preview": t("reco.no_preview"),
+         "because": t(f"reco.because_{mode}"), "yours": t("reco.map_yours"), "in": t("reco.map_in"),
+         "count": t("reco.map_count")},
+        studio.MODE_COLORS[mode][0], height=800)
     st.caption(t("reco.map_credit"))
 
 # --- the table ----------------------------------------------------------------------------------------
