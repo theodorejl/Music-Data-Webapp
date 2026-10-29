@@ -72,7 +72,7 @@ def fetch_remote(repo: Path, remote: str = "origin") -> bytes | None:
 
 
 # Tables that are snapshots of Deezer (replaced as a whole by the published copy).
-SNAPSHOT_TABLES = ("favorite_albums", "playlists", "playlist_tracks", "sync_state")
+SNAPSHOT_TABLES = ("favorite_albums", "playlists", "playlist_tracks", "sync_state", "artist_genre")
 
 
 def merge_into(published: Path, local: Path, local_wins: bool = False) -> None:

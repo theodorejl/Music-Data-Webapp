@@ -140,3 +140,33 @@ def test_an_own_precise_genre_beats_the_neighbours_and_without_one_the_neighbour
     got = _classify([9, 8, 1, 2, 3, 4, 5], ev, edges)
     assert got[9].sub == got[8].sub == HOUSE
     assert got[9].genre == "deep house" and got[8].genre == "tech house"
+
+
+def test_a_decision_pulled_by_its_neighbours_still_names_a_source():
+    ev = {9: genremodel.word_evidence([("Pop", "deezer", 1.0)])}   # own mass above 1: no override
+    ev.update({j: _house() for j in range(1, 6)})
+    d = _classify([9, 1, 2, 3, 4, 5], ev, [(9, j, 1.0) for j in range(1, 6)])[9]
+    assert d.main == ELECTRONIC and d.confidence == "likely" and d.sources == ["Deezer"]
+
+
+# --- Stored at each sync -----------------------------------------------------------------------------
+
+def test_run_writes_one_decision_per_artist_and_replaces_them(engine):
+    from sqlalchemy import func, select
+    from sqlalchemy.orm import Session
+
+    from core.models import Artist, ArtistGenre, PlaylistTrack, Tag, Track
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="Parcels"), Artist(id=2, name="Kerri Chandler")])
+        s.add_all([Track(id=10, title="t", artist_id=1), Track(id=20, title="t", artist_id=2)])
+        s.add_all([PlaylistTrack(playlist_id=1, position=0, track_id=10), PlaylistTrack(playlist_id=1, position=1, track_id=20)])
+        s.add_all([Tag(entity_type="artist", entity_id=1, tag="nu disco", count=3, source="mb_genre"),
+                   Tag(entity_type="artist", entity_id=2, tag="Deep House", count=2, source="discogs")])
+        s.commit()
+    summary = genremodel.run(engine)
+    assert summary["artists"] == 2 and summary["missing"] == 0
+    assert summary["sure"] + summary["likely"] + summary["neighbours"] == 2
+    genremodel.run(engine)
+    with Session(engine) as s:
+        assert s.scalar(select(func.count()).select_from(ArtistGenre)) == 2
+        assert s.get(ArtistGenre, 1).genre == "nu disco" and s.get(ArtistGenre, 2).genre == "deep house"

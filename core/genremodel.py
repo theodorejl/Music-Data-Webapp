@@ -414,5 +414,65 @@ def classify(ids: list[int], ev: dict[int, dict[str, Evidence]], weights: dict[t
             out[a] = Decision(m, s, g, "neighbours", [], ["Deezer"])
             continue
         words, sources = _support(row, m, weight)
+        sources = sources or ["Deezer"]                # pulled to this main by its Deezer neighbours
         out[a] = Decision(m, s, g, "sure" if _sure(row, s) else "likely", words, sources)
     return out
+
+
+# --- Stored at each sync ------------------------------------------------------------------------------
+
+def run(engine) -> dict:
+    """Decide the genre of every artist of the library (played, in playlists or in favourite albums) from
+    everything the database knows, and replace the table artist_genre. Returns a summary."""
+    from sqlalchemy import delete, select
+    from sqlalchemy.orm import Session
+
+    from core import everynoise, stats
+    from core.models import ArtistGenre, ArtistRelated, utcnow
+
+    raw, lib = stats.load_raw(engine), stats.load_library(engine)
+    plays = stats.assemble(raw, "UTC")
+    pt, fav = lib.playlist_tracks.dropna(subset=["artist_id"]), lib.favorites
+    ids = sorted({int(a) for frame in (plays, pt, fav) if "artist_id" in frame for a in frame["artist_id"].dropna()})
+    _, albums_of = atlas._links(plays, pt, fav)
+    votes = atlas._artist_votes(plays, raw.tags, raw.albums, albums_of)
+    ev = {a: e for a in ids if (e := word_evidence(votes.get(a, [])))}
+
+    related = stats._read(engine, select(ArtistRelated.artist_id, ArtistRelated.related_id, ArtistRelated.rank,
+                                         ArtistRelated.related_name))
+    index = everynoise.load()
+    edges, external = graph(related, pt, index)
+    if index is not None:
+        tags = raw.tags[raw.tags["entity_type"] == "artist_spotify"]
+        spotify_of: dict[int, list[str]] = {}
+        for a, sid in zip(tags["entity_id"], tags["tag"]):
+            spotify_of.setdefault(int(a), []).append(str(sid))
+        names = {int(a): n for a, n in zip(raw.artists["id"], raw.artists["name"]) if int(a) in set(ids) and isinstance(n, str)}
+        # what a name shared by several Every Noise artists must fit: the artist's own genres, else its neighbours'
+        context: dict[int, np.ndarray] = {a: sum(_unit(e.main) for e in row.values()) for a, row in ev.items()}
+        for a, rid in zip(related["artist_id"], related["related_id"]):
+            if int(a) not in ev and int(rid) in external:
+                context[int(a)] = context.get(int(a), 0) + _unit(external[int(rid)].main)
+        for a, (key, sid) in match_everynoise(index, spotify_of, names, context).items():
+            e = everynoise_evidence(index.genres_of(sid))
+            if e.mass > 0:
+                ev.setdefault(a, {})[key] = e
+
+    weights = reliability(ev)
+    decisions = classify(ids, ev, weights, edges, external)
+    now = utcnow()
+    with Session(engine) as s:
+        s.execute(delete(ArtistGenre))
+        s.add_all(ArtistGenre(artist_id=a, main=d.main, sub=d.sub, genre=d.genre, confidence=d.confidence,
+                              words=d.words, sources=d.sources, updated=now) for a, d in decisions.items())
+        s.commit()
+    count = Counter(d.confidence for d in decisions.values())
+    return {"artists": len(decisions), "sure": count["sure"], "likely": count["likely"],
+            "neighbours": count["neighbours"], "missing": len(ids) - len(decisions),
+            "weights": {f"{s}:{m}": round(w, 3) for (s, m), w in sorted(weights.items())
+                        if abs(w - W0.get(s, 1.0)) > 1e-6}}
+
+
+def _unit(x: np.ndarray) -> np.ndarray:
+    s = x.sum()
+    return x / s if s > 0 else x

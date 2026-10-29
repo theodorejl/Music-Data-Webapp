@@ -357,6 +357,13 @@ def run_enrichment(engine: Engine, budget_seconds: float = 120,
             log.info("Enrichment %s: %d objects processed", name, n)
         except Exception as exc:
             log.warning("Enrichment %s failed (will resume next run): %s", name, redact(exc))
+    try:  # the genre of every artist, from all that is known now (core/genremodel.py)
+        from core import genremodel
+
+        summary = genremodel.run(engine)
+        log.info("Genres decided: %d artists (%d without anything known)", summary["artists"], summary["missing"])
+    except Exception as exc:
+        log.warning("Genre classification failed (the previous decisions stay): %s", redact(exc))
 
 
 # --- orchestration -----------------------------------------------------------------

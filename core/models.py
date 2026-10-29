@@ -140,6 +140,21 @@ class ArtistRelated(Base):
     related_name: Mapped[str | None] = mapped_column(String(300))
 
 
+class ArtistGenre(Base):
+    """The genre the model decided for an artist (core/genremodel.py), recomputed as a whole at each sync."""
+
+    __tablename__ = "artist_genre"
+
+    artist_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    main: Mapped[int] = mapped_column(Integer)
+    sub: Mapped[int] = mapped_column(Integer)
+    genre: Mapped[str] = mapped_column(String(200))
+    confidence: Mapped[str] = mapped_column(String(12))  # sure | likely | neighbours (never shown)
+    words: Mapped[list | None] = mapped_column(JSON)
+    sources: Mapped[list | None] = mapped_column(JSON)
+    updated: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class Alias(Base):
     """Manual corrections, applied when computing stats (raw data untouched).
 
