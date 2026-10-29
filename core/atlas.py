@@ -45,6 +45,7 @@ WEIGHT = {"mb_genre": 3.0, "wikidata": 2.5, "discogs": 2.5, "lastfm": 2.2, "mb_t
 SOURCE_NAME = {"mb_genre": "MusicBrainz", "mb_tag": "MusicBrainz", "album": "MusicBrainz", "wikidata": "Wikidata",
                "discogs": "Discogs", "discogs_genre": "Discogs", "lastfm": "Last.fm", "deezer": "Deezer", "deezer_top": "Deezer"}
 SPIRAL, GOLDEN = .0022, math.radians(137.508)  # artists on one genre wind around it, >= .0036 apart (y units)
+SHIFT_MAX = .01  # how far a spiral that sticks out of its sub-genre may move from its genre (y units)
 # Genres of the map that name a whole main genre, not one of its sub-genres.
 MAIN_WORDS = {"pop", "rock", "electronica", "electro", "edm", "dance pop", "hip hop", "rap", "jazz", "classical", "metal",
               "punk", "folk", "country", "r&b", "soul", "funk", "blues", "reggae", "indie", "alternative rock",
@@ -302,8 +303,8 @@ def _listed(value) -> list:
 
 def _spiral(points: list[dict]) -> None:
     """Points on a precise genre wind around it like the seeds of a sunflower, the heaviest in the middle.
-    A spiral that sticks out of its sub-genre moves as a whole towards the middle of it; one larger than
-    the sub-genre brings its outer turns back inside."""
+    A spiral that sticks out of its sub-genre moves as a whole towards the middle of it, never more than
+    SHIFT_MAX from its genre; the points still outside then come back inside one by one."""
     subs, where = genretree.tree()["sub"], genretree.position()
     groups: dict[str, list[dict]] = defaultdict(list)
     for p in points:
@@ -320,6 +321,9 @@ def _spiral(points: list[dict]) -> None:
             if all(_inside(cx + dx, cy + dy, poly) for dx, dy in off):
                 break
             cx, cy = cx + (mx - cx) * .15, cy + (my - cy) * .15
+        shift = math.hypot((cx - gx) * genretree.ASPECT, cy - gy)
+        if shift > SHIFT_MAX:  # a crowded genre near a border stays by its genre
+            cx, cy = gx + (cx - gx) * SHIFT_MAX / shift, gy + (cy - gy) * SHIFT_MAX / shift
         for p, (dx, dy) in zip(ps, off):
             px, py = cx + dx, cy + dy
             for _ in range(14):

@@ -287,3 +287,13 @@ def test_an_albums_own_genres_win_when_precise_or_in_another_main_genre():
     decisions = pd.concat([_decision(1, "nu disco"), _decision(2, "nu disco")], ignore_index=True)
     points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=decisions)}
     assert points[200]["g"] == "nu disco" and points[200]["lv"] == atlas.GENRE   # same main, less precise: the decision
+
+
+def test_a_crowded_genre_near_a_border_stays_by_its_genre():
+    """300 artists on a genre near the edge of its sub-genre: the spiral moves a little, not across the sub-genre."""
+    x, y, sub = genretree.position()["electro-pop francais"]
+    pts = [{"id": i, "g": "electro-pop francais", "lv": atlas.GENRE, "w": 300 - i, "x": x, "y": y} for i in range(300)]
+    atlas._spiral(pts)
+    heaviest = pts[0]
+    assert np.hypot((heaviest["x"] - x) * genretree.ASPECT, heaviest["y"] - y) <= 0.012
+    assert all(_inside(p["x"], p["y"], genretree.tree()["sub"][sub]["poly"]) for p in pts)
