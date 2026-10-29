@@ -297,3 +297,15 @@ def test_a_crowded_genre_near_a_border_stays_by_its_genre():
     heaviest = pts[0]
     assert np.hypot((heaviest["x"] - x) * genretree.ASPECT, heaviest["y"] - y) <= 0.012
     assert all(_inside(p["x"], p["y"], genretree.tree()["sub"][sub]["poly"]) for p in pts)
+
+
+def test_the_most_listened_album_is_in_the_middle_of_its_genre():
+    artists, plays, tags, albums, pt, fav = _with_untagged_album(frames())   # albums 100 (7 min) and 500 (2 min)
+    albums = pd.concat([albums, pd.DataFrame({"id": [600], "artist_id": [1], "deezer_genres": [None]})], ignore_index=True)
+    plays = pd.concat([plays, pd.DataFrame({"play_id": [13], "artist_id": [1], "album_id": [600], "minutes": [60.0],
+                                            "genre": [None]})])
+    points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=_decision(1, "nu disco"))}
+    assert points[600]["w"] > points[100]["w"] > points[500]["w"] > 0
+    x, y, _ = genretree.position()["nu disco"]
+    gap = {al: np.hypot((points[al]["x"] - x) * genretree.ASPECT, points[al]["y"] - y) for al in (100, 500, 600)}
+    assert min(gap, key=gap.get) == 600

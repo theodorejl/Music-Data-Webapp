@@ -346,14 +346,17 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
     """Your favourite and listened albums on the atlas, placed by what the album says first
     (Deezer genres, MusicBrainz tags), then by what its artist's votes say (counted half). A
     point: id, n (title), a (artist), ai (artist id), p (cover id or url), x, y, m, s, g, lv,
-    lb (label), fa (1 if favourite). When the model decided the artist's genre, that decision places
-    the album on its genre, unless the album's own genres name a precise genre or another main genre."""
+    lb (label), fa (1 if favourite), w (weight: minutes listened and favourite, the heaviest in the middle
+    of its genre). When the model decided the artist's genre, that decision places the album on its
+    genre, unless the album's own genres name a precise genre or another main genre."""
     pt = playlist_tracks.dropna(subset=["artist_id"])
     _, albums_of = _links(plays, pt, favorites)
     by_artist = _artist_votes(plays, tags, albums, albums_of)
     own = _album_votes(albums, tags)
     info = albums.set_index("id") if not albums.empty else pd.DataFrame()
-    played = set(plays.dropna(subset=["album_id"])["album_id"].astype(int))
+    listened = plays.dropna(subset=["album_id"])
+    played = set(listened["album_id"].astype(int))
+    minutes = {int(al): float(mn) for al, mn in listened.groupby("album_id")["minutes"].sum().items()}
     favs = set(favorites.dropna(subset=["album_id"])["album_id"].astype(int))
     artist_of = {int(al): int(a) for al, a in plays.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values}
     artist_of.update({int(al): int(a) for al, a in favorites.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values})
@@ -384,7 +387,8 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
                     "a": str(names.get(a) or ""), "ai": int(a) if a is not None else 0,
                     "p": m.group(1) if m else (cover or ""), "x": x, "y": y, "m": d["main"], "s": si,
                     "g": d["genre"] or "", "lv": d["level"], "lb": str(label) if isinstance(label, str) else "",
-                    "fa": int(al in favs), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"])})
+                    "fa": int(al in favs), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"]),
+                    "w": round(1.3 * math.log1p(minutes.get(al, 0.0)) + .9 * (al in favs) + .3, 3)})
     _spiral(out)
     return out
 
