@@ -2,7 +2,8 @@
 
 Usage:
     python -m scripts.cloud_db pull   # fetch the published database, keep local-only rows
-    python -m scripts.cloud_db push   # publish the local database (one commit, force-pushed)
+    python -m scripts.cloud_db push   # publish the local database (one commit; a copy published
+                                      # meanwhile by another machine is merged in first)
 """
 
 from __future__ import annotations

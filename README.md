@@ -291,7 +291,7 @@ Sur la page du dépôt : **Settings > Secrets and variables > Actions**.
 1. Onglet **Actions** du dépôt → **Deezer sync** → **Run workflow** pour un premier essai.
 2. Au bout de 1 à 2 minutes, la pastille doit être verte ✅.
 
-Ensuite, à chaque passage, toutes les 30 minutes, GitHub :
+Ensuite, à chaque passage, toutes les 30 minutes (à h 13 et h 43), GitHub :
 1. récupère la base publiée ;
 2. ajoute tes nouvelles écoutes ;
 3. complète les pochettes et les genres ;
@@ -299,6 +299,7 @@ Ensuite, à chaque passage, toutes les 30 minutes, GitHub :
 
 À savoir :
 - Les crons GitHub sont souvent retardés de quelques minutes. Ce n'est pas grave : Deezer garde les 100 dernières écoutes.
+- Aux heures pile et aux demi-heures, GitHub est très chargé et abandonne une partie des passages planifiés. C'est pourquoi la synchro tourne à h 13 et h 43.
 - En cas d'échec, par exemple si le cookie a expiré, **GitHub t'envoie un e-mail**.
 - Sur un dépôt public, GitHub met en pause les synchros planifiées après **60 jours sans commit sur `main`**. Il t'envoie un e-mail avant. Pour relancer : onglet Actions → « Enable workflow ».
 
@@ -310,6 +311,8 @@ Ensuite, à chaque passage, toutes les 30 minutes, GitHub :
 3. **republier**.
 
 La base de ton Mac et celle de GitHub restent donc identiques. La récupération ne remplace pas ta base : elle y fusionne la version publiée, et ce qui n'existe que chez toi (tes corrections admin, par exemple) est conservé.
+
+Ton Mac et GitHub peuvent publier au même moment. Chacun ne remplace la base publiée que si personne n'a publié depuis sa dernière lecture. Sinon, il récupère d'abord la version arrivée entre-temps, y ajoute ses propres écoutes, puis republie. Aucune écoute ne se perd, et la synchro n'échoue plus pour cette raison.
 
 Commandes manuelles : `python -m scripts.cloud_db pull` (récupérer) et `python -m scripts.cloud_db push` (publier).
 

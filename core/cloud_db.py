@@ -75,10 +75,11 @@ def fetch_remote(repo: Path, remote: str = "origin") -> bytes | None:
 SNAPSHOT_TABLES = ("favorite_albums", "playlists", "playlist_tracks", "sync_state")
 
 
-def merge_into(published: Path, local: Path) -> None:
+def merge_into(published: Path, local: Path, local_wins: bool = False) -> None:
     """Merge the published database into the local one, in place (safe while the app has it
     open): published rows win, rows that exist only locally (admin corrections, plays from a
-    refresh not yet published) are kept, snapshot tables are replaced."""
+    refresh not yet published) are kept, snapshot tables are replaced.
+    With local_wins (catching up just before a publish), only the rows we lack are added."""
     from sqlalchemy import create_engine, delete, select
     from sqlalchemy.dialects.sqlite import insert
 
@@ -92,12 +93,14 @@ def merge_into(published: Path, local: Path) -> None:
             for model, conflict, skip in TABLES:
                 table = model.__table__
                 cols = [c.name for c in table.columns if c.name not in skip]
+                if local_wins and table.name in SNAPSHOT_TABLES:
+                    continue
                 rows = [dict(r._mapping) for r in s_in.execute(select(*[table.c[c] for c in cols]))]
                 if table.name in SNAPSHOT_TABLES:
                     s_out.execute(delete(table))
                 for i in range(0, len(rows), 400):
                     stmt = insert(table).values(rows[i:i + 400])
-                    update = {c: stmt.excluded[c] for c in cols if c not in conflict}
+                    update = {} if local_wins else {c: stmt.excluded[c] for c in cols if c not in conflict}
                     stmt = (stmt.on_conflict_do_update(index_elements=conflict, set_=update) if update
                             else stmt.on_conflict_do_nothing(index_elements=conflict))
                     s_out.execute(stmt)
@@ -122,9 +125,14 @@ def pull(db_path: Path, repo: Path, remote: str = "origin") -> str:
     return "pulled (merged)"
 
 
-def publish(db_path: Path, repo: Path, remote: str = "origin", message: str = "Update listening database") -> str:
-    """Force-push a one-commit data branch holding the compressed database."""
-    data = pack(db_path)
+def _seen(repo: Path, remote: str) -> str:
+    """The data branch as this clone last saw it (its pull or its publish); '' if never."""
+    res = subprocess.run(["git", "rev-parse", "--verify", "-q", f"refs/remotes/{remote}/{BRANCH}"],
+                         cwd=repo, capture_output=True, text=True, timeout=30)
+    return res.stdout.strip() if res.returncode == 0 else ""
+
+
+def _commit(data: bytes, repo: Path, message: str) -> str:
     with tempfile.TemporaryDirectory() as tmp:
         blob_file = Path(tmp) / FILE
         blob_file.write_bytes(data)
@@ -132,9 +140,37 @@ def publish(db_path: Path, repo: Path, remote: str = "origin", message: str = "U
     tree = _git(repo, "mktree", input_=f"100644 blob {blob}\t{FILE}\n".encode())
     who = {"GIT_AUTHOR_NAME": "DatAtlaSonore", "GIT_AUTHOR_EMAIL": "deezer-stats@users.noreply.github.com",
            "GIT_COMMITTER_NAME": "DatAtlaSonore", "GIT_COMMITTER_EMAIL": "deezer-stats@users.noreply.github.com"}
-    commit = _git(repo, "commit-tree", tree, "-m", message, env=who)
-    _git(repo, "push", "--force", remote, f"{commit}:refs/heads/{BRANCH}")
-    return f"published {len(data) / 1e6:.1f} MB"
+    return _git(repo, "commit-tree", tree, "-m", message, env=who)
+
+
+def publish(db_path: Path, repo: Path, remote: str = "origin", message: str = "Update listening database",
+            attempts: int = 4) -> str:
+    """Replace the one-commit data branch with the compressed database.
+
+    GitHub Actions and your computer both publish, sometimes at the same moment. The branch is
+    replaced only if nobody published since this clone last saw it; otherwise that newer copy is
+    merged in first (its rows join ours, ours win), then we try again."""
+    for attempt in range(attempts):
+        seen, data = _seen(repo, remote), pack(db_path)
+        commit = _commit(data, repo, message)
+        try:
+            _git(repo, "push", f"--force-with-lease=refs/heads/{BRANCH}:{seen}", remote, f"{commit}:refs/heads/{BRANCH}")
+        except RuntimeError:
+            try:
+                newer = fetch_remote(repo, remote)
+            except RuntimeError:
+                newer = None
+            if attempt == attempts - 1 or newer is None or _seen(repo, remote) == seen:
+                raise  # nobody else published: a real failure (network, rights)
+            log.info("The database was published elsewhere meanwhile; merging it before publishing again")
+            with tempfile.TemporaryDirectory() as tmp:
+                published = Path(tmp) / "published.db"
+                unpack(newer, published)
+                merge_into(published, db_path, local_wins=True)
+            continue
+        _git(repo, "update-ref", f"refs/remotes/{remote}/{BRANCH}", commit)
+        return f"published {len(data) / 1e6:.1f} MB" + (" (merged a copy published meanwhile)" if attempt else "")
+    raise RuntimeError("unreachable")
 
 
 # --- read-only copy for the hosted app ---------------------------------------------------

@@ -8,7 +8,10 @@
 #
 # Notes:
 # - GitHub cron runs are often delayed by a few minutes; Deezer keeps the last 100 plays,
-#   so a delayed run loses nothing.
+#   so a delayed run loses nothing. GitHub drops scheduled runs first at the busiest
+#   moments (the top and the half of each hour), so this one runs at :13 and :43.
+# - Your computer publishes too (launch, "Actualiser"): a publish never overwrites a newer
+#   one, it merges it first (core/cloud_db.py).
 # - Each run takes about a minute: unlimited on a public repository.
 # - On public repositories GitHub pauses scheduled workflows after 60 days without a commit
 #   on the default branch; it emails you first. Re-enable it in the Actions tab.
@@ -17,7 +20,7 @@ name: Deezer sync
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    - cron: "13,43 * * * *"
   workflow_dispatch:
 
 permissions:
