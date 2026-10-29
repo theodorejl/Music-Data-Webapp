@@ -27,6 +27,7 @@ ZOOM_CSS = """
  color:#fff;font:500 16px/1 FONT;cursor:pointer;backdrop-filter:blur(6px)}
 .zoom button:hover{background:rgba(255,255,255,.18)}
 .hint{position:absolute;left:18px;bottom:20px;font:12px FONT;color:rgba(255,255,255,.55);z-index:6;pointer-events:none}
+@media (max-width:640px){.hint{display:none}}
 """.replace("FONT", FONT)
 
 ZOOM_HTML = '<div class="zoom"><button id="zin" title="+">+</button><button id="zout" title="−">−</button><button id="zreset" title="⟲">⟲</button></div>'
@@ -315,7 +316,9 @@ html,body{{margin:0;background:transparent;font-family:{FONT};color:#1f1f1f;-web
 .t em{{display:block;font-style:normal;font-size:11px;color:rgba(31,31,31,.6);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 .t em i{{font-style:normal;color:#1f1f1f;font-weight:600}}
 .t a{{display:inline-block;margin-top:4px;font-size:11px;color:#0b57d0;text-decoration:none}}
-.none .btn{{background:rgba(120,120,120,.6)}}</style></head><body><div class="grid" id="g"></div>
+.none .btn{{background:rgba(120,120,120,.6)}}
+@media (max-width:640px){{.grid{{grid-template-columns:none;grid-template-rows:repeat({rows},auto);grid-auto-flow:column;grid-auto-columns:86%;
+ overflow-x:auto;scroll-snap-type:x mandatory}}.card{{scroll-snap-align:start}}}}</style></head><body><div class="grid" id="g"></div>
 <script>
 const I={json.dumps(items, ensure_ascii=False)},L={json.dumps({k: labels[k] for k in ("because", "open", "no_preview")}, ensure_ascii=False)};
 const PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',PAUSE='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',

@@ -62,3 +62,14 @@ def test_migration_is_rerunnable(tmp_path, history_response):
     assert report["plays"] == (6, 0)
     with Session(get_engine(dst_url)) as s:
         assert s.scalar(select(func.count()).select_from(Play)) == 6
+
+
+def test_language_falls_back_when_the_browser_sends_nothing(monkeypatch):
+    import streamlit as st
+
+    from app import i18n
+
+    monkeypatch.setattr(st, "session_state", {"lang": None})
+    assert i18n.get_lang() == i18n.DEFAULT_LANG and i18n.t("rail.home") == "Accueil"
+    monkeypatch.setattr(st, "session_state", {"lang": "en"})
+    assert i18n.t("rail.home") == "Home"

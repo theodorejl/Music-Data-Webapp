@@ -49,7 +49,9 @@ def _flat(lang: str) -> dict[str, object]:
 
 
 def get_lang() -> str:
-    return st.session_state.get("lang", DEFAULT_LANG)
+    # The browser can send back an empty choice after a failed run: never trust it blindly.
+    lang = st.session_state.get("lang")
+    return lang if lang in LANGS else DEFAULT_LANG
 
 
 def t(key: str, **kwargs) -> str:

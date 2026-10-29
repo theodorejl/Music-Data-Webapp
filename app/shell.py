@@ -36,7 +36,8 @@ HIDDEN = [("artist", "artist.py"), ("album", "album.py"), ("track", "track.py")]
 
 
 def _language() -> None:
-    if "lang" not in st.session_state:
+    # Also repairs a value the browser emptied after a failed run (it would break every page).
+    if st.session_state.get("lang") not in LANGS:
         wanted = st.query_params.get("lang")
         st.session_state["lang"] = wanted if wanted in LANGS else DEFAULT_LANG
 
