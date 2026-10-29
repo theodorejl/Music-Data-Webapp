@@ -79,8 +79,9 @@ def merge_into(published: Path, local: Path, local_wins: bool = False) -> None:
     """Merge the published database into the local one, in place (safe while the app has it
     open): published rows win, rows that exist only locally (admin corrections, plays from a
     refresh not yet published) are kept, snapshot tables are replaced.
-    With local_wins (catching up just before a publish), only the rows we lack are added."""
-    from sqlalchemy import create_engine, delete, select
+    With local_wins (catching up just before a publish), only the rows we lack are added.
+    A table the published copy lacks (published by older code) is left as it is locally."""
+    from sqlalchemy import create_engine, delete, inspect, select
     from sqlalchemy.dialects.sqlite import insert
 
     from core.db import init_db
@@ -90,10 +91,11 @@ def merge_into(published: Path, local: Path, local_wins: bool = False) -> None:
     dst = init_db(create_engine(f"sqlite:///{local}", connect_args={"timeout": 30}))
     try:
         with src.connect() as s_in, dst.begin() as s_out:
+            published_tables = set(inspect(s_in).get_table_names())
             for model, conflict, skip in TABLES:
                 table = model.__table__
                 cols = [c.name for c in table.columns if c.name not in skip]
-                if local_wins and table.name in SNAPSHOT_TABLES:
+                if table.name not in published_tables or (local_wins and table.name in SNAPSHOT_TABLES):
                     continue
                 rows = [dict(r._mapping) for r in s_in.execute(select(*[table.c[c] for c in cols]))]
                 if table.name in SNAPSHOT_TABLES:

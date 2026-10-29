@@ -102,3 +102,70 @@ def test_a_real_failure_still_says_the_push_failed(tmp_path, history_response):
     run_sync(init_db(get_engine(f"sqlite:///{db}")), Src(parse_history(history_response)), enrich=False)
     with pytest.raises(RuntimeError, match="git push"):
         publish(db, repo)
+
+
+def _old_code_sync(path, records):
+    """A sync by the code before the genre model: its database has no artist_related, no artist_genre."""
+    eng = get_engine(f"sqlite:///{path}")
+    run_sync(eng, Src(records), enrich=False)
+    with eng.begin() as con:
+        con.exec_driver_sql("DROP TABLE artist_related")
+        con.exec_driver_sql("DROP TABLE artist_genre")
+    eng.dispose()
+    return path
+
+
+def _two_clones(tmp_path):
+    remote = tmp_path / "remote.git"
+    git(tmp_path, "init", "--bare", "-q", str(remote))
+    repos = tmp_path / "ci", tmp_path / "mac"
+    for repo in repos:
+        repo.mkdir()
+        git(repo, "init", "-q")
+        git(repo, "remote", "add", "origin", str(remote))
+    return repos
+
+
+def test_pulling_a_database_published_by_the_old_code_works(tmp_path, history_response):
+    """GitHub Actions may still run the code without the genre tables: the pull must not fail."""
+    repo_ci, repo_mac = _two_clones(tmp_path)
+    publish(_old_code_sync(tmp_path / "ci.db", parse_history(history_response)), repo_ci)
+
+    db_mac = tmp_path / "mac.db"
+    eng = init_db(get_engine(f"sqlite:///{db_mac}"))
+    with Session(eng) as s:
+        s.add(ArtistGenre(artist_id=99, main=0, sub=0, genre="techno", confidence="likely", words=[], sources=[]))
+        s.add(ArtistRelated(artist_id=99, related_id=98, rank=0, related_name="Rel"))
+        s.commit()
+    assert pull(db_mac, repo_mac).startswith("pulled")
+    with Session(eng) as s:
+        assert s.scalar(select(func.count()).select_from(Play)) == 6              # the published plays arrived
+        assert [g.artist_id for g in s.scalars(select(ArtistGenre))] == [99]      # local decisions kept
+        assert s.scalar(select(func.count()).select_from(ArtistRelated)) == 1     # local related kept
+
+
+def test_publishing_after_a_database_from_the_old_code_loses_nothing(tmp_path, history_response):
+    """The old code publishes plays, your computer (new code) pulls, the old code publishes again,
+    then your computer publishes: the copy published meanwhile is merged in, every play stays."""
+    records = parse_history(history_response)
+    repo_ci, repo_mac = _two_clones(tmp_path)
+    db_ci = _old_code_sync(tmp_path / "ci.db", records[:3])
+    publish(db_ci, repo_ci)
+
+    db_mac = tmp_path / "mac.db"
+    eng = init_db(get_engine(f"sqlite:///{db_mac}"))
+    with Session(eng) as s:
+        s.add(ArtistGenre(artist_id=99, main=0, sub=0, genre="techno", confidence="likely", words=[], sources=[]))
+        s.commit()
+    pull(db_mac, repo_mac)
+
+    _old_code_sync(db_ci, records[3:5])                                           # the old code, again
+    publish(db_ci, repo_ci)
+    run_sync(eng, Src(records[5:]), enrich=False)                                  # your computer, one other
+    assert "merged" in publish(db_mac, repo_mac)
+
+    assert _published_plays(repo_ci, tmp_path) == 6       # nobody's plays were lost
+    copy = tmp_path / "published_copy.db"
+    with Session(get_engine(f"sqlite:///{copy}")) as s:
+        assert [g.artist_id for g in s.scalars(select(ArtistGenre))] == [99]   # and the decisions were published
+
