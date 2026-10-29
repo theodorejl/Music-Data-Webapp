@@ -531,10 +531,11 @@ function pick(mx,my){let best=null,bd=1e9;for(const n of nodes){const d=(n.x-mx)
 function zoneAt(mx,my){for(const h of zoneHits){if((h.x-mx)**2+(h.y-my)**2<h.r*h.r)return h.z}return null}
 function labelAt(mx,my){for(let j=labelsDrawn.length-1;j>=0;j--){const[info,x0,y0,w,h]=labelsDrawn[j];if(mx>=x0&&mx<=x0+w&&my>=y0&&my<=y0+h)return info}return null}
 const fmt=(s,n)=>s.replace('{n}',n);
-function artistTip(i){const s=T.sub[A.s[i]],m=T.main[A.m[i]],lines=[];
+function artistTip(i){const s=A.s[i]>=0?T.sub[A.s[i]]:null,m=T.main[A.m[i]],lines=[];
  if(A.pl[i])lines.push(fmt(L.plays,A.pl[i])+(A.mn[i]?' · '+fmt(L.minutes,A.mn[i]):''));
  if(A.lt[i])lines.push(fmt(L.lists,A.lt[i]));if(A.fa[i])lines.push(fmt(L.favs,A.fa[i]));
- return (pic(i)?'<img src="'+esc(pic(i))+'">':'')+'<div><b>'+esc(A.n[i])+'</b><em style="color:'+hsl(A.m[i],1,14,90)+'">'+esc(m.n+(A.lv[i]<=1?' › '+s.n:'')+(A.lv[i]===0&&A.g[i]?' › '+cap(A.g[i]):''))+'</em>'+
+ if(A.lb[i])lines.push(L.label.replace('{x}',A.lb[i]));if(A.tg[i])lines.push(L.words.replace('{src}',A.sr[i]).replace('{x}',A.tg[i]));
+ return (pic(i)?'<img src="'+esc(pic(i))+'">':'')+'<div><b>'+esc(A.n[i])+'</b><em style="color:'+hsl(A.m[i],1,14,90)+'">'+esc(m.n+(s?' › '+s.n:'')+(A.lv[i]===0&&A.g[i]?' › '+cap(A.g[i]):''))+'</em>'+
   lines.map(l=>'<small>'+esc(l)+'</small>').join('')+'<small>'+esc(L['lv'+A.lv[i]])+'</small><div class="act">'+esc(L.open)+'</div></div>'}
 cv.addEventListener('mousemove',e=>{if(drag){tip.classList.remove('on');hover=null;return}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;hover=pick(mx,my);let html='';
  if(hover&&hover.kind==='r'){const p=R[hover.i];html=(p.img?'<img class="sq" src="'+esc(p.img)+'">':'')+'<div><b>'+esc(p.title)+'</b><small>'+esc(p.artist)+'</small><em style="color:'+MC+'">'+esc(p.subgenre||'')+'</em><small>'+esc(L.because+' '+p.reason)+'</small><div class="act">'+esc(state.id===p.track_id?L.pause:L.play)+'</div></div>'}
@@ -587,7 +588,7 @@ def sound_map(artists: dict, recs: list[dict], paths: list[tuple[str, str]], lab
               f"<span><i class='rec'></i>{escape(labels['found'])}</span>"
               f"<span><b class='ring'></b>{escape(labels['zones'])}</span>")
     keys = ("play", "pause", "no_preview", "because", "count", "plays", "minutes", "lists", "favs", "open", "lv0", "lv1", "lv2",
-            "zone", "zoom_in", "genre", "artist")
+            "zone", "zoom_in", "genre", "artist", "label", "words")
     css = SOUND_MAP_CSS.replace("__FONT__", FONT).replace("__C__", color).replace("__H__", str(height - 92))
     script = (f"window.KMAX=80;window.EDGE=.06;const T={_tree_table(lang)},A={js_data(artists)},R={js_data(recs)},"
               f"P={js_data(paths)},MC={js_data(color)},L={js_data({k: labels[k] for k in keys})};{ESC_JS}"

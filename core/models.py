@@ -112,7 +112,21 @@ class Tag(Base):
     entity_id: Mapped[int] = mapped_column(BigInteger, index=True)
     tag: Mapped[str] = mapped_column(String(200))
     count: Mapped[int | None] = mapped_column(Integer)  # MusicBrainz votes
-    source: Mapped[str] = mapped_column(String(32))  # deezer | mb_genre | mb_tag
+    source: Mapped[str] = mapped_column(String(32))  # mb_genre | mb_tag | wikidata | lastfm | discogs | discogs_genre
+    # Labels of an artist are stored the same way, with entity_type "artist_label".
+
+
+class ArtistInfo(Base):
+    """An artist's identifiers in other music databases, and when each database was asked
+    (so each one is asked once). Its genres and labels go to `tags`."""
+
+    __tablename__ = "artist_info"
+
+    artist_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    mbid: Mapped[str | None] = mapped_column(String(36))  # MusicBrainz
+    discogs_id: Mapped[int | None] = mapped_column(BigInteger)
+    wikidata: Mapped[str | None] = mapped_column(String(20))  # e.g. Q185828
+    checked: Mapped[dict | None] = mapped_column(JSON)  # source -> date asked (ISO)
 
 
 class Alias(Base):

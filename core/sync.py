@@ -292,6 +292,12 @@ def enrich_library_genres(session: Session, client: DeezerPublicClient, deadline
     return done
 
 
+def _artist_info(session: Session, client: DeezerPublicClient, deadline: float) -> int:
+    from core.artistinfo import enrich_from_settings
+
+    return enrich_from_settings(session, client, deadline)
+
+
 def _store_tags(session: Session, entity_type: str, entity_id: int, tags) -> None:
     rows = [{"entity_type": entity_type, "entity_id": entity_id, "tag": t[:200], "count": c, "source": s}
             for t, c, s in tags]
@@ -342,6 +348,7 @@ def run_enrichment(engine: Engine, budget_seconds: float = 120,
         ("public", enrich_public, DeezerPublicClient, public),
         ("musicbrainz", enrich_musicbrainz, MusicBrainzClient, mb),
         ("library genres", enrich_library_genres, DeezerPublicClient, public),
+        ("artist info", _artist_info, DeezerPublicClient, public),
     ):
         try:
             with Session_() as session:

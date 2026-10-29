@@ -181,15 +181,16 @@ theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subg
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def _atlas(n_plays: int, n_library: int) -> tuple[dict, int]:
-    """Every artist of your music on the atlas of genres (see core/atlas.py)."""
+def _atlas(n_plays: int, n_library: int, n_tags: int) -> tuple[dict, int]:
+    """Every artist of your music on the atlas of genres (see core/atlas.py); computed again
+    whenever plays, library or genre information grow."""
     raw, lib = data.raw_data(), data.library()
     points, missing = atlas.place(raw.artists, everything, raw.tags, raw.albums, lib.playlist_tracks, lib.favorites)
     return atlas.columns(points), missing
 
 
 lib_size = len(data.library().playlist_tracks)
-artists, missing = _atlas(len(everything), lib_size)
+artists, missing = _atlas(len(everything), lib_size, len(data.raw_data().tags))
 points = []
 for r in recs.itertuples(index=False):
     spot = atlas.anchor(r.subgenre if isinstance(r.subgenre, str) else None, r.anchor_x, r.anchor_y)
@@ -209,7 +210,8 @@ with theme.panel("night", "reco-map"):
          "because": t(f"reco.because_{mode}"), "count": t("reco.map_count"), "plays": t("reco.map_plays"),
          "minutes": t("reco.map_minutes"), "lists": t("reco.map_lists"), "favs": t("reco.map_favs"), "open": t("reco.map_open"),
          "lv0": t("reco.map_lv0"), "lv1": t("reco.map_lv1"), "lv2": t("reco.map_lv2"), "zone": t("reco.map_zone"),
-         "zoom_in": t("reco.map_zoom_in"), "genre": t("common.genre"), "artist": t("common.artist")},
+         "zoom_in": t("reco.map_zoom_in"), "genre": t("common.genre"), "artist": t("common.artist"),
+         "label": t("reco.map_label"), "words": t("reco.map_words")},
         studio.MODE_COLORS[mode][0], get_lang(), height=820)
     st.caption(t("reco.map_credit", n=fmt_int(len(artists["id"])), missing=fmt_int(missing)))
 

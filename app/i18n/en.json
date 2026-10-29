@@ -667,11 +667,13 @@
     "map_lists": "{n} tracks in your playlists",
     "map_favs": "{n} favourite albums",
     "map_open": "Click: open on Deezer",
-    "map_lv0": "Precise genre (MusicBrainz tags)",
-    "map_lv1": "Sub-genre from Deezer",
-    "map_lv2": "Main genre only (Deezer or your playlists)",
+    "map_lv0": "Precise genre",
+    "map_lv1": "Sub-genre (precise genre not known yet)",
+    "map_lv2": "Main genre only, for now",
     "map_zone": "{n} discoveries here",
-    "map_zoom_in": "Click: zoom in here"
+    "map_zoom_in": "Click: zoom in here",
+    "map_label": "Label: {x}",
+    "map_words": "From {src}: {x}"
   },
   "insta": {
     "kicker": "Instagram → playlist",

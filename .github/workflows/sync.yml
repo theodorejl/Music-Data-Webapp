@@ -35,6 +35,8 @@ jobs:
       DEEZER_ARL: ${{ secrets.DEEZER_ARL }}
       DEEZER_PROFILE: ${{ vars.DEEZER_PROFILE }}
       MUSICBRAINZ_CONTACT: ${{ vars.MUSICBRAINZ_CONTACT }}
+      LASTFM_API_KEY: ${{ secrets.LASTFM_API_KEY }}
+      DISCOGS_TOKEN: ${{ secrets.DISCOGS_TOKEN }}
       DATABASE_URL: sqlite:///data/deezer_stats.db
       DEEZER_STATS_STORAGE: git
     steps:

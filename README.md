@@ -440,12 +440,30 @@ Chaque genre principal occupe un seul territoire, découpé en quartiers pour se
 - **Les découvertes** sont posées sur leur sous-genre. De près, elles deviennent leurs pochettes : clique pour écouter **30 s**.
 - **Pour te déplacer** : les **pastilles** volent vers chaque sous-genre exploré, la **recherche** trouve un genre ou un artiste, ◎ montre tes découvertes et ⟲ la carte entière.
 
-**Comment chaque artiste est placé**, du plus précis au moins précis :
-1. par les tags MusicBrainz de l'artiste, sur son genre exact ;
-2. par les genres Deezer de ses albums, étalé sur un sous-genre (« Techno/House ») ou sur un genre principal (« Electro ») ;
-3. sinon, par le genre principal des artistes qui partagent ses playlists.
+**Comment chaque artiste est placé** : un vote entre plusieurs bases musicales, toutes interrogées par leur API officielle (code : `core/artistinfo.py` et `core/atlas.py`).
 
-À chaque synchro, l'app lit le genre Deezer d'un album par artiste de ta bibliothèque, en commençant par les artistes les plus présents. L'atlas est rangé dans `app/assets/genre_tree.json` (code : `core/genretree.py`). Il se reconstruit avec `python -m scripts.build_genre_map --tree`.
+| Source | Ce qu'elle donne | Clé | Comment l'artiste y est retrouvé |
+|---|---|---|---|
+| Wikidata | genres, labels | aucune | par son identifiant Deezer : aucun homonyme possible |
+| MusicBrainz | genres et tags de la communauté | aucune | par son lien Deezer, sinon par le code ISRC d'un de ses titres |
+| Discogs | styles (Jazz-Funk, Nu-Disco…), labels | aucune ; `DISCOGS_TOKEN` (gratuit) pour aller 2,5 fois plus vite et chercher par nom | par l'identifiant Discogs que donnent Wikidata et MusicBrainz |
+| Last.fm | tags des auditeurs, la couverture la plus large | `LASTFM_API_KEY` (gratuite) | par l'identifiant MusicBrainz, sinon par le nom |
+| Deezer | genre et label de ses albums | aucune | ses albums |
+
+- Les sources votent, chacune selon sa fiabilité : genres soignés de MusicBrainz et Wikidata, styles Discogs, tags Last.fm selon leur fréquence. Les genres Deezer comptent moins, parce qu'ils sont larges (« Pop », « Electro »).
+- Chaque mot est lu sur l'arbre des genres : un genre exact de la carte (« nu-disco »), sinon un sous-genre (« jazz-funk » → fusion). Les pays, les décennies et « seen live » sont ignorés.
+- Le point se pose sur un **genre précis** quand il est clairement désigné. Sinon, il va dans un petit nuage autour du nom de son **sous-genre**, ou de son **genre principal** quand on ne sait rien de plus. Il n'est jamais posé sur un genre que rien n'indique.
+- Au survol, la carte montre le **label**, les mots qui ont placé l'artiste et leurs sources.
+
+L'enrichissement avance un peu à chaque synchro horaire. Pour tout faire d'un coup sur ton ordinateur :
+
+```
+python -m scripts.enrich_artists --minutes 240
+```
+
+Sans clé, compte quelques heures pour 8 000 artistes. Avec une clé Last.fm (gratuite, 2 minutes sur [last.fm/api/account/create](https://www.last.fm/api/account/create)), compte environ 40 minutes. Ajoute-la dans `.env` (`LASTFM_API_KEY=…`) et, pour la synchro GitHub, en secret du dépôt. Le jeton Discogs se crée sur [discogs.com/settings/developers](https://www.discogs.com/settings/developers).
+
+À chaque synchro, l'app lit aussi le genre et le label Deezer d'un album par artiste de ta bibliothèque. L'atlas est rangé dans `app/assets/genre_tree.json` (code : `core/genretree.py`). Il se reconstruit avec `python -m scripts.build_genre_map --tree`.
 
 **Le tableau** dessous liste chaque découverte avec son sous-genre. Il permet d'écouter, de trier, de filtrer et d'exporter en Excel.
 

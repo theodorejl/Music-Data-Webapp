@@ -667,11 +667,13 @@
     "map_lists": "{n} titres dans tes playlists",
     "map_favs": "{n} albums favoris",
     "map_open": "Clic : ouvrir sur Deezer",
-    "map_lv0": "Genre précis (tags MusicBrainz)",
-    "map_lv1": "Sous-genre d'après Deezer",
-    "map_lv2": "Genre principal seulement (Deezer ou tes playlists)",
+    "map_lv0": "Genre précis",
+    "map_lv1": "Sous-genre (genre précis pas encore connu)",
+    "map_lv2": "Genre principal seulement, pour l'instant",
     "map_zone": "{n} découvertes ici",
-    "map_zoom_in": "Clic : zoomer ici"
+    "map_zoom_in": "Clic : zoomer ici",
+    "map_label": "Label : {x}",
+    "map_words": "D'après {src} : {x}"
   },
   "insta": {
     "kicker": "Instagram → playlist",
