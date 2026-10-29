@@ -64,8 +64,9 @@ USERNAME = re.compile(r"^[A-Za-z0-9._]{1,30}$")
 # --- settings and errors ------------------------------------------------------------------------------
 
 class InstagramError(Exception):
-    """kind: setup (no token), token (invalid or expired), not_found (no such professional
-    account), rate (hourly limit), network, invalid (bad account name)."""
+    """kind: setup (no token), token (invalid or expired), account (your own Instagram account
+    cannot be reached with the token: instagram_basic missing, or its Page not chosen),
+    not_found (no such professional account), rate (hourly limit), network, invalid (bad name)."""
 
     def __init__(self, kind: str):
         super().__init__(kind)
@@ -142,6 +143,8 @@ class GraphSource:
             log.warning("Instagram: error code=%s subcode=%s status=%s", code, sub, resp.status_code)
             if code in (190, 102, 2500) or resp.status_code == 401:
                 raise InstagramError("token")
+            if code == 100 and sub == 33:  # every request is made on your own account: it is the one out of reach
+                raise InstagramError("account")
             if code in (4, 17, 32, 613) or resp.status_code == 429:
                 raise InstagramError("rate")
             if code in (10, 200) or (isinstance(code, int) and 200 <= code < 300):

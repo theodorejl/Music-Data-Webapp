@@ -189,6 +189,7 @@ def test_graph_source_pages_and_keeps_the_token_out_of_urls():
 
 
 @pytest.mark.parametrize("error,kind", [({"code": 190}, "token"), ({"code": 4}, "rate"), ({"code": 110}, "not_found"),
+                                        ({"code": 100, "error_subcode": 33}, "account"),
                                         ({"code": 10}, "setup")])
 def test_graph_errors_become_plain_reasons(error, kind):
     src = im.GraphSource("1", "SECRET", session=FakeSession([FakeResponse({"error": error}, 400)]))

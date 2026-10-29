@@ -19,7 +19,7 @@ from app.i18n import fmt_int, t
 from core import instamusic as im
 
 SOURCES = ("caption", "comment", "audio")
-FATAL = ("setup", "token", "not_found", "rate", "network", "invalid")
+FATAL = ("setup", "token", "account", "not_found", "rate", "network", "invalid")
 ready = im.configured()
 now = pd.Timestamp.now(tz=data.timezone_name())
 known = im.accounts()

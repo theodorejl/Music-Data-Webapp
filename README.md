@@ -483,6 +483,7 @@ L'app lit Instagram uniquement par l'**API officielle de Meta** (« Business Dis
    - Demande les autorisations `instagram_basic`, `pages_show_list` et `pages_read_engagement`.
    - Ajoute `business_management` si ta Page appartient à un portefeuille business.
    - Clique sur **Generate Access Token**.
+   - Dans la fenêtre Facebook qui s'ouvre, choisis **la Page liée à ton compte Instagram** et **ce compte Instagram** (bouton « Modifier les paramètres » si besoin). Sans cela, l'app ne peut pas atteindre ton compte.
 5. Rends ce jeton durable (60 jours) dans le [débogueur de jetons](https://developers.facebook.com/tools/debug/accesstoken/) : **Extend Access Token**.
 6. Dans l'explorateur, lance `me/accounts?fields=instagram_business_account`. Le nombre affiché sous `instagram_business_account` est ton `IG_USER_ID`.
 7. Ajoute dans `.env` :

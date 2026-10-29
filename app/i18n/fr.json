@@ -706,7 +706,7 @@
     "setup_1": "Passe ton compte Instagram en **compte professionnel** (c'est gratuit) : Instagram › Paramètres › *Type de compte et outils* › *Passer à un compte professionnel*. Le type « Créateur » convient.",
     "setup_2": "Relie-le à une **Page Facebook** (crées-en une si besoin) : Instagram › *Modifier le profil* › *Page*.",
     "setup_3": "Sur [developers.facebook.com/apps](https://developers.facebook.com/apps), crée une app de type *Business* et ajoute-lui le produit **Instagram** (« API Instagram avec connexion Facebook »).",
-    "setup_4": "Ouvre l'[explorateur de l'API Graph](https://developers.facebook.com/tools/explorer/) et choisis ton app. Demande les autorisations `instagram_basic`, `pages_show_list` et `pages_read_engagement`, plus `business_management` si ta Page appartient à un portefeuille business. Clique ensuite sur **Generate Access Token**.",
+    "setup_4": "Ouvre l'[explorateur de l'API Graph](https://developers.facebook.com/tools/explorer/) et choisis ton app. Demande les autorisations `instagram_basic`, `pages_show_list` et `pages_read_engagement`, plus `business_management` si ta Page appartient à un portefeuille business. Clique ensuite sur **Generate Access Token**. Dans la fenêtre Facebook, choisis **la Page liée à ton compte Instagram** et **ce compte Instagram** (bouton « Modifier les paramètres » si besoin).",
     "setup_5": "Rends ce jeton durable (60 jours) dans le [débogueur de jetons](https://developers.facebook.com/tools/debug/accesstoken/) : **Extend Access Token**.",
     "setup_6": "Dans l'explorateur, lance `me/accounts?fields=instagram_business_account`. Le nombre affiché sous `instagram_business_account` est ton identifiant `IG_USER_ID`.",
     "setup_7": "Dans le fichier `.env`, ajoute `IG_USER_ID=…` et `IG_ACCESS_TOKEN=…`, puis recharge la page. Le jeton reste sur ton ordinateur et n'apparaît nulle part dans l'app.",
@@ -746,6 +746,7 @@
     "error_network": "Instagram ne répond pas pour l'instant. Réessaie dans un moment.",
     "error_invalid": "« {account} » n'est pas un nom de compte Instagram valide.",
     "error_audio_quota": "Tu n'as plus de reconnaissances AudD : la suite a été lue sans le son des vidéos. Ces vidéos seront écoutées à la prochaine extraction.",
-    "error_audio_token": "AudD a refusé la clé AUDD_API_TOKEN : la suite a été lue sans le son des vidéos."
+    "error_audio_token": "AudD a refusé la clé AUDD_API_TOKEN : la suite a été lue sans le son des vidéos.",
+    "error_account": "Ton compte Instagram n'est pas accessible avec ce jeton. Régénère-le (étape 4) avec l'autorisation instagram_basic, et choisis bien, dans la fenêtre Facebook, la Page liée à ton compte Instagram ainsi que ce compte."
   }
 }

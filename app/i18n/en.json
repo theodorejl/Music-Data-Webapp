@@ -706,7 +706,7 @@
     "setup_1": "Switch your Instagram account to a **professional account** (it's free): Instagram › Settings › *Account type and tools* › *Switch to professional account*. “Creator” is fine.",
     "setup_2": "Link it to a **Facebook Page** (create one if needed): Instagram › *Edit profile* › *Page*.",
     "setup_3": "On [developers.facebook.com/apps](https://developers.facebook.com/apps), create a *Business* app and add the **Instagram** product to it (“Instagram API with Facebook Login”).",
-    "setup_4": "Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/) and pick your app. Ask for the `instagram_basic`, `pages_show_list` and `pages_read_engagement` permissions, plus `business_management` if your Page belongs to a business portfolio. Then click **Generate Access Token**.",
+    "setup_4": "Open the [Graph API Explorer](https://developers.facebook.com/tools/explorer/) and pick your app. Ask for the `instagram_basic`, `pages_show_list` and `pages_read_engagement` permissions, plus `business_management` if your Page belongs to a business portfolio. Then click **Generate Access Token**. In the Facebook window, pick **the Page linked to your Instagram account** and **that Instagram account** (“Edit settings” if needed).",
     "setup_5": "Make the token last 60 days in the [Access Token Debugger](https://developers.facebook.com/tools/debug/accesstoken/): **Extend Access Token**.",
     "setup_6": "In the explorer, run `me/accounts?fields=instagram_business_account`. The number under `instagram_business_account` is your `IG_USER_ID`.",
     "setup_7": "In the `.env` file, add `IG_USER_ID=…` and `IG_ACCESS_TOKEN=…`, then reload the page. The token stays on your computer and appears nowhere in the app.",
@@ -746,6 +746,7 @@
     "error_network": "Instagram is not answering right now. Try again in a moment.",
     "error_invalid": "“{account}” is not a valid Instagram account name.",
     "error_audio_quota": "No AudD recognitions left: the rest was read without the sound of videos. Those videos will be listened to at the next extraction.",
-    "error_audio_token": "AudD refused the AUDD_API_TOKEN key: the rest was read without the sound of videos."
+    "error_audio_token": "AudD refused the AUDD_API_TOKEN key: the rest was read without the sound of videos.",
+    "error_account": "Your Instagram account cannot be reached with this token. Generate it again (step 4) with the instagram_basic permission, and in the Facebook window, pick the Page linked to your Instagram account and that account."
   }
 }
