@@ -27,3 +27,17 @@ def test_identity_prefers_the_spotify_id_and_refuses_ambiguous_names():
 def test_evidence_mass_is_main_sum_and_genre_counts_for_sub_and_main():
     e = genremodel.everynoise_evidence([("nu disco", 0)])
     assert e.mass == e.main.sum() == 1.0 and sum(e.sub.values()) == 1.0
+
+
+def test_a_source_that_is_always_wrong_loses_weight():
+    import numpy as np
+    ev = {}
+    for a in range(40):
+        row = {}
+        for s, m in (("mb_genre", 0), ("wikidata", 0), ("deezer", 1)):
+            e = genremodel.Evidence(); e.add(m, 1.0); row[s] = e
+        ev[a] = row
+    w = genremodel.reliability(ev)
+    assert 0.2 * genremodel.W0["deezer"] <= w[("deezer", 1)] < genremodel.W0["deezer"]
+    assert genremodel.W0["mb_genre"] <= w[("mb_genre", 0)] <= 3 * genremodel.W0["mb_genre"]
+    assert w[("deezer", 5)] == genremodel.W0["deezer"]       # never observed: keeps its starting weight

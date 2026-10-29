@@ -95,3 +95,41 @@ def match_everynoise(index, spotify_of: dict[int, list[str]], names: dict[int, s
             if best[0] >= HOMONYM_MIN and best[0] - runner >= HOMONYM_GAP:
                 out[a] = ("everynoise_name", best[1])
     return out
+
+
+PRIOR_N, PRIOR_ACC = 10, 0.7
+W_MIN, W_MAX, EPS = 0.2, 3.0, 1e-3
+
+
+def reliability(ev: dict[int, dict[str, Evidence]], prior: dict[str, float] = W0, rounds: int = 20) -> dict[tuple[str, int], float]:
+    """Weight of (source, main genre): how often the source's top main genre is also the top of the other
+    sources, weighted by their own weights (one-coin Dawid-Skene log-odds), with a prior of 10 artists at 70 %."""
+    sources = sorted({s for row in ev.values() for s in row})
+    start = {s: prior.get(s, 1.0) for s in sources}
+    index = {s: i for i, s in enumerate(sources)}
+    base = np.array([start[s] for s in sources])[:, None]
+    scale = np.log(PRIOR_ACC / (1 - PRIOR_ACC))
+    # Normalised main vectors per artist, computed once.
+    obs = []
+    for row in ev.values():
+        items = [(index[s], e.main / e.main.sum()) for s, e in row.items() if e.main.sum() > 0]
+        if len(items) > 1:
+            obs.append((np.array([i for i, _ in items]), np.stack([v for _, v in items])))
+    w = np.repeat(base, N_MAIN, axis=1)
+    for _ in range(rounds):
+        n = np.zeros_like(w); agree = np.zeros_like(w)
+        for idx, vecs in obs:
+            weighted = w[idx] * vecs
+            others = weighted.sum(axis=0) - weighted
+            tops = vecs.argmax(axis=1)
+            ok = others.any(axis=1)
+            hit = others.argmax(axis=1) == tops
+            np.add.at(n, (idx[ok], tops[ok]), 1)
+            np.add.at(agree, (idx[ok], tops[ok]), hit[ok])
+        acc = (agree + PRIOR_N * PRIOR_ACC) / (n + PRIOR_N)
+        new = base * np.clip(np.log(acc / (1 - acc)) / scale, W_MIN, W_MAX)
+        done = np.abs(new - w).max() < EPS
+        w = new
+        if done:
+            break
+    return {(s, m): float(w[index[s], m]) for s in sources for m in range(N_MAIN)}
