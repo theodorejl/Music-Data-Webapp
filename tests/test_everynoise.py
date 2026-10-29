@@ -45,3 +45,9 @@ def test_the_crawler_caches_pages_and_never_fetches_twice(tmp_path):
     assert (tmp_path / "engenremap-musicamexicana.html").read_text() == ""
     n = len(calls)
     assert crawler.crawl(tmp_path, pause=0, get=fake) == index and len(calls) == n
+
+
+def test_names_without_latin_letters_are_never_matched_by_name():
+    idx = everynoise.Index(everynoise.build_index({"g": [("A" * 22, "坂本龍一", 1), ("B" * 22, "Кино", 2), ("C" * 22, "!!!", 3)]}))
+    assert idx.ids_named("坂本龍一") == [] and idx.ids_named("Кино") == [] and idx.ids_named("!!!") == []
+    assert idx.name_of("A" * 22) == "坂本龍一"

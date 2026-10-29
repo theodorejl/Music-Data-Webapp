@@ -71,7 +71,9 @@ class Index:
         self.artists: dict[str, list] = data["artists"]
         self._by_name: dict[str, list[str]] = {}
         for sid, (name, _) in self.artists.items():
-            self._by_name.setdefault(norm_name(name), []).append(sid)
+            key = norm_name(name)
+            if key:  # non-Latin or symbol-only names normalise to "": never match them by name
+                self._by_name.setdefault(key, []).append(sid)
 
     def genres_of(self, sid: str) -> list[tuple[str, int]]:
         """(genre, rank) pairs of an artist; empty when unknown."""
@@ -79,7 +81,8 @@ class Index:
         return [(self.genres[g], r) for g, r in entry[1]] if entry else []
 
     def ids_named(self, name: str) -> list[str]:
-        return list(self._by_name.get(norm_name(name), []))
+        key = norm_name(name)
+        return list(self._by_name.get(key, [])) if key else []
 
     def name_of(self, sid: str) -> str:
         entry = self.artists.get(sid)
