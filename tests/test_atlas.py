@@ -255,3 +255,35 @@ def test_an_album_without_its_own_genres_follows_its_artist():
     points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=_decision(1, "nu disco"))}
     assert points[500]["g"] == "nu disco" and points[500]["s"] == genretree.position()["nu disco"][2]
     assert points[500]["sr"] == "Every Noise"
+
+
+def _with_untagged_album(frames_):
+    artists, plays, tags, albums, pt, fav = frames_
+    albums = pd.concat([albums, pd.DataFrame({"id": [500], "artist_id": [1], "deezer_genres": [None]})], ignore_index=True)
+    plays = pd.concat([plays, pd.DataFrame({"play_id": [12], "artist_id": [1], "album_id": [500], "minutes": [2.0], "genre": [None]})])
+    return artists, plays, tags, albums, pt, fav
+
+
+def test_an_untagged_album_lands_on_its_artists_decided_genre_even_a_regional_or_broad_one():
+    """"rap francais" means nothing to meaning() (a region) and "pop" only a main genre: the decision places it."""
+    for genre in ("rap francais", "pop"):
+        points = {p["id"]: p for p in atlas.place_albums(*_with_untagged_album(frames()), decisions=_decision(1, genre))}
+        assert 500 in points, genre
+        p = points[500]
+        assert (p["lv"], p["g"], p["s"]) == (atlas.GENRE, genre, genretree.position()[genre][2]), genre
+        assert p["m"] == genretree.tree()["sub"][p["s"]]["main"]
+        assert p["sr"] == "Every Noise" and p["tg"] == genre
+
+
+def test_an_albums_own_genres_win_when_precise_or_in_another_main_genre():
+    artists, plays, tags, albums, pt, fav = _with_untagged_album(frames())
+    tags = pd.concat([tags, pd.DataFrame({"entity_type": ["album"], "entity_id": [500], "tag": ["deep house"],
+                                          "count": [3], "source": ["mb"]})], ignore_index=True)
+    decisions = pd.concat([_decision(1, "nu disco"), _decision(2, "rap francais")], ignore_index=True)
+    points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=decisions)}
+    assert points[500]["g"] == "deep house"                  # its own precise genre, though its artist is nu disco
+    house = genretree.position()["deep house"][2]
+    assert points[200]["lv"] == atlas.SUB and points[200]["s"] == house   # Electro, Techno/House: not French rap
+    decisions = pd.concat([_decision(1, "nu disco"), _decision(2, "nu disco")], ignore_index=True)
+    points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=decisions)}
+    assert points[200]["g"] == "nu disco" and points[200]["lv"] == atlas.GENRE   # same main, less precise: the decision

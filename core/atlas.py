@@ -41,10 +41,9 @@ GENRE, SUB, MAIN = 0, 1, 2  # how precise a placement is
 # Deezer's first-level genres ("Electro", "Pop"…); the others ("Techno/House", "Indie Rock"…) are sub-genres.
 DEEZER_TOP = set(soundmap.DEEZER) - {"techno/house"}
 WEIGHT = {"mb_genre": 3.0, "wikidata": 2.5, "discogs": 2.5, "lastfm": 2.2, "mb_tag": 1.0, "album": .8,
-          "discogs_genre": .7, "deezer": 1.2, "deezer_top": .5, "artist_model": 2.0}
+          "discogs_genre": .7, "deezer": 1.2, "deezer_top": .5}
 SOURCE_NAME = {"mb_genre": "MusicBrainz", "mb_tag": "MusicBrainz", "album": "MusicBrainz", "wikidata": "Wikidata",
-               "discogs": "Discogs", "discogs_genre": "Discogs", "lastfm": "Last.fm", "deezer": "Deezer", "deezer_top": "Deezer",
-               "artist_model": "artist_model"}  # an album's vote for its artist's decided genre: replaced by its sources
+               "discogs": "Discogs", "discogs_genre": "Discogs", "lastfm": "Last.fm", "deezer": "Deezer", "deezer_top": "Deezer"}
 SPIRAL, GOLDEN = .0022, math.radians(137.508)  # artists on one genre wind around it, >= .0036 apart (y units)
 # Genres of the map that name a whole main genre, not one of its sub-genres.
 MAIN_WORDS = {"pop", "rock", "electronica", "electro", "edm", "dance pop", "hip hop", "rap", "jazz", "classical", "metal",
@@ -343,8 +342,8 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
     """Your favourite and listened albums on the atlas, placed by what the album says first
     (Deezer genres, MusicBrainz tags), then by what its artist's votes say (counted half). A
     point: id, n (title), a (artist), ai (artist id), p (cover id or url), x, y, m, s, g, lv,
-    lb (label), fa (1 if favourite). When the model decided the artist's genre, that decision is the
-    artist's vote."""
+    lb (label), fa (1 if favourite). When the model decided the artist's genre, that decision places
+    the album on its genre, unless the album's own genres name a precise genre or another main genre."""
     pt = playlist_tracks.dropna(subset=["artist_id"])
     _, albums_of = _links(plays, pt, favorites)
     by_artist = _artist_votes(plays, tags, albums, albums_of)
@@ -363,13 +362,16 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
         if row is not None and pd.notna(row.get("artist_id")):
             a = int(row["artist_id"])
         if a in decided:
-            d = decide(own.get(al, []) + [(decided[a]["genre"], "artist_model", 1.0)])
+            # the decision itself, whatever its genre's name says to meaning() ("rap francais": a region,
+            # "pop": a main genre), unless the album knows better: a precise genre, or another main genre
+            d = decide(own.get(al, []))
+            dec = decided[a]
+            if d is None or (d["level"] != GENRE and d["main"] == dec["main"]):
+                d = {**dec, "words": [dec["genre"]], "sources": list(dec["sources"])}
         else:
             d = decide(own.get(al, []) + [(w, src, s * .5) for w, src, s in by_artist.get(a, [])]) if a is not None else decide(own.get(al, []))
         if d is None:
             continue
-        if "artist_model" in d["sources"]:
-            d["sources"] = sorted((set(d["sources"]) - {"artist_model"}) | set(decided[a]["sources"]))
         x, y, si = _spot(d, al)
         cover = (row.get("cover_medium") if row is not None else None) or ""
         m = COVER.match(cover) if isinstance(cover, str) else None
