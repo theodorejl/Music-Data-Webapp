@@ -91,13 +91,3 @@ def test_soundmap_matches_tags_and_finds_a_frontier():
     near = soundmap.frontier(home, "familiar", 8)
     assert near and all(g.name not in {"deep house", "dub techno"} for g, _, _ in near)
     assert all(not soundmap._regions(g.name) for g, _, _ in near)  # no regional variants
-
-
-def test_map_regions_are_nested_named_and_stable():
-    h = soundmap.hierarchy()
-    big, small = h["levels"]
-    assert len(big["names"]) == 14 and len(small["names"]) == 110
-    assert len(big["of"]) == len(soundmap.genres()) and set(big["of"]) == set(range(14))
-    assert all(" & " in n for n in big["names"]) and len(set(big["names"])) == 14  # "House & rap"-style family names
-    assert soundmap.hierarchy.__wrapped__()["levels"][0]["names"] == big["names"]  # same seed, same regions
-    assert soundmap.display("r&b") == "R&B" and soundmap.display("deep house") == "Deep house"

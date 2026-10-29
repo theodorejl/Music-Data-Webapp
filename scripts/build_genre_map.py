@@ -6,8 +6,11 @@ blends further acoustic traits. Genres are listed by popularity (item1 = the mos
 
     python -m scripts.build_genre_map            # downloads the page
     python -m scripts.build_genre_map page.html  # or reads a saved copy
+    python -m scripts.build_genre_map --tree     # only rebuilds the atlas from genre_map.json
 
 The JSON keeps, for each genre: name, colour, x and y in 0..1, popularity rank, label size.
+Then app/assets/genre_tree.json is rebuilt: every genre classified under a main genre and a
+sub-genre, and laid out as an atlas (see core/genretree.py).
 """
 
 from __future__ import annotations
@@ -37,7 +40,19 @@ def parse(page: str) -> list[list]:
             for rank, color, top, left, size, name in sorted(raw)]
 
 
+def build_tree() -> None:
+    from core import genretree
+
+    tree = genretree.build()
+    genretree.ASSET.write_text(json.dumps(tree, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(f"{len(tree['main'])} main genres, {len(tree['sub'])} sub-genres, {len(tree['genres'])} genres written to "
+          f"{genretree.ASSET}")
+
+
 def main(argv: list[str]) -> int:
+    if argv[1:] == ["--tree"]:
+        build_tree()
+        return 0
     page = Path(argv[1]).read_text(encoding="utf-8") if len(argv) > 1 else \
         requests.get(URL, timeout=90, headers={"User-Agent": "Mozilla/5.0"}).text
     genres = parse(page)
@@ -49,6 +64,7 @@ def main(argv: list[str]) -> int:
         "genres": genres,
     }, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
     print(f"{len(genres)} genres written to {OUT}")
+    build_tree()
     return 0
 
 

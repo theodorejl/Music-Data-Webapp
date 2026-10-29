@@ -421,22 +421,31 @@ Chaque mode garde ses résultats (dossier `data/recommendations/`) jusqu'à ce q
 
 ### La carte du son
 
-La carte place les **6 291 genres d'Every Noise at Once** selon leur son. En haut : le plus mécanique et électrique. En bas : le plus organique. À gauche : le dense et atmosphérique. À droite : le nerveux et rebondissant. Elle se lit comme une carte du ciel, à la manière de [Global Research Space](https://globalresearchspace.com/space) :
+La carte est un **atlas de tous les genres**, en trois niveaux qui se dévoilent à mesure que tu zoomes :
 
-- **La nébuleuse** montre où les genres se concentrent : violet sombre là où il y en a peu, puis orange, puis blanc là où ils sont nombreux et populaires. Ton écoute la fait briller un peu plus.
-- **Les régions** sont dessinées par un fin réseau de frontières.
-  - Vue entière : **14 grandes familles**, nommées d'après leurs genres les plus populaires (« Pop & House », « Rap & Hip hop », « Soul & Jazz »…).
-  - À partir de ×2 environ : **110 familles plus petites**.
-  - Vers ×4 : **chaque sous-genre** a son nom. Plus tu zoomes, plus il en apparaît, sans que les noms se chevauchent.
-  - Clique sur le nom d'une famille pour y entrer.
-- **Chaque sous-genre est un nuage de points colorés**, plus dense quand le genre est populaire.
-  - Chaque famille a sa couleur, et chaque petite famille sa nuance.
-  - Les nuages apparaissent à mesure que tu zoomes, et la nébuleuse s'efface.
-- **Ton écoute** (points blancs) et **les découvertes** (points de la couleur du mode) sont des nuages autour de leur sous-genre. À partir de ×5, ils deviennent des **pochettes d'album**. En mode Sous-genres, des flèches partent de tes sous-genres vers ceux qui ont été explorés.
-- **Navigation** : les **pastilles** au-dessus de la carte t'emmènent vers chaque sous-genre exploré. La recherche vole jusqu'à n'importe quel genre, ◎ recentre sur tes découvertes, et ⟲ montre la carte entière.
-- Clique sur une pochette de découverte pour écouter **30 s**.
+1. **22 genres principaux** : électronique, pop, indie, rock, metal, punk, hip-hop, R&B, jazz, blues, country, folk, latino, Brésil, reggae, Afrique, musiques du monde, classique, films et jeux, gospel, expérimental, autres sons.
+2. **162 sous-genres** : house, techno, trance, drum & bass, ambient, trap, drill, rap francophone, shoegaze, post-punk, bossa nova…
+3. **les 6 291 genres d'Every Noise at Once** (deep house, dub techno, rap marseille…).
 
-Les familles sont calculées à partir des positions (regroupement k-means, toujours le même) dans `core/soundmap.py`. Les positions des genres viennent d'[Every Noise at Once](https://everynoise.com) (Glenn McDonald). Elles sont rangées dans `app/assets/genre_map.json`, reconstruit par `python -m scripts.build_genre_map`.
+Chaque genre est rangé d'après son nom : le dernier mot décide (« pop punk » est du punk, « dance pop » de la pop), certains mots décident partout (cumbia, sertanejo, worship…), et un lieu devant le mot fait une scène régionale (« swedish pop »). Un genre inventé par Every Noise, comme « escape room », prend le sous-genre de ses voisins par le son.
+
+Chaque genre principal occupe un seul territoire, découpé en quartiers pour ses sous-genres. Les territoires restent placés comme sur Every Noise : le plus mécanique et électrique en haut, le plus organique en bas.
+
+- **Chaque point est un artiste de ta discothèque** : il a au moins une écoute, un titre dans tes playlists ou un album favori. Il prend la couleur de son genre principal ; un anneau blanc signale ceux que tu as écoutés.
+  - Survole un point pour voir son nom, son genre et ce qu'il représente pour toi.
+  - Clique pour **ouvrir sa page Deezer**.
+  - De près, chaque point devient sa photo.
+- **La nébuleuse** montre où vit ta musique. Elle brille là où tes artistes sont nombreux, écoutés ou très présents dans ta bibliothèque.
+- **Les anneaux bleus** (ou de la couleur du mode) montrent **où zoomer pour voir tes découvertes**, avec leur nombre. Clique sur un anneau pour y aller.
+- **Les découvertes** sont posées sur leur sous-genre. De près, elles deviennent leurs pochettes : clique pour écouter **30 s**.
+- **Pour te déplacer** : les **pastilles** volent vers chaque sous-genre exploré, la **recherche** trouve un genre ou un artiste, ◎ montre tes découvertes et ⟲ la carte entière.
+
+**Comment chaque artiste est placé**, du plus précis au moins précis :
+1. par les tags MusicBrainz de l'artiste, sur son genre exact ;
+2. par les genres Deezer de ses albums, étalé sur un sous-genre (« Techno/House ») ou sur un genre principal (« Electro ») ;
+3. sinon, par le genre principal des artistes qui partagent ses playlists.
+
+À chaque synchro, l'app lit le genre Deezer d'un album par artiste de ta bibliothèque, en commençant par les artistes les plus présents. L'atlas est rangé dans `app/assets/genre_tree.json` (code : `core/genretree.py`). Il se reconstruit avec `python -m scripts.build_genre_map --tree`.
 
 **Le tableau** dessous liste chaque découverte avec son sous-genre. Il permet d'écouter, de trier, de filtrer et d'exporter en Excel.
 
@@ -569,7 +578,9 @@ core/
   sync.py            relevé → dédoublonnage → stockage → enrichissement
   stats.py           toutes les statistiques (fonctions pures sur des DataFrames)
   recommend.py       les trois modes de découverte (API publique Deezer), audace, estimation
-  soundmap.py        la carte du son : genres Every Noise, territoire, frontière
+  soundmap.py        les genres Every Noise : correspondance des tags, territoire, frontière
+  genretree.py       l'atlas des genres : genres principaux, sous-genres, placement
+  atlas.py           tes artistes sur l'atlas
   instamusic.py      Depuis Insta : posts (API officielle), titres dans le texte, son (AudD), mémoire
 scripts/             sync, dev_server, cloud_db, build_genre_map, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest

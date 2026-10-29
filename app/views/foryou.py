@@ -14,8 +14,8 @@ import pandas as pd
 import streamlit as st
 
 from app.components import data, interactive, studio, theme, ui
-from app.i18n import fmt_int, t
-from core import recommend, soundmap
+from app.i18n import fmt_int, get_lang, t
+from core import atlas, recommend, soundmap
 
 MODES = recommend.ENGINES
 f = data.get_filters()
@@ -181,36 +181,37 @@ theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subg
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def _placed(n_plays: int) -> dict[int, tuple[float, float]]:
-    """Where each of your artists sits on the map (its main sub-genre), 0..1."""
-    placed = soundmap.artist_genres(everything, data.raw_data().tags)
-    return {aid: (gs[0][0].x / soundmap.WIDTH, gs[0][0].y / soundmap.HEIGHT) for aid, gs in placed.items() if gs}
+def _atlas(n_plays: int, n_library: int) -> tuple[dict, int]:
+    """Every artist of your music on the atlas of genres (see core/atlas.py)."""
+    raw, lib = data.raw_data(), data.library()
+    points, missing = atlas.place(raw.artists, everything, raw.tags, raw.albums, lib.playlist_tracks, lib.favorites)
+    return atlas.columns(points), missing
 
 
-where = _placed(len(everything))
-listened = (base.dropna(subset=["artist_id"]).groupby("track_id")
-            .agg(title=("track_title", "first"), artist=("artist_name", "first"), artist_id=("artist_id", "first"),
-                 img=("cover", "first"), minutes=("minutes", "sum"))
-            .sort_values("minutes", ascending=False).head(1200))
-mine = [{"title": r.title, "artist": r.artist, "img": r.img if isinstance(r.img, str) else "",
-         "x": where[int(r.artist_id)][0], "y": where[int(r.artist_id)][1]}
-        for r in listened.itertuples(index=False) if int(r.artist_id) in where]
-points = [{"title": r.title, "artist": r.artist_name, "img": r.cover, "track_id": int(r.track_id), "reason": r.reason,
-           "subgenre": r.subgenre, "x": r.anchor_x / soundmap.WIDTH, "y": r.anchor_y / soundmap.HEIGHT}
-          for r in recs.itertuples(index=False) if pd.notna(r.anchor_x) and pd.notna(r.anchor_y)]
+lib_size = len(data.library().playlist_tracks)
+artists, missing = _atlas(len(everything), lib_size)
+points = []
+for r in recs.itertuples(index=False):
+    spot = atlas.anchor(r.subgenre if isinstance(r.subgenre, str) else None, r.anchor_x, r.anchor_y)
+    if spot:
+        points.append({"title": r.title, "artist": r.artist_name, "img": r.cover, "track_id": int(r.track_id),
+                       "reason": r.reason, "subgenre": r.subgenre if isinstance(r.subgenre, str) else "",
+                       "x": spot[0], "y": spot[1]})
 paths = sorted({(r.reason.split(" → ")[0], r.subgenre) for r in recs.itertuples(index=False)
                 if mode == "subgenres" and r.frontier and " → " in str(r.reason)})
 with theme.panel("night", "reco-map"):
     theme.head(t("reco.map_title_mode", mode=mode_name), meta_line)
     interactive.sound_map(
-        mine, points, paths,
-        {"density": t("reco.map_density"), "clouds": t("reco.map_clouds"), "mine": t("reco.map_mine"), "found": t("reco.map_found", mode=mode_name),
-         "search": t("reco.map_search"), "fit": t("reco.map_fit"), "whole": t("reco.map_whole"), "hint": t("reco.map_hint"),
-         "play": t("reco.play"), "pause": t("reco.pause"), "no_preview": t("reco.no_preview"),
-         "because": t(f"reco.because_{mode}"), "yours": t("reco.map_yours"), "in": t("reco.map_in"),
-         "count": t("reco.map_count")},
-        studio.MODE_COLORS[mode][0], height=800)
-    st.caption(t("reco.map_credit"))
+        artists, points, paths,
+        {"density": t("reco.map_density"), "artists": t("reco.map_artists"), "found": t("reco.map_found", mode=mode_name),
+         "zones": t("reco.map_zones"), "search": t("reco.map_search"), "fit": t("reco.map_fit"), "whole": t("reco.map_whole"),
+         "hint": t("reco.map_hint"), "play": t("reco.play"), "pause": t("reco.pause"), "no_preview": t("reco.no_preview"),
+         "because": t(f"reco.because_{mode}"), "count": t("reco.map_count"), "plays": t("reco.map_plays"),
+         "minutes": t("reco.map_minutes"), "lists": t("reco.map_lists"), "favs": t("reco.map_favs"), "open": t("reco.map_open"),
+         "lv0": t("reco.map_lv0"), "lv1": t("reco.map_lv1"), "lv2": t("reco.map_lv2"), "zone": t("reco.map_zone"),
+         "zoom_in": t("reco.map_zoom_in"), "genre": t("common.genre"), "artist": t("common.artist")},
+        studio.MODE_COLORS[mode][0], get_lang(), height=820)
+    st.caption(t("reco.map_credit", n=fmt_int(len(artists["id"])), missing=fmt_int(missing)))
 
 # --- the table ----------------------------------------------------------------------------------------
 theme.section(t("reco.table_section"), t("reco.table_note"))

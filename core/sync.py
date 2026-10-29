@@ -11,7 +11,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import and_, select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -19,7 +19,7 @@ from core.config import get_settings, redact
 from core.db import init_db, insert_ignore
 from core.deezer_gw import HistorySource, PlayRecord
 from core.deezer_public import DeezerPublicClient, artist_picture_url, cover_url
-from core.models import Album, Artist, FavoriteAlbum, Play, SyncRun, Tag, Track, TrackArtist, utcnow
+from core.models import Album, Artist, FavoriteAlbum, Play, PlaylistTrack, SyncRun, Tag, Track, TrackArtist, utcnow
 from core.musicbrainz import MusicBrainzClient, extract_tags, pick_release_group
 
 log = logging.getLogger(__name__)
@@ -222,17 +222,7 @@ def enrich_public(session: Session, client: DeezerPublicClient, deadline: float)
             Album.fetched_at.is_(None), Album.id.in_(played_albums) | Album.id.in_(favorite_albums)).limit(500)).all():
         if time.monotonic() > deadline:
             return done
-        data = client.album(album.id)
-        if data:
-            album.title = data.get("title") or album.title
-            album.release_date = data.get("release_date")
-            album.label = data.get("label")
-            album.record_type = data.get("record_type")
-            album.artist_id = (data.get("artist") or {}).get("id") or album.artist_id
-            for size in ("small", "medium", "big", "xl"):
-                setattr(album, f"cover_{size}", data.get(f"cover_{size}") or getattr(album, f"cover_{size}"))
-            album.deezer_genres = [g["name"] for g in (data.get("genres") or {}).get("data", [])]
-        album.fetched_at = now()
+        _fill_album(album, client.album(album.id))
         session.commit()
         done += 1
 
@@ -248,6 +238,57 @@ def enrich_public(session: Session, client: DeezerPublicClient, deadline: float)
         artist.fetched_at = now()
         session.commit()
         done += 1
+    return done
+
+
+def _fill_album(album: Album, data: dict | None) -> None:
+    if data:
+        album.title = data.get("title") or album.title
+        album.release_date = data.get("release_date")
+        album.label = data.get("label")
+        album.record_type = data.get("record_type")
+        album.artist_id = (data.get("artist") or {}).get("id") or album.artist_id
+        for size in ("small", "medium", "big", "xl"):
+            setattr(album, f"cover_{size}", data.get(f"cover_{size}") or getattr(album, f"cover_{size}"))
+        album.deezer_genres = [g["name"] for g in (data.get("genres") or {}).get("data", [])]
+    album.fetched_at = utcnow()
+
+
+def enrich_library_genres(session: Session, client: DeezerPublicClient, deadline: float) -> int:
+    """The Deezer genres of one album per artist of the library (playlists and favourite albums)
+    whose genre is still unknown: the album with most of its tracks in the playlists, the most
+    present artists first. That is what places each artist on the map of sound."""
+    pairs = session.execute(select(Track.artist_id, Track.album_id, func.count())
+                            .join(PlaylistTrack, PlaylistTrack.track_id == Track.id)
+                            .where(Track.artist_id.is_not(None), Track.album_id.is_not(None))
+                            .group_by(Track.artist_id, Track.album_id)).all()
+    albums = {a: (fetched, genres) for a, fetched, genres in
+              session.execute(select(Album.id, Album.fetched_at, Album.deezer_genres)).all()}
+    tagged = {a for (a,) in session.execute(select(Tag.entity_id).where(Tag.entity_type == "artist").distinct())}
+    best: dict[int, tuple[int, int]] = {}
+    total: dict[int, int] = {}
+    known: set[int] = set(tagged)
+    for artist, album, n in pairs:
+        total[artist] = total.get(artist, 0) + n
+        fetched, genres = albums.get(album, (None, None))
+        if genres:
+            known.add(artist)
+        elif fetched is None and n > best.get(artist, (0, 0))[1]:
+            best[artist] = (album, n)
+    done = 0
+    for artist in sorted(best, key=lambda a: -total[a]):
+        if artist in known:
+            continue
+        if time.monotonic() > deadline:
+            break
+        album = session.get(Album, best[artist][0])
+        if album is None:
+            continue
+        _fill_album(album, client.album(album.id))
+        done += 1
+        if done % 25 == 0:
+            session.commit()
+    session.commit()
     return done
 
 
@@ -300,6 +341,7 @@ def run_enrichment(engine: Engine, budget_seconds: float = 120,
     for name, fn, client_factory, given in (
         ("public", enrich_public, DeezerPublicClient, public),
         ("musicbrainz", enrich_musicbrainz, MusicBrainzClient, mb),
+        ("library genres", enrich_library_genres, DeezerPublicClient, public),
     ):
         try:
             with Session_() as session:

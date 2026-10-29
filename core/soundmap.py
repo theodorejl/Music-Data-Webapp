@@ -38,10 +38,16 @@ SYNONYMS = {
     "alternative": "alternative rock", "hiphop": "hip hop", "rnb": "r&b", "electropop": "electropop", "chillout": "chillout",
     "chill out": "chillout", "chill": "chillwave", "nu-disco": "nu disco", "drum & bass": "drum and bass", "dnb": "drum and bass",
     "synthpop": "synthpop", "singer-songwriter": "singer-songwriter", "soundtrack": "soundtrack", "trip-hop": "trip hop",
+    # Deezer's sub-genres (album genres)
+    "film scores": "soundtrack", "soundtracks": "soundtrack", "international pop": "dance pop",
+    "chill out/trip-hop/lounge": "chillout", "indie rock/rock pop": "indie rock", "singer & songwriter": "singer-songwriter",
+    "indie pop/folk": "indie folk", "musicals": "show tunes", "bollywood": "filmi", "electro pop/electro rock": "electropop",
+    "contemporary soul": "neo soul", "rock & roll/rockabilly": "rockabilly", "instrumental jazz": "contemporary jazz",
+    "dancehall/ragga": "dancehall", "electro hip hop": "electro", "dancefloor": "edm", "sports": "stadium anthems",
 }
 # Deezer's broad genres, anchored on the map where that family is centred.
 DEEZER = {
-    "pop": "pop", "rap/hip hop": "hip hop", "rock": "rock", "dance": "dance pop", "r&b": "r&b", "alternative": "alternative rock",
+    "pop": "pop", "rap/hip hop": "hip hop", "rock": "rock", "dance": "edm", "r&b": "r&b", "alternative": "alternative rock",
     "electro": "electronica", "folk": "folk", "reggae": "reggae", "jazz": "jazz", "classical": "classical",
     "films/games": "soundtrack", "metal": "metal", "soul & funk": "soul", "african music": "afropop", "asian music": "k-pop",
     "blues": "blues", "brazilian music": "mpb", "indian music": "filmi", "kids": "children's music", "latin music": "latin pop",
@@ -300,92 +306,3 @@ def place(genres_of: list[tuple[Genre, float]] | None) -> tuple[float, float] | 
 
 
 # --- regions of the map ------------------------------------------------------------------------------
-
-ASPECT = 1.6  # the map is drawn 1.6 times wider than tall; regions are cut in that same space
-
-
-SPECIAL_CASE = {"r&b": "R&B", "edm": "EDM", "idm": "IDM", "k-pop": "K-pop", "j-pop": "J-pop", "uk": "UK", "dnb": "DnB",
-                "mpb": "MPB", "lo-fi": "Lo-fi", "hip hop": "Hip hop", "drum and bass": "Drum and bass"}
-
-
-def display(name: str) -> str:
-    """A genre or region name as a title ("deep house" -> "Deep house", "r&b" -> "R&B")."""
-    if name in SPECIAL_CASE:
-        return SPECIAL_CASE[name]
-    return " ".join(SPECIAL_CASE.get(w, w) for w in name.split()).capitalize() if name else name
-
-
-HEAD_IGNORED = {"era", "music", "standards", "group", "recitation", "classics", "covers", "instrumental", "kids", "show"}
-
-
-def _head(name: str) -> str | None:
-    for tail in ("hip hop", "drum and bass", "r&b", "singer-songwriter"):
-        if name.endswith(tail):
-            return tail
-    words = [w for w in _words(name) if not _is_region(w)]
-    return words[-1] if words else None
-
-
-def _name_regions(of, k: int, rank, two_heads: bool) -> list[str]:
-    """Large regions: their two leading genre families ("House & techno"); small regions: their
-    most popular genre that is not a regional variant."""
-    gs = genres()
-    names, used = [], set()
-    for j in range(k):
-        members = [i for i in range(len(gs)) if of[i] == j]
-        members.sort(key=lambda i: rank[i])
-        plain = [i for i in members if not _regions(gs[i].name)] or members
-        if not two_heads:
-            names.append(display(gs[plain[0]].name) if plain else "")
-            continue
-        heads: dict[str, float] = defaultdict(float)
-        for i in plain:
-            h = _head(gs[i].name)
-            if h and h not in IGNORED and h not in HEAD_IGNORED:
-                heads[h] += 1 / math.sqrt(rank[i])
-        top = [h for h, _ in sorted(heads.items(), key=lambda kv: -kv[1])]
-        label = None
-        for a in range(len(top)):
-            for b in range(a + 1, min(len(top), a + 4)):
-                pair = (top[a], top[b])
-                if pair not in used:
-                    label = pair
-                    break
-            if label:
-                break
-        label = label or ((top[0],) if top else (gs[plain[0]].name,))
-        used.add(label)
-        names.append(" & ".join(display(h) for h in label))
-    return names
-
-
-@lru_cache(maxsize=4)
-def hierarchy(levels: tuple[int, ...] = (14, 110)) -> dict:
-    """Group the genres into nested regions by where they sit on the map (k-means, fixed seed):
-    a few large families, then smaller ones, each named after its most popular genre.
-    Returns {"levels": [{"names": [...], "cx": [...], "cy": [...], "of": [region of each genre]}, ...]}."""
-    import numpy as np
-
-    gs = genres()
-    pts = np.array([[g.x / WIDTH * ASPECT, g.y / HEIGHT] for g in gs])
-    rank = np.array([g.rank for g in gs])
-    out = []
-    rng = np.random.default_rng(7)
-    for k in levels:
-        # k-means++ start, then Lloyd iterations
-        centres = [pts[int(np.argmin(rank))]]
-        for _ in range(1, k):
-            d = np.min(((pts[:, None, :] - np.array(centres)[None, :, :]) ** 2).sum(-1), axis=1)
-            centres.append(pts[rng.choice(len(pts), p=d / d.sum())])
-        c = np.array(centres)
-        for _ in range(40):
-            of = np.argmin(((pts[:, None, :] - c[None, :, :]) ** 2).sum(-1), axis=1)
-            new = np.array([pts[of == j].mean(axis=0) if (of == j).any() else c[j] for j in range(k)])
-            if np.allclose(new, c):
-                break
-            c = new
-        of = np.argmin(((pts[:, None, :] - c[None, :, :]) ** 2).sum(-1), axis=1)
-        names = _name_regions(of, k, rank, two_heads=k <= 30)
-        out.append({"names": names, "cx": (c[:, 0] / ASPECT).round(5).tolist(), "cy": c[:, 1].round(5).tolist(),
-                    "of": of.astype(int).tolist()})
-    return {"levels": out}
