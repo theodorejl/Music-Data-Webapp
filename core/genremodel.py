@@ -306,18 +306,21 @@ def _expand(rows: np.ndarray, indptr: np.ndarray) -> tuple[np.ndarray, np.ndarra
 
 
 def _genres(eg: list[dict[int, float]], n_lib: int, sub: np.ndarray, to, frm, w) -> dict[int, int]:
-    """Library artist -> its genre in its sub: own genre masses plus w x the neighbours' own genre masses;
-    ties go to the more popular genre."""
-    genre_sub = _shape()[1]
+    """Library artist -> its genre in its sub: the strongest of its own genres there; without any, the
+    strongest there among its neighbours' own genres, weighted by w."""
     cnt = np.array([len(g) for g in eg], dtype=np.int64)
     indptr = np.r_[0, np.cumsum(cnt)]
     gk = np.fromiter((k for g in eg for k in g), np.int64, int(indptr[-1]))
     gv = np.fromiter((v for g in eg for v in g.values()), float, int(indptr[-1]))
     own_at, own_e = _expand(np.arange(n_lib), indptr)
     edge_at, edge_e = _expand(frm, indptr)
-    who = np.r_[own_at, to[edge_at]]
-    g = np.r_[gk[own_e], gk[edge_e]]
-    v = np.r_[gv[own_e], gv[edge_e] * w[edge_at]]
+    own = _best(own_at, gk[own_e], gv[own_e], sub)
+    return {**_best(to[edge_at], gk[edge_e], gv[edge_e] * w[edge_at], sub), **own}
+
+
+def _best(who: np.ndarray, g: np.ndarray, v: np.ndarray, sub: np.ndarray) -> dict[int, int]:
+    """Artist -> the genre of its sub with the largest total mass; ties go to the more popular genre."""
+    genre_sub = _shape()[1]
     ok = (genre_sub[g] == sub[who]) & (v > 0)
     who, g, v = who[ok], g[ok], v[ok]
     if not len(who):

@@ -128,3 +128,15 @@ def test_the_graph_is_symmetric_and_keeps_the_30_most_shared_playlist_neighbours
     assert abs(w[(1, 3)] - 0.2) < 1e-9 and (1, 4) not in w
     assert (10, 100) in w and (10, 11) not in w                                       # beyond both hubs' 30 best
     assert set(external) == {5} and set(external[5].genre) == {"metal"}             # homonym and unknown: skipped
+
+
+def test_an_own_precise_genre_beats_the_neighbours_and_without_one_the_neighbours_decide():
+    tech = {"everynoise": genremodel.everynoise_evidence([("tech house", 0)])}
+    ev = {9: genremodel.word_evidence([("deep house", "mb_genre", 1.0)]),   # a precise genre of the house sub
+          8: genremodel.word_evidence([("House", "deezer", 1.0)])}         # Deezer only says the sub
+    assert ev[8]["deezer"].genre == {} and set(ev[8]["deezer"].sub) == {HOUSE}
+    ev.update({j: tech for j in range(1, 6)})
+    edges = [(a, j, 1.0) for a in (8, 9) for j in range(1, 6)]
+    got = _classify([9, 8, 1, 2, 3, 4, 5], ev, edges)
+    assert got[9].sub == got[8].sub == HOUSE
+    assert got[9].genre == "deep house" and got[8].genre == "tech house"
