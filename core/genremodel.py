@@ -448,7 +448,8 @@ def inputs(engine) -> dict:
         spotify_of: dict[int, list[str]] = {}
         for a, sid in zip(tags["entity_id"], tags["tag"]):
             spotify_of.setdefault(int(a), []).append(str(sid))
-        names = {int(a): n for a, n in zip(raw.artists["id"], raw.artists["name"]) if int(a) in set(ids) and isinstance(n, str)}
+        in_library = set(ids)
+        names = {int(a): n for a, n in zip(raw.artists["id"], raw.artists["name"]) if int(a) in in_library and isinstance(n, str)}
         # what a name shared by several Every Noise artists must fit: the artist's own genres, else its neighbours'
         context: dict[int, np.ndarray] = {a: sum(_unit(e.main) for e in row.values()) for a, row in ev.items()}
         for a, rid in zip(related["artist_id"], related["related_id"]):

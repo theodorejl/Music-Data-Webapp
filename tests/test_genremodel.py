@@ -172,6 +172,23 @@ def test_run_writes_one_decision_per_artist_and_replaces_them(engine):
         assert s.get(ArtistGenre, 1).genre == "nu disco" and s.get(ArtistGenre, 2).genre == "deep house"
 
 
+def test_run_finds_library_artists_in_every_noise_by_their_name(engine, monkeypatch):
+    from sqlalchemy.orm import Session
+
+    from core import everynoise
+    from core.models import Artist, ArtistGenre, PlaylistTrack, Track
+    idx = Index(build_index({"nu disco": [("a" * 22, "Parcels", 1)], "deep house": [("b" * 22, "Not In Library", 1)]}))
+    monkeypatch.setattr(everynoise, "load", lambda *a, **k: idx)
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="Parcels"), Artist(id=2, name="Not In Library")])  # 2: no track, no playlist
+        s.add(Track(id=10, title="t", artist_id=1))
+        s.add(PlaylistTrack(playlist_id=1, position=0, track_id=10))
+        s.commit()
+    assert genremodel.run(engine)["artists"] == 1
+    with Session(engine) as s:
+        assert s.get(ArtistGenre, 1).genre == "nu disco" and s.get(ArtistGenre, 2) is None
+
+
 def test_a_database_without_any_evidence_breaks_nothing(engine):
     """A first sync knows no genre yet: no weights, no decisions, no failure."""
     from sqlalchemy.orm import Session
