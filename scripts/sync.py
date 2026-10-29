@@ -29,6 +29,15 @@ from core.sync import run_enrichment, run_sync
 log = logging.getLogger("sync")
 
 
+def fail(title: str, message: str) -> int:
+    """Log the error and, on GitHub Actions, also show it as an annotation (it then appears in the
+    failure e-mail and on the run page, not only deep in the log)."""
+    log.error("%s: %s", title, message)
+    if os.environ.get("GITHUB_ACTIONS"):
+        print(f"::error title={title}::{message}", flush=True)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="DatAtlaSonore sync")
     parser.add_argument("--no-enrich", action="store_true", help="skip metadata/genre enrichment")
@@ -44,9 +53,8 @@ def main(argv: list[str] | None = None) -> int:
     if (os.environ.get("GITHUB_ACTIONS") and settings.database_url.startswith("sqlite")
             and os.environ.get("DEEZER_STATS_STORAGE") != "git"):
         # The runner's disk is wiped after each run: writing to SQLite there would lose everything.
-        log.error("No storage configured: set DEEZER_STATS_STORAGE=git (database kept in the repo) "
-                  "or a DATABASE_URL secret. Refusing to write to a throwaway SQLite file.")
-        return 1
+        return fail("No storage configured", "set DEEZER_STATS_STORAGE=git (database kept in the repo) "
+                    "or a DATABASE_URL secret. Refusing to write to a throwaway SQLite file.")
     engine = init_db(get_engine(settings.database_url))
     log.info("Database: %s", engine.url.render_as_string(hide_password=True))
 
@@ -59,14 +67,11 @@ def main(argv: list[str] | None = None) -> int:
         client = DeezerGatewayClient()
         result = run_sync(engine, DeezerHistorySource(client), enrich=False)
     except DeezerAuthError as exc:
-        log.error("DEEZER COOKIE PROBLEM: %s", redact(exc))
-        return 1
+        return fail("DEEZER COOKIE PROBLEM", redact(exc))
     except DeezerAPIError as exc:
-        log.error("Deezer internal API error: %s (raw response saved in logs/)", redact(exc))
-        return 1
+        return fail("Deezer internal API error", f"{redact(exc)} (raw response saved in logs/)")
     except Exception as exc:
-        log.error("Sync failed: %s: %s", type(exc).__name__, redact(exc))
-        return 1
+        return fail("Sync failed", f"{type(exc).__name__}: {redact(exc)}")
 
     if not args.no_library:
         refresh_library(engine, client, force=args.library)
