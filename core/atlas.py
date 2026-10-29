@@ -24,6 +24,7 @@ its Deezer albums, the words that placed it and the sources they came from.
 
 from __future__ import annotations
 
+import json
 import math
 import re
 from collections import Counter, defaultdict
@@ -40,9 +41,11 @@ GENRE, SUB, MAIN = 0, 1, 2  # how precise a placement is
 # Deezer's first-level genres ("Electro", "Pop"…); the others ("Techno/House", "Indie Rock"…) are sub-genres.
 DEEZER_TOP = set(soundmap.DEEZER) - {"techno/house"}
 WEIGHT = {"mb_genre": 3.0, "wikidata": 2.5, "discogs": 2.5, "lastfm": 2.2, "mb_tag": 1.0, "album": .8,
-          "discogs_genre": .7, "deezer": 1.2, "deezer_top": .5}
+          "discogs_genre": .7, "deezer": 1.2, "deezer_top": .5, "artist_model": 2.0}
 SOURCE_NAME = {"mb_genre": "MusicBrainz", "mb_tag": "MusicBrainz", "album": "MusicBrainz", "wikidata": "Wikidata",
-               "discogs": "Discogs", "discogs_genre": "Discogs", "lastfm": "Last.fm", "deezer": "Deezer", "deezer_top": "Deezer"}
+               "discogs": "Discogs", "discogs_genre": "Discogs", "lastfm": "Last.fm", "deezer": "Deezer", "deezer_top": "Deezer",
+               "artist_model": "artist_model"}  # an album's vote for its artist's decided genre: replaced by its sources
+SPIRAL, GOLDEN = .0022, math.radians(137.508)  # artists on one genre wind around it, >= .0036 apart (y units)
 # Genres of the map that name a whole main genre, not one of its sub-genres.
 MAIN_WORDS = {"pop", "rock", "electronica", "electro", "edm", "dance pop", "hip hop", "rap", "jazz", "classical", "metal",
               "punk", "folk", "country", "r&b", "soul", "funk", "blues", "reggae", "indie", "alternative rock",
@@ -137,11 +140,13 @@ def decide(votes: list[tuple[str, str, float]]) -> dict | None:
 
 
 def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None, albums: pd.DataFrame,
-          playlist_tracks: pd.DataFrame, favorites: pd.DataFrame) -> tuple[list[dict], int]:
+          playlist_tracks: pd.DataFrame, favorites: pd.DataFrame,
+          decisions: pd.DataFrame | None = None) -> tuple[list[dict], int]:
     """(points, how many artists could not be placed). A point: id, n (name), p (picture id or
     url), x, y (0..1), m (main genre), s (sub-genre or -1), g (precise genre or ""), lv (precision),
     pl (plays), mn (minutes), lt (tracks in playlists), fa (favourite albums), w (weight),
-    lb (label), tg (the words that placed it), sr (their sources)."""
+    lb (label), tg (the words that placed it), sr (their sources). The genre decided by the model
+    (`decisions`, table artist_genre) comes first; an artist it has not decided yet is placed by its votes."""
     from core.artistinfo import labels_of
 
     by_artist = plays.dropna(subset=["artist_id"]).groupby("artist_id").agg(pl=("play_id", "count"), mn=("minutes", "sum"))
@@ -169,6 +174,8 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
             for a, m in zip(guess["artist_id"].astype(int), guess["main"].astype(int)):
                 placed[a] = {"main": m, "sub": None, "genre": None, "level": MAIN, "words": [], "sources": ["playlists"]}
 
+    placed.update(_stored(decisions, set(ids)))
+
     label = labels_of(albums, links) if not albums.empty and "label" in albums else {}
     if tags is not None and not tags.empty:
         lab = tags[tags["entity_type"] == "artist_label"]
@@ -194,6 +201,7 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
                     "pl": pl, "mn": round(mn), "lt": lt, "fa": fa,
                     "w": round(1.2 * math.log1p(mn) + .45 * math.log1p(lt) + .8 * fa + .25, 3),
                     "lb": str(label.get(a) or ""), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"])})
+    _spiral(out)
     return out, missing
 
 
@@ -274,6 +282,54 @@ def _spot(d: dict, key: int) -> tuple[float, float, int]:
     return round(px, 5), round(py, 5), si
 
 
+def _stored(decisions: pd.DataFrame | None, keep: set) -> dict[int, dict]:
+    """The model's decisions (table artist_genre) for these artists, as placements on a precise genre."""
+    if decisions is None or decisions.empty:
+        return {}
+    where = genretree.position()
+    out = {}
+    for a, m, s, g, words, sources in decisions[["artist_id", "main", "sub", "genre", "words", "sources"]].itertuples(index=False):
+        if int(a) in keep and g in where:
+            out[int(a)] = {"main": int(m), "sub": int(s), "genre": g, "level": GENRE,
+                           "words": _listed(words), "sources": _listed(sources)}
+    return out
+
+
+def _listed(value) -> list:
+    if isinstance(value, str):
+        value = json.loads(value)
+    return list(value) if isinstance(value, (list, tuple)) else []
+
+
+def _spiral(points: list[dict]) -> None:
+    """Points on a precise genre wind around it like the seeds of a sunflower, the heaviest in the middle.
+    A spiral that sticks out of its sub-genre moves as a whole towards the middle of it; one larger than
+    the sub-genre brings its outer turns back inside."""
+    subs, where = genretree.tree()["sub"], genretree.position()
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for p in points:
+        if p.get("lv") == GENRE and p.get("g") in where:
+            groups[p["g"]].append(p)
+    for genre, ps in groups.items():
+        gx, gy, si = where[genre]
+        ps.sort(key=lambda p: (-p.get("w", 0), p["id"]))
+        off = [(SPIRAL * math.sqrt(i + 1.5) * math.cos(i * GOLDEN) / genretree.ASPECT,
+                SPIRAL * math.sqrt(i + 1.5) * math.sin(i * GOLDEN)) for i in range(len(ps))]
+        poly, mx, my = subs[si]["poly"], subs[si]["x"], subs[si]["y"]
+        cx, cy = gx, gy
+        for _ in range(20):
+            if all(_inside(cx + dx, cy + dy, poly) for dx, dy in off):
+                break
+            cx, cy = cx + (mx - cx) * .15, cy + (my - cy) * .15
+        for p, (dx, dy) in zip(ps, off):
+            px, py = cx + dx, cy + dy
+            for _ in range(14):
+                if _inside(px, py, poly):
+                    break
+                px, py = mx + (px - mx) * .7, my + (py - my) * .7
+            p["x"], p["y"] = round(px, 5), round(py, 5)
+
+
 def _inside(x: float, y: float, poly: list) -> bool:
     hit = False
     for (x1, y1), (x2, y2) in zip(poly, poly[1:] + poly[:1]):
@@ -283,11 +339,12 @@ def _inside(x: float, y: float, poly: list) -> bool:
 
 
 def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None, albums: pd.DataFrame,
-                 playlist_tracks: pd.DataFrame, favorites: pd.DataFrame) -> list[dict]:
+                 playlist_tracks: pd.DataFrame, favorites: pd.DataFrame, decisions: pd.DataFrame | None = None) -> list[dict]:
     """Your favourite and listened albums on the atlas, placed by what the album says first
     (Deezer genres, MusicBrainz tags), then by what its artist's votes say (counted half). A
     point: id, n (title), a (artist), ai (artist id), p (cover id or url), x, y, m, s, g, lv,
-    lb (label), fa (1 if favourite)."""
+    lb (label), fa (1 if favourite). When the model decided the artist's genre, that decision is the
+    artist's vote."""
     pt = playlist_tracks.dropna(subset=["artist_id"])
     _, albums_of = _links(plays, pt, favorites)
     by_artist = _artist_votes(plays, tags, albums, albums_of)
@@ -298,15 +355,21 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
     artist_of = {int(al): int(a) for al, a in plays.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values}
     artist_of.update({int(al): int(a) for al, a in favorites.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values})
     names = artists.set_index("id")["name"].to_dict() if not artists.empty else {}
+    decided = _stored(decisions, set(artist_of.values()) | set(info["artist_id"].dropna().astype(int)) if not info.empty else set(artist_of.values()))
     out = []
     for al in sorted(played | favs):
         row = info.loc[al] if al in info.index else None
         a = artist_of.get(al)
         if row is not None and pd.notna(row.get("artist_id")):
             a = int(row["artist_id"])
-        d = decide(own.get(al, []) + [(w, src, s * .5) for w, src, s in by_artist.get(a, [])]) if a is not None else decide(own.get(al, []))
+        if a in decided:
+            d = decide(own.get(al, []) + [(decided[a]["genre"], "artist_model", 1.0)])
+        else:
+            d = decide(own.get(al, []) + [(w, src, s * .5) for w, src, s in by_artist.get(a, [])]) if a is not None else decide(own.get(al, []))
         if d is None:
             continue
+        if "artist_model" in d["sources"]:
+            d["sources"] = sorted((set(d["sources"]) - {"artist_model"}) | set(decided[a]["sources"]))
         x, y, si = _spot(d, al)
         cover = (row.get("cover_medium") if row is not None else None) or ""
         m = COVER.match(cover) if isinstance(cover, str) else None
@@ -316,6 +379,7 @@ def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame 
                     "p": m.group(1) if m else (cover or ""), "x": x, "y": y, "m": d["main"], "s": si,
                     "g": d["genre"] or "", "lv": d["level"], "lb": str(label) if isinstance(label, str) else "",
                     "fa": int(al in favs), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"])})
+    _spiral(out)
     return out
 
 

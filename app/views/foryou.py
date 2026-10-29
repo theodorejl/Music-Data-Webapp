@@ -181,16 +181,17 @@ theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subg
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def _atlas(n_plays: int, n_library: int, n_tags: int) -> tuple[dict, int]:
+def _atlas(n_plays: int, n_library: int, n_tags: int, n_decided: int) -> tuple[dict, int]:
     """Every artist of your music on the atlas of genres (see core/atlas.py); computed again
     whenever plays, library or genre information grow."""
     raw, lib = data.raw_data(), data.library()
-    points, missing = atlas.place(raw.artists, everything, raw.tags, raw.albums, lib.playlist_tracks, lib.favorites)
+    points, missing = atlas.place(raw.artists, everything, raw.tags, raw.albums, lib.playlist_tracks, lib.favorites,
+                                  decisions=raw.artist_genre)
     return atlas.columns(points), missing
 
 
 lib_size = len(data.library().playlist_tracks)
-artists, missing = _atlas(len(everything), lib_size, len(data.raw_data().tags))
+artists, missing = _atlas(len(everything), lib_size, len(data.raw_data().tags), len(data.raw_data().artist_genre))
 points = []
 for r in recs.itertuples(index=False):
     spot = atlas.anchor(r.subgenre if isinstance(r.subgenre, str) else None, r.anchor_x, r.anchor_y)

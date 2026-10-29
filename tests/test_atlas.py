@@ -211,3 +211,47 @@ def test_every_point_stays_inside_its_territory():
         si = key % len(t["sub"])
         x, y, _ = atlas._spot({"level": atlas.SUB, "main": t["sub"][si]["main"], "sub": si, "genre": None}, key)
         assert _inside(x, y, t["sub"][si]["poly"]), (t["sub"][si]["key"], key)
+
+
+# --- Placed from the stored decisions (core/genremodel.py) -------------------------------------------
+
+def _decision(artist, genre):
+    sub = genretree.position()[genre][2]
+    return pd.DataFrame({"artist_id": [artist], "main": [genretree.tree()["sub"][sub]["main"]], "sub": [sub],
+                         "genre": [genre], "confidence": ["sure"], "words": [[genre]], "sources": [["Every Noise"]]})
+
+
+def test_place_uses_the_stored_decision():
+    points, _ = atlas.place(*frames(), decisions=_decision(4, "nu disco"))
+    p = next(p for p in points if p["n"] == "Neighbour")       # only a playlist guess before
+    sub = genretree.position()["nu disco"][2]
+    assert p["g"] == "nu disco" and p["lv"] == atlas.GENRE and p["s"] == sub
+    assert p["sr"] == "Every Noise" and _inside(p["x"], p["y"], genretree.tree()["sub"][sub]["poly"])
+
+
+def test_an_artist_without_a_decision_still_appears():
+    points, missing = atlas.place(*frames(), decisions=_decision(4, "nu disco"))
+    by = {p["n"]: p for p in points}
+    assert by["Tagged"]["g"] == "dub techno" and by["Deezer Broad"]["lv"] == atlas.MAIN and missing == 1
+    assert atlas.place(*frames(), decisions=None) == atlas.place(*frames(), decisions=pd.DataFrame())
+
+
+def test_the_spiral_keeps_artists_apart_and_inside():
+    x, y, sub = genretree.position()["deep house"]
+    pts = [{"id": i, "g": "deep house", "s": sub, "lv": atlas.GENRE, "w": 300 - i, "x": x, "y": y} for i in range(200)]
+    atlas._spiral(pts)
+    xy = np.array([[p["x"] * genretree.ASPECT, p["y"]] for p in pts])
+    d = np.hypot(*(xy[:, None, :] - xy[None, :, :]).transpose(2, 0, 1))
+    assert d[np.triu_indices(len(pts), 1)].min() >= 0.0034
+    assert all(_inside(p["x"], p["y"], genretree.tree()["sub"][sub]["poly"]) for p in pts)
+    centre = np.array([x * genretree.ASPECT, y])
+    assert int(np.argmin(np.hypot(*(xy - centre).T))) == 0   # the most listened, closest to its genre
+
+
+def test_an_album_without_its_own_genres_follows_its_artist():
+    artists, plays, tags, albums, pt, fav = frames()
+    albums = pd.concat([albums, pd.DataFrame({"id": [500], "artist_id": [1], "deezer_genres": [None]})], ignore_index=True)
+    plays = pd.concat([plays, pd.DataFrame({"play_id": [12], "artist_id": [1], "album_id": [500], "minutes": [2.0], "genre": [None]})])
+    points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav, decisions=_decision(1, "nu disco"))}
+    assert points[500]["g"] == "nu disco" and points[500]["s"] == genretree.position()["nu disco"][2]
+    assert points[500]["sr"] == "Every Noise"

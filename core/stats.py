@@ -7,13 +7,13 @@ cached by the app.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import pandas as pd
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 
-from core.models import Alias, Album, Artist, Play, SyncRun, Tag, Track, play_key
+from core.models import Alias, Album, Artist, ArtistGenre, Play, SyncRun, Tag, Track, play_key
 
 DIMENSIONS = ("artist", "album", "track", "genre")
 
@@ -27,6 +27,7 @@ class RawData:
     albums: pd.DataFrame
     tags: pd.DataFrame
     aliases: pd.DataFrame
+    artist_genre: pd.DataFrame = field(default_factory=pd.DataFrame)  # the model's decisions (core/genremodel.py)
 
 
 def _read(engine: Engine, stmt) -> pd.DataFrame:
@@ -47,7 +48,12 @@ def load_raw(engine: Engine) -> RawData:
     ))
     tags = _read(engine, select(Tag.entity_type, Tag.entity_id, Tag.tag, Tag.count, Tag.source))
     aliases = _read(engine, select(Alias.id, Alias.kind, Alias.source_key, Alias.target, Alias.created_at))
-    return RawData(plays, artists, albums, tags, aliases)
+    try:  # a database published before the genre model has no such table
+        decided = _read(engine, select(ArtistGenre.artist_id, ArtistGenre.main, ArtistGenre.sub, ArtistGenre.genre,
+                                       ArtistGenre.confidence, ArtistGenre.words, ArtistGenre.sources))
+    except Exception:
+        decided = pd.DataFrame()
+    return RawData(plays, artists, albums, tags, aliases, decided)
 
 
 def load_sync_runs(engine: Engine, limit: int = 200) -> pd.DataFrame:

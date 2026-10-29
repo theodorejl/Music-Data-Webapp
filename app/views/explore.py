@@ -25,11 +25,13 @@ theme.hero("lilac", t("rail.explore"), lead, f.label, controls=data.period_contr
            art=viz.fingerprint_svg(df, "", "", size=520, framed=False))
 
 @st.cache_data(ttl=600, show_spinner=False)
-def _atlas_points(kind: str, n_plays: int, n_library: int, n_tags: int) -> list[dict]:
+def _atlas_points(kind: str, n_plays: int, n_library: int, n_tags: int, n_decided: int) -> list[dict]:
     """Every favourite or listened album (or every artist of your music) on the atlas of genres."""
     raw, lib = data.raw_data(), data.library()
     args = (raw.artists, data.all_plays(), raw.tags, raw.albums, lib.playlist_tracks, lib.favorites)
-    return atlas.place_albums(*args) if kind == "album" else atlas.place(*args)[0]
+    if kind == "album":
+        return atlas.place_albums(*args, decisions=raw.artist_genre)
+    return atlas.place(*args, decisions=raw.artist_genre)[0]
 
 
 with theme.panel("lilac", "atlas"):
@@ -40,7 +42,8 @@ with theme.panel("lilac", "atlas"):
     with head:
         theme.head(t("explore.atlas_title"), sc.label, t("explore.atlas_help"))
     albums = sc.dim == "album"
-    points = _atlas_points(sc.dim, len(data.all_plays()), len(data.library().playlist_tracks), len(data.raw_data().tags))
+    points = _atlas_points(sc.dim, len(data.all_plays()), len(data.library().playlist_tracks), len(data.raw_data().tags),
+                       len(data.raw_data().artist_genre))
     key = "album_id" if albums else "artist_id"
     played = sc.df.dropna(subset=[key])
     minutes = {int(k): float(v) for k, v in played.groupby(key)["minutes"].sum().items()}
