@@ -200,7 +200,7 @@ for r in recs.itertuples(index=False):
                        "x": spot[0], "y": spot[1]})
 paths = sorted({(r.reason.split(" → ")[0], r.subgenre) for r in recs.itertuples(index=False)
                 if mode == "subgenres" and r.frontier and " → " in str(r.reason)})
-with theme.panel("night", "reco-map"):
+with theme.panel("ocean", "reco-map"):
     theme.head(t("reco.map_title_mode", mode=mode_name), meta_line)
     interactive.sound_map(
         artists, points, paths,

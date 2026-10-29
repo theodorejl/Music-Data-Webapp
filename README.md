@@ -38,10 +38,11 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
 5. [Passer en ligne : la synchro sur GitHub](#5-passer-en-ligne--la-synchro-sur-github-même-ordinateur-éteint)
 6. [Publier l'app sur Streamlit Community Cloud](#6-publier-lapp-sur-streamlit-community-cloud)
 7. [En cas de problème](#7-en-cas-de-problème)
-8. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
-9. [Depuis Insta : la playlist d'un compte Instagram](#depuis-insta--la-playlist-dun-compte-instagram)
-10. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
-11. [Limites connues](#limites-connues)
+8. [L'apparence](#lapparence)
+9. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
+10. [Depuis Insta : la playlist d'un compte Instagram](#depuis-insta--la-playlist-dun-compte-instagram)
+11. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
+12. [Limites connues](#limites-connues)
 
 Les commandes sont à taper dans un **terminal** :
 - **macOS** : app « Terminal » (Cmd + Espace, puis tape « Terminal »).
@@ -369,6 +370,15 @@ L'app utilise une API **non officielle** : Deezer peut la modifier sans préveni
 
 ---
 
+## L'apparence
+
+- **Les couleurs** : chaque page a sa famille de couleurs, par exemple bleu ciel pour l'accueil, corail pour les classements, turquoise pour « Pour toi ». Chaque famille est faite de deux ou trois teintes pastel voisines qui se fondent dans un crème, sous un grain argentique.
+- **Le fond** est vivant. De temps en temps, des souffles invisibles le traversent et déplacent de grandes zones de couleur, chaque fois ailleurs.
+- **Les encadrés** sont remplis du même dégradé, avec un fin liseré blanc. Ils prennent toute la largeur de l'écran.
+- **Les polices** : Rubik 80s Fade pour les titres et les grands chiffres, Fira Code Medium pour le reste.
+- **Les icônes et le logo** sont dessinés au pinceau, en quelques traits (code : `app/components/icons.py`). Le logo est un disque vinyle qui sert de lentille à une loupe.
+- **La barre de lecture** : quand un extrait de 30 s démarre (tableau, carte, fiche d'un morceau), une barre fine apparaît en bas de l'écran. Elle permet de mettre en pause, d'avancer dans l'extrait ou de fermer. La lecture continue quand tu changes de page.
+
 ## Excel, albums & playlists, affiche A3
 
 ### Tes données en Excel, mises à jour automatiquement
@@ -435,7 +445,7 @@ Chaque genre principal occupe un seul territoire, découpé en quartiers pour se
   - Survole un point pour voir son nom, son genre et ce qu'il représente pour toi.
   - Clique pour **ouvrir sa page Deezer**.
   - De près, chaque point devient sa photo.
-- **La nébuleuse** montre où vit ta musique. Elle brille là où tes artistes sont nombreux, écoutés ou très présents dans ta bibliothèque.
+- **L'encre violette** montre où vit ta musique : elle s'accumule là où tes artistes sont nombreux, écoutés ou très présents dans ta bibliothèque. Chaque genre principal a son aplat pastel, et la carte occupe toute la hauteur de l'écran.
 - **Les anneaux bleus** (ou de la couleur du mode) montrent **où zoomer pour voir tes découvertes**, avec leur nombre. Clique sur un anneau pour y aller.
 - **Les découvertes** sont posées sur leur sous-genre. De près, elles deviennent leurs pochettes : clique pour écouter **30 s**.
 - **Pour te déplacer** : les **pastilles** volent vers chaque sous-genre exploré, la **recherche** trouve un genre ou un artiste, ◎ montre tes découvertes et ⟲ la carte entière.
@@ -584,7 +594,7 @@ app/                 application Streamlit (lecture seule, sauf la page admin)
   shell.py           rail de navigation, recherche, actualisation, fond vivant
   devreload.py       rechargement à chaud de tout le projet (aucune relance nécessaire)
   views/             une page par fichier (pas « pages/ » : ce nom active un ancien mode de Streamlit)
-  components/        thème « Noto » (panneaux en dégradé), blocs, graphiques Plotly, visualisations,
+  components/        thème (dégradés granuleux, fond vivant, barre de lecture), icônes au pinceau, blocs, graphiques Plotly, visualisations,
                      interactive.py : roue des genres (D3), carte et cartes de recommandations, extraits
   assets/theme.css   tout le style : familles de couleurs, panneaux, rail, puces
   i18n/              fr.json, en.json + t("clé")

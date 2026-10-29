@@ -20,7 +20,7 @@ from app.i18n import get_lang, plotly_separators, tl
 PALETTE = theme.PALETTE
 OTHER = theme.OTHER
 INK, MUTED, GRID = "#1f1f1f", "rgba(31,31,31,.62)", "rgba(31,31,31,.10)"
-FONT = '"Geist Mono", "JetBrains Mono", ui-monospace, Menlo, monospace'
+FONT = '"Fira Code", "JetBrains Mono", ui-monospace, Menlo, monospace'
 CONFIG = {"displayModeBar": False, "responsive": True}
 
 # multi-hue sequential scales, light to dark (lightness only goes down)

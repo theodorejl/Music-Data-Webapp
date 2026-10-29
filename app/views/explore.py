@@ -22,7 +22,7 @@ lead = t("explore.hero_lead", plays=f"<b>{fmt_int(k['plays'])}</b>", artists=f"<
 theme.hero("lilac", t("rail.explore"), lead, f.label, controls=data.period_control,
            art=viz.fingerprint_svg(df, "", "", size=520, framed=False))
 
-with theme.panel("night", "constellation"):
+with theme.panel("lilac", "constellation"):
     slot = st.container()
     sc = data.scope_bar("ex_const")
     with slot:

@@ -63,10 +63,10 @@ def image_art(url, round_: bool = False) -> str:
 
 
 def preview_player(track_id: int, title: str) -> None:
-    url = data.preview_url(track_id)
-    if url:
-        st.caption(f"▶ {t('detail.preview')} — {title}")
-        st.audio(url, format="audio/mpeg")
+    """A play button: the 30 s preview plays in the player bar at the bottom of the window."""
+    if data.preview_url(track_id):
+        st.html(f"<button class='ds-play' data-ds-play='{int(track_id)}' data-title='{escape(title)}'>"
+                f"<i></i>{escape(t('detail.preview'))} — {escape(title)}</button>")
     else:
         st.caption(t("detail.no_preview"))
 

@@ -19,11 +19,11 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-STRONG = ["#1e9fd8", "#ff6f4d", "#8b6cf0", "#4fae2c", "#e8558e", "#d39a06", "#119f86"]  # validated chart order
+STRONG = ["#1f97d1", "#f25f3a", "#7d5ef0", "#46a226", "#e04a85", "#d39a06", "#0f9a80"]  # validated chart order
 OTHER = "#c4c9d0"
-FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Geist+Mono:wght@300..700'
+FONTS = ('<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400..700&family=Rubik+80s+Fade'
          '&display=swap" rel="stylesheet">')
-BASE_CSS = """html,body{margin:0;background:transparent;font-family:'Geist Mono',ui-monospace,Menlo,monospace;color:#1f1f1f;
+BASE_CSS = """html,body{margin:0;background:transparent;font-family:'Fira Code',ui-monospace,Menlo,monospace;color:#1f1f1f;
 -webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;overflow:hidden}
 .card{position:relative;background:rgba(255,255,255,.5);border-radius:22px;overflow:hidden}
 .lab{font-size:13px;color:#5c6064}
@@ -97,7 +97,7 @@ pos=P.map(p=>{{const a=p[1]*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(p[0]/maxTurn
 function guide(){{ctx.strokeStyle='rgba(23,23,26,.07)';ctx.lineWidth=1;ctx.beginPath();
 const turns=Math.ceil(maxTurn);for(let i=0;i<=turns*120;i++){{const tt=i/120;const a=(tt%1)*Math.PI*2-Math.PI/2;const r=R0+(R1-R0)*(tt/maxTurn);
 const x=cx+Math.cos(a)*r,y=cy+Math.sin(a)*r;i?ctx.lineTo(x,y):ctx.moveTo(x,y)}}ctx.stroke();
-ctx.fillStyle='#5c6064';ctx.font='12px Geist Mono, ui-monospace, monospace';ctx.textAlign='center';ctx.textBaseline='middle';
+ctx.fillStyle='#5c6064';ctx.font='12px Fira Code, ui-monospace, monospace';ctx.textAlign='center';ctx.textBaseline='middle';
 H.forEach((h,i)=>{{const a=i/H.length*Math.PI*2-Math.PI/2;ctx.fillText(h,cx+Math.cos(a)*(R1+24),cy+Math.sin(a)*(R1+24))}})}}
 let shown=still?P.length:0,hover=-1;
 function draw(){{ctx.clearRect(0,0,W,Hh);guide();
@@ -156,8 +156,8 @@ el.onmouseleave=()=>cap.innerHTML=`<span class="lab">{escape(plays_label)}</span
 
 # --- 3. artist constellation (genre territories) ------------------------------------------
 
-GLOW = ["#7fd0f5", "#ff9e85", "#b9a6ff", "#98dd72", "#ff8fbb", "#ffd25e", "#5fdcc2"]  # STRONG, made luminous for the night card
-GLOW_OTHER = "#C9C4D8"
+GLOW = STRONG  # the clouds of artists, on the light atlas
+GLOW_OTHER = "#8f97a8"
 
 
 def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> None:
@@ -171,7 +171,7 @@ def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> N
         return
     genres = df["genre"].dropna().value_counts().head(6).index.tolist()
     base = _palette(genres)
-    gcol = {g: GLOW[STRONG.index(base[g])] if base[g] in STRONG else GLOW_OTHER for g in genres}
+    gcol = {g: base.get(g, GLOW_OTHER) for g in genres}
     d = df.assign(group=df["genre"].where(df["genre"].isin(genres), labels["other"]))
     by_artist = d.groupby("artist_name").agg(plays=("play_id", "count"), picture=("artist_picture", "first"),
                                              group=("group", lambda s: s.mode().iloc[0]))
@@ -186,10 +186,12 @@ def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> N
     A = [[str(r.artist_name), int(r.plays), max(10, int(r.plays * scale)), groups.index(r.group),
           r.picture if isinstance(r.picture, str) else ""] for r in by_artist.itertuples()]
     caption = f"{total} {labels['plays']} · {len(A)} {labels['artists']}"
+    from app.components.interactive import GRAIN
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONTS}<style>{BASE_CSS}
-.night{{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
+.night{{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(165deg,#ece7fb 0%,#f4ece0 100%)}}
+.night::after{{content:"";position:absolute;inset:0;pointer-events:none;background-image:{GRAIN};background-size:220px;opacity:.3;mix-blend-mode:overlay}}
 canvas{{display:block;width:100%;height:{height}px}}
-.cap{{position:absolute;right:22px;top:20px;font-size:12px;color:rgba(255,255,255,.7)}}
+.cap{{position:absolute;right:22px;top:20px;font-size:12px;font-weight:600;color:#3e4554;z-index:2}}
 .tip{{background:#FBFAF8;color:#17171A;display:flex;gap:12px;align-items:center;padding:9px 14px 9px 9px}}.tip small{{color:#8A8780}}
 .tip img{{width:48px;height:48px;border-radius:50%;object-fit:cover}}
 {ZOOM_CSS}</style></head><body>
@@ -217,21 +219,20 @@ P.push({{a:i,ox:Math.cos(t)*rr,oy:Math.sin(t)*rr,ph:Math.random()*6.283,z:Math.r
 G.forEach(g=>{{if(!sprites[g[1]])sprites[g[1]]=sprite(g[1])}})}}
 function draw(time){{const tt=still?0:time/1000,dpr=devicePixelRatio||1,k=view.k;
 ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);
-cells.forEach((cell,i)=>{{if(i===hoverG){{ctx.fillStyle='rgba(255,255,255,.045)';ctx.beginPath();cell.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}}}});
-ctx.globalCompositeOperation='lighter';
+cells.forEach((cell,i)=>{{ctx.fillStyle=G[i][1]+(i===hoverG?'40':'22');ctx.beginPath();cell.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}});
 for(const p of P){{const c=C[p.a];const x=c.x+p.ox+Math.sin(tt*.35+p.ph)*1.6,y=c.y+p.oy+Math.cos(tt*.3+p.ph*1.3)*1.6;
 const col=G[A[p.a][3]][1];ctx.globalAlpha=(hoverA<0||hoverA===p.a)?(hoverG<0||hoverG===A[p.a][3]?.9:.35):.22;
 const sz=p.z?9:6;ctx.drawImage(sprites[col],x-sz/2,y-sz/2,sz,sz)}}
-ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1;
+ctx.globalAlpha=1;
 drawBorders(ctx,cells,W,H,M,k);
 ctx.textAlign='center';ctx.textBaseline='middle';
 cells.forEach((cell,i)=>{{const ce=centroid(cell);let lx=ce[0],ly=ce[1]-Math.min(W,H)*.2;if(!inside(cell,lx,ly))ly=ce[1];
-ctx.font=`600 ${{19/k}}px Geist Mono, monospace`;ctx.fillStyle=i===hoverG?'#FFFFFF':'rgba(255,255,255,.86)';
-ctx.shadowColor='rgba(0,0,0,.6)';ctx.shadowBlur=10;ctx.fillText(G[i][0],lx,ly);ctx.shadowBlur=0;
-ctx.font=`${{11.5/k}}px Geist Mono, monospace`;ctx.fillStyle='rgba(255,255,255,.66)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+20/k)}});
-ctx.textAlign='left';ctx.font=`${{11.5/k}}px Geist Mono, monospace`;const shown=G.map(()=>0),limit=k>2.2?99:k>1.4?5:2;
-C.forEach((c,i)=>{{if(shown[c.g]<limit||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10/k,y=c.y-c.s*.6;ctx.strokeStyle='rgba(255,255,255,.4)';ctx.lineWidth=1/k;
-ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4/k,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#fff':'rgba(255,255,255,.72)';
+ctx.font=`400 ${{26/k}}px "Rubik 80s Fade", "Fira Code", monospace`;ctx.lineJoin='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=6/k;
+ctx.strokeText(G[i][0],lx,ly);ctx.fillStyle='#1c2230';ctx.fillText(G[i][0],lx,ly);
+ctx.font=`600 ${{11.5/k}}px Fira Code, monospace`;ctx.fillStyle='rgba(28,34,48,.7)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+22/k)}});
+ctx.textAlign='left';ctx.font=`${{11.5/k}}px Fira Code, monospace`;const shown=G.map(()=>0),limit=k>2.2?99:k>1.4?5:2;
+C.forEach((c,i)=>{{if(shown[c.g]<limit||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10/k,y=c.y-c.s*.6;ctx.strokeStyle='rgba(28,34,48,.35)';ctx.lineWidth=1/k;
+ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4/k,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#1c2230':'rgba(28,34,48,.72)';
 ctx.fillText(A[i][0]+'  '+A[i][1],x,y)}}}});
 requestAnimationFrame(draw)}}
 {ZOOM_JS}
@@ -287,8 +288,8 @@ def fingerprint_svg(df: pd.DataFrame, title: str, subtitle: str, size: int = 900
             f'<radialGradient id="fpb" cx="85%" cy="85%" r="75%"><stop offset="0" stop-color="#ffcde0"/><stop offset="1" stop-color="#ffcde0" stop-opacity="0"/></radialGradient></defs>'
             f'<rect width="{size}" height="{size}" rx="36" fill="#f6f3ff"/><rect width="{size}" height="{size}" rx="36" fill="url(#fpa)"/>'
             f'<rect width="{size}" height="{size}" rx="36" fill="url(#fpb)"/>'
-            f'<text x="40" y="58" font-family="Geist Mono, ui-monospace, monospace" font-size="34" font-weight="400" letter-spacing="-1" '
+            f'<text x="40" y="58" font-family="Fira Code, ui-monospace, monospace" font-size="34" font-weight="400" letter-spacing="-1" '
             f'fill="#17171A">{escape(title)}</text>'
-            f'<text x="40" y="84" font-family="Geist Mono, ui-monospace, monospace" font-size="14" '
+            f'<text x="40" y="84" font-family="Fira Code, ui-monospace, monospace" font-size="14" '
             f'fill="#5c6064">{escape(subtitle)}</text>'
-            f'<g font-family="Geist Mono, ui-monospace, monospace">{legend}</g>{"".join(paths)}</svg>')
+            f'<g font-family="Fira Code, ui-monospace, monospace">{legend}</g>{"".join(paths)}</svg>')
