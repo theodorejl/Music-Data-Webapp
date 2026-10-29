@@ -400,22 +400,40 @@ Pour forcer un rechargement immédiat de la bibliothèque : `python -m scripts.s
 
 ## Recommandations (page « Pour toi »)
 
-La page **Pour toi** propose des titres que tu n'as **jamais** écoutés. Elle part de tes écoutes (la période choisie dans l'encadré) et utilise l'API publique de Deezer. Le cookie `arl` n'y sert jamais, donc la page marche aussi sur le site en ligne.
+La page **Pour toi** ne propose que de **vraies découvertes**. Aucun artiste déjà présent dans ton historique, tes albums favoris ou tes playlists n'est suggéré : environ 8 000 artistes sont écartés, comparés par identifiant et par nom. Chaque artiste n'apparaît qu'une fois. Tout passe par l'API publique de Deezer, sans le cookie `arl`.
 
-En haut, un encadré présente les **trois modes**. Choisis-en un, règle le **nombre de titres** (de 10 à 200) et lance la génération :
+En haut, l'encadré permet de choisir :
 
-1. **Les voisins** (graphe d'artistes) : pour chacun de tes artistes favoris, Deezer connaît une vingtaine d'artistes qui lui ressemblent. Un voisin monte d'autant plus que tu écoutes beaucoup l'artiste de départ et qu'il en est proche. Pour les gros lots, on fait un pas de plus dans le graphe. On garde un titre phare par nouvel artiste. C'est le mode le plus précis, mais aussi le plus lent : il faut une requête par artiste.
-2. **Tes genres** (profil de goût) : on lit les 300 titres en tête des classements Deezer dans chacun de tes genres, puis on les répartit selon la place de chaque genre dans ton écoute. C'est le mode le plus rapide.
-3. **Ton moment** (contexte) : la radio Deezer des artistes que tu écoutes le plus à ce moment de la journée, en commençant par les artistes que tu ne connais pas.
+- **le mode**, parmi trois :
+  1. **Les voisins** (graphe d'artistes) : les artistes que Deezer juge proches de tes favoris. Un artiste cité par plusieurs des tiens passe en tête, et un plafond par artiste de départ garantit la variété. En audace pointue, on fait un pas de plus dans le graphe.
+  2. **Sous-genres** (carte du son) : tes sous-genres précis (deep house, dub techno, ambient…) et leurs voisins sur la carte d'Every Noise at Once. Les titres viennent des playlists Deezer de chaque sous-genre.
+  3. **Ton moment** (contexte) : la radio Deezer des artistes que tu écoutes le plus à cette heure de la journée.
+- **l'audace** :
+  - **Familier** : titres connus, tout près de chez toi ;
+  - **Équilibré** : un pas à côté ;
+  - **Pointu** : artistes confidentiels et sous-genres plus lointains.
+  
+  Elle règle la popularité visée (le `rank` Deezer des titres, le nombre de fans des artistes) et la distance d'exploration.
+- **le nombre de titres** (10 à 200), avec une estimation du temps. Pendant la génération, une barre de chargement en forme d'onde sonore suit la progression.
 
-Sous le curseur, une **estimation du temps** s'affiche. Elle vient du nombre de requêtes nécessaires, sachant que Deezer en accepte une dizaine par seconde : par exemple ≈ 6 s pour 40 voisins et ≈ 27 s pour 200. Pendant la génération, une barre de chargement en forme d'onde sonore montre l'étape en cours, la part faite, le temps restant et les titres trouvés.
+Chaque mode garde ses résultats (dossier `data/recommendations/`) jusqu'à ce que tu le régénères.
 
-Chaque mode **garde ses derniers résultats**, y compris après un redémarrage (dossier `data/recommendations/`), jusqu'à ce que tu le régénères. Dessous :
+### La carte du son
 
-- **La carte** place chaque titre dans le territoire de son genre, relié à ton artiste d'origine. Tu peux zoomer à la molette ou en pinçant, te déplacer en glissant, et cliquer sur une pochette pour écouter.
-- **Le tableau** permet d'écouter **30 s** depuis chaque ligne, de trier par colonne, de filtrer en tapant quelques lettres et d'exporter en Excel.
+La carte place les **6 291 genres d'Every Noise at Once** selon leur son. En haut : le plus mécanique et électrique. En bas : le plus organique. À gauche : le dense et atmosphérique. À droite : le nerveux et rebondissant.
 
-Le lien de l'extrait est demandé à Deezer au moment du clic, car ces liens expirent au bout d'environ 15 minutes.
+- **Ton territoire** brille en halos colorés, calculés à partir des tags MusicBrainz de tes artistes, sinon de leur genre Deezer, et pondérés par ton écoute.
+- **Tes artistes** sont les disques blancs.
+- **Les découvertes** sont posées sur leur sous-genre. En mode Sous-genres, des flèches partent de tes sous-genres vers ceux qui ont été explorés.
+- **Plus tu zoomes, plus des sous-genres fins apparaissent.**
+- Les **pastilles** au-dessus de la carte t'emmènent directement vers chaque sous-genre exploré. La recherche vole jusqu'à n'importe quel genre, et ◎ recentre sur tes découvertes.
+- Clique sur une pochette pour écouter **30 s**.
+
+Les positions des genres viennent d'[Every Noise at Once](https://everynoise.com) (Glenn McDonald). Elles sont rangées dans `app/assets/genre_map.json`, reconstruit par `python -m scripts.build_genre_map`.
+
+**Le tableau** dessous liste chaque découverte avec son sous-genre. Il permet d'écouter, de trier, de filtrer et d'exporter en Excel.
+
+Les tags MusicBrainz de tes artistes s'enrichissent à chaque synchro. Plus ils sont nombreux, plus ton territoire est précis.
 
 ## Récupérer l'historique plus ancien (export Deezer)
 
@@ -497,8 +515,9 @@ core/
   musicbrainz.py     tags de genres (1 requête par seconde)
   sync.py            relevé → dédoublonnage → stockage → enrichissement
   stats.py           toutes les statistiques (fonctions pures sur des DataFrames)
-  recommend.py       les trois moteurs de recommandation (API publique Deezer)
-scripts/             sync, dev_server, cloud_db, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
+  recommend.py       les trois modes de découverte (API publique Deezer), audace, estimation
+  soundmap.py        la carte du son : genres Every Noise, territoire, frontière
+scripts/             sync, dev_server, cloud_db, build_genre_map, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest
 .github/workflows/   synchro toutes les 30 min
 ```

@@ -1,8 +1,9 @@
-"""For you: a studio to generate discoveries, then their map and their table.
+"""For you: a studio to generate real discoveries, then their map of sound and their table.
 
-The studio explains the three modes and lets you pick one, choose how many tracks to discover
-(10 to 200, with the expected loading time) and generate them. Each mode keeps its last results
-(in the session and on disk) until it is generated again.
+The studio explains the three modes and lets you pick one, set the boldness, choose how many
+tracks to discover (10 to 200, with the expected loading time) and generate them. Each mode keeps
+its last results (in the session and on disk) until it is generated again. Artists already in
+your history or your Deezer library are never suggested.
 """
 
 import threading
@@ -12,9 +13,9 @@ from html import escape
 import pandas as pd
 import streamlit as st
 
-from app.components import charts, data, interactive, studio, theme, ui
+from app.components import data, interactive, studio, theme, ui
 from app.i18n import fmt_int, t
-from core import recommend
+from core import recommend, soundmap
 
 MODES = recommend.ENGINES
 f = data.get_filters()
@@ -23,9 +24,22 @@ everything = data.all_plays()
 tz = data.timezone_name()
 now = pd.Timestamp.now(tz=tz)
 
-mode = st.session_state.setdefault("reco_mode", "neighbours")
+mode = st.session_state.get("reco_mode", "neighbours")
+if mode not in MODES:
+    mode = st.session_state["reco_mode"] = "neighbours"
 base = window if not window.empty else everything
-profile = recommend.build_profile(base, everything, now.hour)
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _library_frame() -> pd.DataFrame:
+    lib = data.library()
+    parts = [lib.favorites[["artist_id", "artist_name"]]] if not lib.favorites.empty else []
+    if not lib.playlist_tracks.empty:
+        parts.append(lib.playlist_tracks[["artist_id", "artist_name", "track_id"]])
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame(columns=["artist_id", "artist_name", "track_id"])
+
+
+profile = recommend.build_profile(base, everything, now.hour, data.raw_data().tags, _library_frame())
 moment_name = t(f"moments.{profile.moment}").lower()
 
 
@@ -40,28 +54,39 @@ def ago(iso: str) -> str:
     return t("reco.ago_d", n=minutes // 1440)
 
 
-def status_of(m: str) -> str:
+def saved_for(m: str) -> dict | None:
     saved = data.saved_recommendations(m)
+    # results made before the map of sound lack their sub-genre: treat them as not generated
+    return saved if saved and "subgenre" in saved["df"].columns else None
+
+
+def status_of(m: str) -> str:
+    saved = saved_for(m)
     if not saved:
         return t("reco.status_none")
     return t("reco.status", n=fmt_int(len(saved["df"])), ago=ago(saved["meta"]["at"]))
 
 
-def generate(m: str, n: int, slot) -> None:
+def map_seed(s: recommend.Seed) -> dict:
+    return {"id": s.artist_id, "name": s.name, "img": s.picture, "subgenre": s.subgenre,
+            "x": s.x / soundmap.WIDTH, "y": s.y / soundmap.HEIGHT, "minutes": s.minutes}
+
+
+def generate(m: str, n: int, boldness: str, slot) -> None:
     """Run a mode in a worker thread and redraw the loading bar until it is done."""
-    calls, seconds = recommend.estimate(m, n, profile)
+    calls, seconds = recommend.estimate(m, n, profile, boldness)
     progress = recommend.Progress(calls, n)
     box: dict = {}
 
     def work():
         try:
-            box["df"] = recommend.run(m, profile, n, progress)
+            box["df"] = recommend.run(m, profile, n, progress, boldness=boldness)
         except Exception as exc:  # shown below instead of crashing the page
             box["error"] = exc
 
     worker = threading.Thread(target=work, daemon=True)
     worker.start()
-    steps = {k: t(f"reco.step_{k}") for k in ("start", "graph", "graph2", "tracks", "catalogue", "charts", "radio")}
+    steps = {k: t(f"reco.step_{k}") for k in ("start", "graph", "graph2", "tracks", "search", "playlists", "radio")}
     labels = {"eta": t("reco.eta"), "eta_wait": t("reco.eta_wait"), "done": t("reco.eta_done"),
               "found": t("reco.found"), "calls": t("reco.calls")}
     while worker.is_alive():
@@ -77,20 +102,22 @@ def generate(m: str, n: int, slot) -> None:
     df = box["df"]
     slot.html(studio.progress_html(m, 1.0, progress.elapsed, 0, t("reco.step_done", n=fmt_int(len(df))), len(df), n,
                                    progress.done, progress.planned, labels, done=True))
+    pool = {s.artist_id: s for s in profile.seeds + profile.moment_seeds if s.x is not None}
     used = {int(a) for a in df["seed_artist_id"].dropna()}
-    seeds = [{"id": s.artist_id, "name": s.name, "genre": s.genre, "minutes": s.minutes, "img": s.picture}
-             for s in {s.artist_id: s for s in profile.seeds + profile.moment_seeds}.values() if s.artist_id in used]
+    seeds = [map_seed(s) for s in list(pool.values())[:24]] + [map_seed(pool[a]) for a in used
+                                                                 if a in pool and a not in [s.artist_id for s in list(pool.values())[:24]]]
     data.save_recommendations(m, df, {"at": now.isoformat(), "n": n, "period": f.label, "moment": profile.moment,
-                                      "seconds": round(progress.elapsed, 1), "seeds": seeds})
+                                      "boldness": boldness, "seconds": round(progress.elapsed, 1), "seeds": seeds,
+                                      "home": profile.home[:40]})
     time.sleep(0.6)
     st.rerun()
 
 
-# --- the studio: three modes, how many tracks, generate ------------------------------------------------
+# --- the studio: three modes, boldness, how many tracks, generate -----------------------------------
 with st.container(key="hero-ocean"):
     st.html(f"<div class='ds-kicker'><i></i>{escape(t('reco.kicker'))}</div>"
             f"<h1 class='ds-hero-title'>{escape(t('rail.foryou'))}</h1>"
-            f"<p class='ds-hero-lead' style='max-width:80ch'>{t('reco.studio_lead', artists=', '.join(f'<b>{escape(s.name)}</b>' for s in profile.seeds[:3]) or '–')}</p>")
+            f"<p class='ds-hero-lead' style='max-width:84ch'>{t('reco.studio_lead', artists=', '.join(f'<b>{escape(s.name)}</b>' for s in profile.seeds[:3]) or '–', known=f'<b>{fmt_int(len(profile.known_artists))}</b>')}</p>")
     cols = st.columns(3, gap="medium")
     for col, m in zip(cols, MODES):
         with col, st.container(key=f"mode-{m}"):
@@ -113,14 +140,19 @@ with st.container(key="hero-ocean"):
         st.html(f"<div class='rs-label'>{escape(t('reco.how_many'))}</div>")
         n = st.slider(t("reco.how_many"), recommend.MIN_TRACKS, recommend.MAX_TRACKS, 40, step=10, key="reco_n",
                       label_visibility="collapsed")
+        st.html(f"<div class='rs-label'>{escape(t('reco.boldness'))}</div>")
+        boldness = st.segmented_control(t("reco.boldness"), list(recommend.BOLDNESS), default="balanced", required=True,
+                                        key="reco_bold", format_func=lambda b: t(f"reco.bold_{b}"),
+                                        label_visibility="collapsed")
+        st.caption(t(f"reco.bold_{boldness}_help"))
         st.html(f"<div class='rs-label'>{escape(t('reco.based_on'))}</div>")
         data.period_control()
-    calls, seconds = recommend.estimate(mode, n, profile)
+    calls, seconds = recommend.estimate(mode, n, profile, boldness)
     with mid:
         st.html(f"<div class='rs-est'><b class='num'>≈ {seconds:.0f} s</b>"
                 f"<span>{escape(t('reco.estimate', n=fmt_int(n), calls=fmt_int(calls)))}</span></div>")
     with right:
-        saved = data.saved_recommendations(mode)
+        saved = saved_for(mode)
         go = st.button(t("reco.regenerate" if saved else "reco.generate", n=fmt_int(n), mode=t(f"reco.engine_{mode}")),
                        key="reco_go", type="primary", width="stretch", icon=":material/auto_awesome:")
         st.caption(t("reco.keep_note"))
@@ -129,9 +161,9 @@ with st.container(key="hero-ocean"):
         if base.empty:
             progress_slot.info(t("reco.empty"))
         else:
-            generate(mode, n, progress_slot)
+            generate(mode, n, boldness, progress_slot)
 
-saved = data.saved_recommendations(mode)
+saved = saved_for(mode)
 mode_name = t(f"reco.engine_{mode}")
 
 if not saved:
@@ -141,41 +173,55 @@ if not saved:
     st.stop()
 
 recs, meta = saved["df"], saved["meta"]
-meta_line = t("reco.meta", n=fmt_int(len(recs)), ago=ago(meta["at"]), period=meta.get("period", "–"))
+meta_line = t("reco.meta", n=fmt_int(len(recs)), ago=ago(meta["at"]), period=meta.get("period", "–"),
+              boldness=t(f"reco.bold_{meta.get('boldness', 'balanced')}").lower())
 
-# --- the map ------------------------------------------------------------------------------------------
-theme.section(t("reco.map_section"), t("reco.map_note_mode", mode=mode_name))
-names = list(dict.fromkeys([g for g, _ in profile.genres] + list(recs["genre"].dropna())))
-names = [g for g in names if (recs["genre"] == g).any() or any(s["genre"] == g for s in meta["seeds"])][:6]
-other = t("common.other")
-genre_colors = charts.category_colors(names)
-needs_other = recs["genre"].isna().any() or (~recs["genre"].isin(names)).any() or any(s["genre"] not in names for s in meta["seeds"])
-genres = [(g, genre_colors[g]) for g in names] + ([(other, "#c4c9d0")] if needs_other else [])
-map_labels = {"you": t("reco.map_you"), "neighbours": t("reco.engine_neighbours"), "genres": t("reco.engine_genres"),
-              "moment": t("reco.engine_moment"), "hint": t("reco.map_hint"), "play": t("reco.play"), "pause": t("reco.pause"),
-              "no_preview": t("reco.no_preview"), "loading": t("reco.loading_short"),
-              "because": {e: t(f"reco.because_{e}") for e in MODES}}
+# --- the map of sound ---------------------------------------------------------------------------------
+theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subgenres' else 'seeds'}", mode=mode_name))
+seeds = meta["seeds"]
+seed_pos = {s["id"]: i for i, s in enumerate(seeds)}
+points = []
+for r in recs.itertuples(index=False):
+    seed = seed_pos.get(int(r.seed_artist_id)) if mode != "subgenres" and pd.notna(r.seed_artist_id) else None
+    if seed is None and (pd.isna(r.anchor_x) or pd.isna(r.anchor_y)):
+        continue
+    points.append({"title": r.title, "artist": r.artist_name, "img": r.cover, "track_id": int(r.track_id),
+                   "reason": r.reason, "subgenre": r.subgenre, "seed": seed if seed is not None else -1,
+                   "x": (r.anchor_x / soundmap.WIDTH) if pd.notna(r.anchor_x) else None,
+                   "y": (r.anchor_y / soundmap.HEIGHT) if pd.notna(r.anchor_y) else None})
+paths = sorted({(r.reason.split(" → ")[0], r.subgenre) for r in recs.itertuples(index=False)
+                if mode == "subgenres" and r.frontier and " → " in str(r.reason)})
 with theme.panel("night", "reco-map"):
     theme.head(t("reco.map_title_mode", mode=mode_name), meta_line)
-    interactive.rec_map(
-        [{**s, "genre": s["genre"] if s["genre"] in names else other} for s in meta["seeds"]],
-        [{"track_id": r.track_id, "title": r.title, "artist": r.artist_name, "engine": r.engine,
-          "genre": r.genre if r.genre in names else other, "seed": r.seed_artist_id, "img": r.cover, "reason": r.reason}
-         for r in recs.itertuples(index=False)],
-        genres, map_labels, height=700 if len(recs) > 80 else 640)
+    interactive.sound_map(
+        [tuple(h) for h in meta.get("home", [])], seeds, points, paths,
+        {"territory": t("reco.map_territory"), "you": t("reco.map_you"), "found": t("reco.map_found", mode=mode_name),
+         "explored": t("reco.map_explored"), "search": t("reco.map_search"), "up": t("reco.axis_up"), "down": t("reco.axis_down"),
+         "left": t("reco.axis_left"), "right": t("reco.axis_right"), "fit": t("reco.map_fit"), "whole": t("reco.map_whole"),
+         "hint": t("reco.map_hint"), "play": t("reco.play"), "pause": t("reco.pause"), "no_preview": t("reco.no_preview"),
+         "territory_share": t("reco.map_share"), "explored_tip": t("reco.map_explored_tip"),
+         "because": t(f"reco.because_{mode}")},
+        studio.MODE_COLORS[mode][0], height=780)
+    st.caption(t("reco.map_credit"))
 
 # --- the table ----------------------------------------------------------------------------------------
 theme.section(t("reco.table_section"), t("reco.table_note"))
+genre_colors = {}
+for name in recs["subgenre"].dropna().unique():
+    g = soundmap.by_name(name)
+    if g:
+        genre_colors[name] = g.color
 with theme.white("reco-table"):
-    interactive.rec_table(recs, {"title": t("common.track"), "artist": t("common.artist"), "album": t("common.album"),
-                                 "why": t("reco.why"), "genre": t("common.genre"), "time": t("reco.length"),
-                                 "search": t("reco.table_search"), "count": t("reco.table_count"),
-                                 "because": t(f"reco.because_{mode}"), "open": "Deezer", "no_preview": t("reco.no_preview"),
-                                 "play": t("reco.play")},
-                          studio.MODE_COLORS[mode][0], {**genre_colors, other: "#c4c9d0"})
+    table = recs.assign(genre=recs["subgenre"].fillna(recs["genre"]))
+    interactive.rec_table(table, {"title": t("common.track"), "artist": t("common.artist"), "album": t("common.album"),
+                                  "why": t("reco.why"), "genre": t("reco.subgenre"), "time": t("reco.length"),
+                                  "search": t("reco.table_search"), "count": t("reco.table_count"),
+                                  "because": t(f"reco.because_{mode}"), "open": "Deezer", "no_preview": t("reco.no_preview"),
+                                  "play": t("reco.play")},
+                          studio.MODE_COLORS[mode][0], genre_colors)
     export = pd.DataFrame({
         "#": range(1, len(recs) + 1), t("common.track"): recs["title"], t("common.artist"): recs["artist_name"],
-        t("common.album"): recs["album_title"], t("reco.why"): recs["reason"], t("common.genre"): recs["genre"],
+        t("common.album"): recs["album_title"], t("reco.subgenre"): table["genre"], t("reco.why"): recs["reason"],
         "Deezer": recs["link"],
     })
     ui.excel_download(export, f"decouvertes_{mode}.xlsx", mode_name, f"{t('rail.foryou')} — {mode_name}", key="reco_xl",

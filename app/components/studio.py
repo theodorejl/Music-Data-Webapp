@@ -14,7 +14,7 @@ from html import escape
 from app.components import theme
 
 # Each mode: its colour (same as on the map) and the second colour of its gradient.
-MODE_COLORS = {"neighbours": ("#ff7a59", "#e8558e"), "genres": ("#38b6ff", "#119f86"), "moment": ("#a98bff", "#e8558e")}
+MODE_COLORS = {"neighbours": ("#ff7a59", "#e8558e"), "subgenres": ("#38b6ff", "#119f86"), "moment": ("#a98bff", "#e8558e")}
 
 
 def _mix(c1: str, c2: str, t: float) -> str:
@@ -35,18 +35,15 @@ def mode_art(mode: str) -> str:
         dots = "".join(f"<circle cx='{x:.0f}' cy='{y:.0f}' r='6' fill='{c}'/>" for x, y in nodes)
         dots += "".join(f"<circle cx='{x:.0f}' cy='{y:.0f}' r='3.5' fill='none' stroke='{c2}' stroke-width='1.6'/>" for x, y in far)
         body = lines + dots + "<circle cx='60' cy='44' r='11' fill='#1f1f1f'/><circle cx='60' cy='44' r='3' fill='#fff'/>"
-    elif mode == "genres":  # stacked shares of your genres, each feeding a chart
-        shares, x, body = [.42, .24, .16, .1, .08], 14, ""
-        for i, sh in enumerate(shares):
-            w = sh * 92
-            col = _mix(c, c2, i / 4)
-            body += f"<rect x='{x:.0f}' y='18' width='{max(4, w - 3):.0f}' height='16' rx='6' fill='{col}'/>"
-            for k in range(3 if i < 2 else 2):
-                h = 34 - k * 9 - i * 3
-                body += (f"<rect x='{x + k * 7:.0f}' y='{78 - h:.0f}' width='5' height='{h:.0f}' rx='2.5' fill='{col}' "
-                         f"opacity='{.95 - k * .25:.2f}'/>")
-            x += w
-        body += "<line x1='12' y1='80' x2='108' y2='80' stroke='#1f1f1f' stroke-opacity='.25' stroke-width='1.5'/>"
+    elif mode == "subgenres":  # a patch of the map: your genres glow, arrows lead to new ones
+        homes = [(34, 56, 15), (52, 40, 11)]
+        body = "".join(f"<circle cx='{x}' cy='{y}' r='{r}' fill='{c}' opacity='.28'/><circle cx='{x}' cy='{y}' r='4' fill='{c}'/>"
+                       for x, y, r in homes)
+        for (x0, y0), (x1, y1) in (((34, 56), (88, 66)), ((52, 40), (92, 22)), ((34, 56), (60, 80))):
+            body += (f"<path d='M{x0} {y0} Q{(x0 + x1) / 2} {min(y0, y1) - 14} {x1} {y1}' fill='none' stroke='{c2}' "
+                     f"stroke-width='1.8' stroke-dasharray='4 3'/><circle cx='{x1}' cy='{y1}' r='5' fill='none' stroke='{c2}' stroke-width='2'/>")
+        for x, y, w in ((8, 20, 26), (70, 8, 30), (14, 82, 22), (96, 48, 18), (64, 52, 16)):
+            body += f"<rect x='{x}' y='{y}' width='{w}' height='3' rx='1.5' fill='#1f1f1f' opacity='.25'/>"
     else:  # a clock: the hand points at the moment, radio waves around
         body = (f"<circle cx='60' cy='46' r='26' fill='none' stroke='{c}' stroke-width='2.5'/>"
                 + "".join(f"<line x1='{60 + 21 * math.sin(a):.1f}' y1='{46 - 21 * math.cos(a):.1f}' x2='{60 + 25 * math.sin(a):.1f}' "

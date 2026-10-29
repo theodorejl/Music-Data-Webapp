@@ -11,7 +11,9 @@ Shared JavaScript:
 from __future__ import annotations
 
 import json
+from functools import lru_cache
 from html import escape
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -34,8 +36,8 @@ ZOOM_HTML = '<div class="zoom"><button id="zin" title="+">+</button><button id="
 
 ZOOM_JS = """
 const view={k:1,x:0,y:0};let drag=null,moved=false,pinch=null;
-function clampView(){view.x=Math.min(0,Math.max(W-W*view.k,view.x));view.y=Math.min(0,Math.max(H-H*view.k,view.y))}
-function zoomAt(mx,my,f){const k=Math.min(8,Math.max(1,view.k*f));view.x=mx-(mx-view.x)*k/view.k;view.y=my-(my-view.y)*k/view.k;view.k=k;clampView()}
+function clampView(){const mx=W*(window.EDGE||0),my=H*(window.EDGE||0);view.x=Math.min(mx,Math.max(W-W*view.k-mx,view.x));view.y=Math.min(my,Math.max(H-H*view.k-my,view.y))}
+function zoomAt(mx,my,f){const k=Math.min(window.KMAX||8,Math.max(1,view.k*f));view.x=mx-(mx-view.x)*k/view.k;view.y=my-(my-view.y)*k/view.k;view.k=k;clampView()}
 function resetView(){view.k=1;view.x=0;view.y=0}
 function toWorld(mx,my){return[(mx-view.x)/view.k,(my-view.y)/view.k]}
 cv.style.cursor='grab';
@@ -361,5 +363,163 @@ function setPlaying(id,s){{document.querySelectorAll('tbody tr').forEach(tr=>{{c
 function noPreview(id){{const tr=document.querySelector(`tr[data-id="${{id}}"]`);if(tr){{tr.classList.add('none');tr.querySelector('.cov').title=L.no_preview}}}}
 audio.addEventListener('timeupdate',()=>{{const i=document.querySelector(`tr[data-id="${{playing}}"] .cov i`);if(i&&audio.duration)i.style.width=(100*audio.currentTime/audio.duration)+'%'}});
 render();
+</script></body></html>"""
+    _frame(html, height)
+
+
+# --- the map of sound ------------------------------------------------------------------------------
+
+@lru_cache(maxsize=1)
+def _genre_table() -> str:
+    """The 6,300 genres of the map as compact JSON for the page: names, colours, x, y, label size."""
+    data = json.loads((Path(__file__).resolve().parents[1] / "assets" / "genre_map.json").read_text(encoding="utf-8"))
+    g = data["genres"]
+    return js_data({"n": [r[0] for r in g], "c": [r[1] for r in g], "x": [r[2] for r in g], "y": [r[3] for r in g],
+                    "s": [r[5] for r in g]})
+
+
+def sound_map(home: list[tuple[str, float]], seeds: list[dict], recs: list[dict], paths: list[tuple[str, str]],
+              labels: dict, color: str, height: int = 760) -> None:
+    """Every genre of Every Noise at Once on one zoomable map: more sub-genres appear as you zoom
+    in. Your territory glows; your artists (white discs) and the discoveries (covers ringed in
+    the mode's colour) sit at their sub-genre; for sub-genres, arrows go from your genres to the
+    ones explored. Search flies to any genre; click a cover to hear it.
+    home: (genre, weight); seeds: {name, img, x, y, minutes} with x, y in 0..1;
+    recs: {title, artist, img, track_id, reason, x, y, seed (index or -1), subgenre};
+    paths: (from genre, to genre)."""
+    hint = escape(labels["hint"])
+    legend = (f"<span><b class='halo'></b>{escape(labels['territory'])}</span>"
+              f"<span><i class='me'></i>{escape(labels['you'])}</span>"
+              f"<span><i style='border-color:{color}'></i>{escape(labels['found'])}</span>"
+              + (f"<span><i class='dash' style='border-color:{color}'></i>{escape(labels['explored'])}</span>" if paths else ""))
+    html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
+html,body{{margin:0;background:transparent;font-family:{FONT};-webkit-font-smoothing:antialiased;overflow:hidden}}
+.night{{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#1d1a33 0%,#100e1c 62%,#0a0912 100%)}}
+.top{{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 16px 6px;font-size:12px;color:rgba(255,255,255,.82)}}
+.top span{{display:flex;align-items:center;gap:7px}}
+.top i{{width:12px;height:12px;border-radius:50%;border:2.5px solid;display:inline-block}} .top i.me{{border-color:#fff;background:#fff}}
+.top i.dash{{border-style:dashed}}
+.top b.halo{{width:16px;height:16px;border-radius:50%;background:radial-gradient(circle,rgba(255,214,107,.9),rgba(255,214,107,0) 70%)}}
+.top input{{margin-left:auto;font:500 12px {FONT};padding:7px 14px;border-radius:999px;border:1.5px solid rgba(255,255,255,.28);
+ background:rgba(255,255,255,.08);color:#fff;outline:none;width:240px}} .top input::placeholder{{color:rgba(255,255,255,.5)}}
+canvas{{display:block;width:100%;height:{height - 92}px}}
+.chips{{display:flex;gap:6px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none}} .chips::-webkit-scrollbar{{display:none}}
+.chips button{{flex:none;font:500 11.5px {FONT};color:#fff;background:rgba(255,255,255,.07);border:1.5px solid rgba(255,255,255,.22);
+ border-radius:999px;padding:5px 11px;cursor:pointer;white-space:nowrap}} .chips button b{{color:{color};margin-left:6px;font-weight:600}}
+.chips button:hover,.chips button.on{{background:rgba(255,255,255,.18);border-color:{color}}}
+.tip{{position:absolute;pointer-events:none;display:flex;gap:12px;align-items:center;background:#fbfaf8;color:#17171a;padding:10px 14px 10px 10px;
+ border-radius:16px;font-size:12px;line-height:1.45;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;max-width:340px;z-index:7}}
+.tip.on{{opacity:1;transform:none}}.tip img{{width:56px;height:56px;border-radius:10px;object-fit:cover}}.tip b{{display:block;font-size:13px}}
+.tip small{{display:block;color:#6b6f73}}.tip em{{display:block;font-style:normal;font-weight:600;margin-top:2px}}
+.axis{{position:absolute;font-size:10.5px;color:rgba(255,255,255,.38);pointer-events:none;letter-spacing:.02em}}
+{ZOOM_CSS}</style></head><body>
+<div class="night"><div class="top">{legend}<input id="find" list="gl" placeholder="{escape(labels['search'])}"><datalist id="gl"></datalist></div>
+<div class="chips" id="chips"></div><canvas id="c"></canvas><div class="tip" id="tip"></div>
+<div class="axis" style="left:50%;top:104px;transform:translateX(-50%)">↑ {escape(labels['up'])}</div>
+<div class="axis" style="left:50%;bottom:10px;transform:translateX(-50%)">↓ {escape(labels['down'])}</div>
+<div class="axis" style="left:14px;top:50%">← {escape(labels['left'])}</div>
+<div class="axis" style="right:14px;top:50%;text-align:right">{escape(labels['right'])} →</div>
+<div class="zoom"><button id="zfit" title="{escape(labels['fit'])}">◎</button><button id="zin">+</button><button id="zout">−</button><button id="zreset" title="{escape(labels['whole'])}">⟲</button></div>
+<div class="hint" style="bottom:30px">{hint}</div></div>
+<script>
+window.KMAX=60;window.EDGE=.08;
+const GM={_genre_table()},HOME={js_data([[n, w] for n, w in home])},S={js_data(seeds)},R={js_data(recs)},P={js_data(paths)};
+const MC={js_data(color)},L={js_data({k: labels[k] for k in ("play", "pause", "no_preview", "territory_share", "explored_tip", "because")})};
+{ESC_JS}
+const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');let W=0,H=0,dirty=true;
+const idx={{}};GM.n.forEach((n,i)=>idx[n]=i);
+const homeW={{}};HOME.forEach(([n,w])=>{{if(idx[n]!==undefined)homeW[idx[n]]=w}});
+const explored=new Set(),pathIdx=P.map(([a,b])=>[idx[a],idx[b]]).filter(([a,b])=>a!==undefined&&b!==undefined);pathIdx.forEach(([a,b])=>explored.add(b));
+R.forEach(r=>{{if(r.subgenre&&idx[r.subgenre]!==undefined)explored.add(idx[r.subgenre])}});
+document.getElementById('gl').innerHTML=GM.n.slice(0,6300).map(n=>'<option value="'+esc(n)+'">').join('');
+const imgs={{}};function img(u){{if(!u)return null;if(!imgs[u]){{const i=new Image();i.onload=()=>dirty=true;i.src=u;imgs[u]=i}}return imgs[u]}}
+const mix=(c,t)=>{{const n=parseInt(c.slice(1),16);const r=n>>16,g=(n>>8)&255,b=n&255;return `rgb(${{Math.round(r+(255-r)*t)}},${{Math.round(g+(255-g)*t)}},${{Math.round(b+(255-b)*t)}})`}};
+const rgba=(c,a)=>{{const n=parseInt(c.slice(1),16);return `rgba(${{n>>16}},${{(n>>8)&255}},${{n&255}},${{a}})`}};
+function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;dirty=true}}
+const sx=x=>x*W*view.k+view.x, sy=y=>y*H*view.k+view.y;
+let nodes=[],labelsDrawn=[],hover=null,fly=null,pulse=null,state={{}};
+function disc(x,y,r,src,ring,w){{const im=img(src);ctx.save();ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.closePath();
+ if(im&&im.complete&&im.naturalWidth){{ctx.clip();ctx.drawImage(im,x-r,y-r,r*2,r*2)}}else{{ctx.fillStyle='#3a3550';ctx.fill()}}ctx.restore();
+ ctx.beginPath();ctx.arc(x,y,r+w/2,0,6.283);ctx.strokeStyle=ring;ctx.lineWidth=w;ctx.stroke()}}
+function draw(t){{const dpr=devicePixelRatio||1,k=view.k;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+ // your territory: soft halos in each genre's colour
+ ctx.globalCompositeOperation='lighter';
+ for(const [i,w] of Object.entries(homeW)){{const x=sx(GM.x[i]),y=sy(GM.y[i]);if(x<-300||y<-300||x>W+300||y>H+300)continue;
+  const r=(26+170*Math.sqrt(w))*Math.pow(k,.35);const g=ctx.createRadialGradient(x,y,0,x,y,r);g.addColorStop(0,rgba(GM.c[i],.55));g.addColorStop(1,rgba(GM.c[i],0));
+  ctx.fillStyle=g;ctx.beginPath();ctx.arc(x,y,r,0,6.283);ctx.fill()}}
+ ctx.globalCompositeOperation='source-over';
+ // paths from your genres to the sub-genres explored
+ pathIdx.forEach(([a,b])=>{{const x1=sx(GM.x[a]),y1=sy(GM.y[a]),x2=sx(GM.x[b]),y2=sy(GM.y[b]);const mx=(x1+x2)/2+(y2-y1)*.18,my=(y1+y2)/2-(x2-x1)*.18;
+  ctx.strokeStyle=rgba(MC,.55);ctx.lineWidth=1.4;ctx.setLineDash([5,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();ctx.setLineDash([]);
+  const ang=Math.atan2(y2-my,x2-mx);ctx.fillStyle=rgba(MC,.8);ctx.beginPath();ctx.moveTo(x2-Math.cos(ang)*12,y2-Math.sin(ang)*12);
+  ctx.lineTo(x2-Math.cos(ang)*20-Math.sin(ang)*5,y2-Math.sin(ang)*20+Math.cos(ang)*5);ctx.lineTo(x2-Math.cos(ang)*20+Math.sin(ang)*5,y2-Math.sin(ang)*20-Math.cos(ang)*5);ctx.fill()}});
+ // genre labels: the most popular first, more as you zoom in, never overlapping
+ const limit=110*Math.pow(k,1.55),cell=10,grid=new Set();labelsDrawn=[];
+ const place=(i,force)=>{{const x=sx(GM.x[i]),y=sy(GM.y[i]);if(x<-50||y<-20||x>W+50||y>H+20)return;
+  const special=homeW[i]!==undefined||explored.has(i)||pulse===i;const fs=(9.5+(GM.s[i]-100)/60*6)*(special?1.12:1);
+  const w=GM.n[i].length*fs*.6,x0=x-w/2,y0=y-fs/2;const cells=[];
+  for(let cx=Math.floor(x0/cell);cx<=Math.floor((x0+w)/cell);cx++)for(let cy=Math.floor(y0/cell);cy<=Math.floor((y0+fs)/cell);cy++)cells.push(cx+','+cy);
+  if(!force&&cells.some(c=>grid.has(c)))return;cells.forEach(c=>grid.add(c));
+  ctx.font=`${{special?600:450}} ${{fs}}px Geist Mono, monospace`;ctx.textAlign='center';ctx.textBaseline='middle';
+  ctx.fillStyle=pulse===i?'#fff':homeW[i]!==undefined?mix(GM.c[i],.55):explored.has(i)?MC:rgba(GM.c[i].length?GM.c[i]:'#888888',.35+.5*Math.max(0,1-i/(limit*1.2)));
+  if(special){{ctx.shadowColor='rgba(0,0,0,.8)';ctx.shadowBlur=6}}ctx.fillText(GM.n[i],x,y);ctx.shadowBlur=0;
+  if(explored.has(i)){{ctx.strokeStyle=MC;ctx.setLineDash([3,3]);ctx.lineWidth=1.3;ctx.beginPath();ctx.arc(x,y+fs,4,0,6.283);ctx.stroke();ctx.setLineDash([])}}
+  labelsDrawn.push([i,x0,y0,w,fs])}};
+ if(pulse!==null)place(pulse,true);
+ Object.keys(homeW).forEach(i=>place(+i,false));explored.forEach(i=>place(i,false));
+ for(let i=0;i<GM.n.length&&i<limit;i++)place(i,false);
+ // your artists and the discoveries around them (or around their sub-genre)
+ nodes=[];const rr=8+Math.min(k,5)*1.2,groups={{}};
+ S.forEach((s,i)=>{{const x=sx(s.x),y=sy(s.y);nodes.push({{kind:'s',i,x,y,r:rr+4}})}});
+ R.forEach((r,i)=>{{const key=r.seed>=0?'s'+r.seed:(r.x+','+r.y);const n=groups[key]=(groups[key]||0)+1;
+  const ox=r.seed>=0?sx(S[r.seed].x):sx(r.x),oy=r.seed>=0?sy(S[r.seed].y):sy(r.y);const j=n-(r.seed>=0?0:1),a=j*2.39996,d=rr*2.25*Math.sqrt(j+(r.seed>=0?.9:.2));
+  nodes.push({{kind:'r',i,x:ox+Math.cos(a)*d,y:oy+Math.sin(a)*d,r:rr}})}});
+ for(let pass=0;pass<5;pass++)for(let a=0;a<nodes.length;a++)for(let b=a+1;b<nodes.length;b++){{const p=nodes[a],q=nodes[b];
+  if(p.kind==='s'&&q.kind==='s')continue;let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+3;if(d>=m)continue;
+  const f=(m-d)/d/(p.kind==='s'||q.kind==='s'?1:2);dx*=f;dy*=f;if(p.kind==='r'){{p.x-=dx;p.y-=dy}}if(q.kind==='r'){{q.x+=dx;q.y+=dy}}}}
+ nodes.forEach(n=>{{if(n.x<-30||n.y<-30||n.x>W+30||n.y>H+30)return;
+  if(n.kind==='s'){{disc(n.x,n.y,n.r,S[n.i].img,'#ffffff',2.5);if(k>1.6||hover===n){{ctx.font='500 11px Geist Mono, monospace';ctx.fillStyle='rgba(255,255,255,.9)';
+   ctx.textAlign='center';ctx.fillText(S[n.i].name,n.x,n.y+n.r+11)}}}}
+  else{{const r=R[n.i],playing=state.id===r.track_id;if(playing||hover===n){{ctx.beginPath();ctx.arc(n.x,n.y,n.r+7+(playing?2*Math.sin(t/180):0),0,6.283);ctx.fillStyle=rgba(MC,.35);ctx.fill()}}
+   disc(n.x,n.y,n.r,r.img,MC,2.5);
+   if(playing||hover===n){{ctx.fillStyle='rgba(0,0,0,.45)';ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.fillStyle='#fff';
+    if(playing&&state.s!=='loading'){{ctx.fillRect(n.x-4,n.y-5,3,10);ctx.fillRect(n.x+1,n.y-5,3,10)}}else{{ctx.beginPath();ctx.moveTo(n.x-3,n.y-6);ctx.lineTo(n.x+6,n.y);ctx.lineTo(n.x-3,n.y+6);ctx.fill()}}}}
+   if(k>6){{ctx.font='10px Geist Mono, monospace';ctx.fillStyle='rgba(255,255,255,.7)';ctx.textAlign='center';ctx.fillText(r.title.length>20?r.title.slice(0,19)+'…':r.title,n.x,n.y+n.r+10)}}}}}});
+}}
+function frame(t){{if(fly){{const e=Math.min(1,(t-fly.t0)/700),q=1-Math.pow(1-e,3);view.k=fly.k0+(fly.k1-fly.k0)*q;view.x=fly.x0+(fly.x1-fly.x0)*q;view.y=fly.y0+(fly.y1-fly.y0)*q;dirty=true;if(e>=1)fly=null}}
+ const key=view.k+','+view.x+','+view.y;if(dirty||key!==frame.last||state.id){{draw(t);dirty=false;frame.last=key}}requestAnimationFrame(frame)}}
+function flyTo(x01,y01,k){{const k1=Math.min(window.KMAX,Math.max(1,k)),mx=W*window.EDGE,my=H*window.EDGE;
+ const x1=Math.min(mx,Math.max(W-W*k1-mx,W/2-x01*W*k1)),y1=Math.min(my,Math.max(H-H*k1-my,H/2-y01*H*k1));
+ fly={{t0:performance.now(),k0:view.k,x0:view.x,y0:view.y,k1,x1,y1}}}}
+function fitMine(){{// frame the heart of the discoveries: their anchors and the genres they grew from, extremes left out
+ let pts=R.map(r=>r.seed>=0?[S[r.seed].x,S[r.seed].y]:[r.x,r.y]).concat(pathIdx.map(([a])=>[GM.x[a],GM.y[a]]));
+ if(!pts.length)pts=S.map(s=>[s.x,s.y]);if(!pts.length)return;
+ const q=(arr,f)=>{{const s=arr.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.max(0,Math.round(f*(s.length-1))))]}};
+ const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]),x0=q(xs,.1),x1=q(xs,.9),y0=q(ys,.1),y1=q(ys,.9);
+ const k=Math.min(1/Math.max(.03,(x1-x0)*1.6),1/Math.max(.03,(y1-y0)*1.6),24);flyTo((x0+x1)/2,(y0+y1)/2,Math.max(1.4,k))}}
+{ZOOM_JS}
+document.getElementById('zfit').onclick=fitMine;
+{PLAYER_JS}
+function setPlaying(id,s){{state={{id,s}};dirty=true}}
+function noPreview(id){{tip.innerHTML='<div><b>'+esc(L.no_preview)+'</b></div>';tip.classList.add('on')}}
+function pick(mx,my){{let best=null,bd=1e9;nodes.forEach(n=>{{const d=(n.x-mx)**2+(n.y-my)**2;if(d<(n.r+4)**2&&d<bd){{bd=d;best=n}}}});return best}}
+function genreAt(mx,my){{for(let j=labelsDrawn.length-1;j>=0;j--){{const[i,x0,y0,w,h]=labelsDrawn[j];if(mx>=x0&&mx<=x0+w&&my>=y0&&my<=y0+h)return i}}return null}}
+cv.addEventListener('mousemove',e=>{{dirty=true;if(drag){{tip.classList.remove('on');return}}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;hover=pick(mx,my);
+ let html='';if(hover&&hover.kind==='s'){{const s=S[hover.i];html=(s.img?'<img src="'+esc(s.img)+'">':'')+'<div><b>'+esc(s.name)+'</b><small>'+esc(s.subgenre||'')+'</small></div>'}}
+ else if(hover){{const r=R[hover.i];html=(r.img?'<img src="'+esc(r.img)+'">':'')+'<div><b>'+esc(r.title)+'</b><small>'+esc(r.artist)+'</small><em style="color:'+MC+'">'+esc(r.subgenre||'')+'</em><small>'+esc(L.because+' '+r.reason)+'</small><small>'+esc(state.id===r.track_id?L.pause:L.play)+'</small></div>'}}
+ else{{const g=genreAt(mx,my);if(g!==null){{const w=homeW[g];html='<div><b>'+esc(GM.n[g])+'</b>'+(w!==undefined?'<small>'+esc(L.territory_share.replace('{{p}}',Math.max(1,Math.round(w*100))))+'</small>':explored.has(g)?'<small style="color:'+MC+'">'+esc(L.explored_tip)+'</small>':'')+'</div>'}}}}
+ cv.style.cursor=hover&&hover.kind==='r'?'pointer':'grab';
+ if(!html){{tip.classList.remove('on');return}}tip.innerHTML=html;tip.style.left=Math.min(mx+18,W-350)+'px';tip.style.top=Math.min(my+70,H-40)+'px';tip.classList.add('on')}});
+cv.addEventListener('mouseleave',()=>{{hover=null;tip.classList.remove('on');dirty=true}});
+cv.addEventListener('click',e=>{{if(moved)return;const b=cv.getBoundingClientRect(),n=pick(e.clientX-b.left,e.clientY-b.top);if(n&&n.kind==='r')toggle(R[n.i].track_id)}});
+// one chip per sub-genre where discoveries landed: a click flies there
+const counts={{}};R.forEach(r=>{{if(r.subgenre)counts[r.subgenre]=(counts[r.subgenre]||0)+1}});
+document.getElementById('chips').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([g,c])=>'<button data-g="'+esc(g)+'">'+esc(g)+'<b>'+c+'</b></button>').join('');
+document.querySelectorAll('#chips button').forEach(bt=>bt.addEventListener('click',()=>{{const g=bt.dataset.g,i=idx[g];
+ document.querySelectorAll('#chips button').forEach(x=>x.classList.toggle('on',x===bt));
+ const own=R.filter(r=>r.subgenre===g).map(r=>r.seed>=0?[S[r.seed].x,S[r.seed].y]:[r.x,r.y]);
+ const p=own.length?own[0]:(i!==undefined?[GM.x[i],GM.y[i]]:null);if(!p)return;if(i!==undefined)pulse=i;flyTo(p[0],p[1],Math.max(view.k,12))}}));
+document.getElementById('find').addEventListener('change',e=>{{const i=idx[e.target.value.trim().toLowerCase()]??idx[e.target.value.trim()];if(i===undefined)return;pulse=i;flyTo(GM.x[i],GM.y[i],Math.max(view.k,16))}});
+layout();addEventListener('resize',layout);requestAnimationFrame(frame);setTimeout(fitMine,60);
 </script></body></html>"""
     _frame(html, height)
