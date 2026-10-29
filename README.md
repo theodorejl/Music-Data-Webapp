@@ -400,15 +400,22 @@ Pour forcer un rechargement immédiat de la bibliothèque : `python -m scripts.s
 
 ## Recommandations (page « Pour toi »)
 
-La page **Pour toi** propose des titres que tu n'as **jamais** écoutés, trouvés par trois moteurs qui partent de ton historique (la période choisie en haut de la page) et de l'API publique de Deezer. Le cookie `arl` n'est jamais utilisé ici, donc la page marche aussi sur le site en ligne.
+La page **Pour toi** propose des titres que tu n'as **jamais** écoutés. Elle part de tes écoutes (la période choisie dans l'encadré) et utilise l'API publique de Deezer. Le cookie `arl` n'y sert jamais, donc la page marche aussi sur le site en ligne.
 
-1. **Les voisins** (graphe d'artistes) : pour chacun de tes 10 artistes favoris, Deezer connaît les artistes qui lui ressemblent. Un voisin gagne des points selon le temps que tu passes sur l'artiste de départ et selon sa proximité ; on garde un titre phare par nouvel artiste.
-2. **Tes genres** (profil de goût) : ce qui est en tête des classements Deezer dans chacun de tes genres, réparti selon la part de chaque genre dans ton écoute. Un titre par artiste, uniquement des artistes nouveaux pour toi.
-3. **Ton moment** (contexte) : la radio Deezer des artistes que tu écoutes le plus à ce moment de la journée (nuit, matin, après-midi, soir), en privilégiant les artistes inconnus.
+En haut, un encadré présente les **trois modes**. Choisis-en un, règle le **nombre de titres** (de 10 à 200) et lance la génération :
 
-Les trois moteurs ne se répètent pas : un même titre n'apparaît qu'une fois. Clique sur une pochette pour écouter **30 s**. Le lien de l'extrait est demandé à Deezer au moment du clic, car ces liens expirent au bout d'environ 15 minutes.
+1. **Les voisins** (graphe d'artistes) : pour chacun de tes artistes favoris, Deezer connaît une vingtaine d'artistes qui lui ressemblent. Un voisin monte d'autant plus que tu écoutes beaucoup l'artiste de départ et qu'il en est proche. Pour les gros lots, on fait un pas de plus dans le graphe. On garde un titre phare par nouvel artiste. C'est le mode le plus précis, mais aussi le plus lent : il faut une requête par artiste.
+2. **Tes genres** (profil de goût) : on lit les 300 titres en tête des classements Deezer dans chacun de tes genres, puis on les répartit selon la place de chaque genre dans ton écoute. C'est le mode le plus rapide.
+3. **Ton moment** (contexte) : la radio Deezer des artistes que tu écoutes le plus à ce moment de la journée, en commençant par les artistes que tu ne connais pas.
 
-La **carte** place chaque recommandation dans le territoire de son genre, reliée à l'artiste dont elle vient. On peut zoomer (molette ou pincement), se déplacer (glisser) et écouter (clic). Les résultats sont gardés 6 heures, et le bouton **Nouvelles idées** les recalcule.
+Sous le curseur, une **estimation du temps** s'affiche. Elle vient du nombre de requêtes nécessaires, sachant que Deezer en accepte une dizaine par seconde : par exemple ≈ 6 s pour 40 voisins et ≈ 27 s pour 200. Pendant la génération, une barre de chargement en forme d'onde sonore montre l'étape en cours, la part faite, le temps restant et les titres trouvés.
+
+Chaque mode **garde ses derniers résultats**, y compris après un redémarrage (dossier `data/recommendations/`), jusqu'à ce que tu le régénères. Dessous :
+
+- **La carte** place chaque titre dans le territoire de son genre, relié à ton artiste d'origine. Tu peux zoomer à la molette ou en pinçant, te déplacer en glissant, et cliquer sur une pochette pour écouter.
+- **Le tableau** permet d'écouter **30 s** depuis chaque ligne, de trier par colonne, de filtrer en tapant quelques lettres et d'exporter en Excel.
+
+Le lien de l'extrait est demandé à Deezer au moment du clic, car ces liens expirent au bout d'environ 15 minutes.
 
 ## Récupérer l'historique plus ancien (export Deezer)
 

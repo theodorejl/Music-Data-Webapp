@@ -214,7 +214,9 @@ def rec_map(seeds: list[dict], recs: list[dict], genres: list[tuple[str, str]], 
     R = [[r["title"], r["artist"], r["engine"], gi.get(r["genre"], len(genres) - 1),
           sid.get(r["seed"], -1), r["img"] or "", int(r["track_id"]), r["reason"] or ""] for r in recs]
     G = [[g, c] for g, c in genres]
-    legend = "".join(f"<span><i style='border-color:{ENGINE_COLORS[e]}'></i>{escape(labels[e])}</span>" for e in ENGINE_COLORS)
+    present = {r["engine"] for r in recs}
+    legend = "".join(f"<span><i style='border-color:{ENGINE_COLORS[e]}'></i>{escape(labels[e])}</span>"
+                     for e in ENGINE_COLORS if e in present)
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
 html,body{{margin:0;background:transparent;font-family:{FONT};-webkit-font-smoothing:antialiased;overflow:hidden}}
 .night{{position:relative;border-radius:22px;overflow:hidden;background:radial-gradient(120% 90% at 50% 40%,#231C38 0%,#130F1E 60%,#0D0A15 100%)}}
@@ -235,7 +237,7 @@ const EC={json.dumps(ENGINE_COLORS)},L={json.dumps({k: labels[k] for k in ("play
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');let W=0,H=0;
 {TERRITORY_JS}
 const imgs={{}};function img(u){{if(!u)return null;if(!imgs[u]){{const i=new Image();i.src=u;imgs[u]=i}}return imgs[u]}}
-let cells=[],N=[],hover=-1,state={{}};const M=30;
+let cells=[],N=[],hover=-1,state={{}};const M=30,RR=R.length>120?8.5:R.length>60?10.5:13;
 function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
  cells=territories(G.length,W,H,M);const maxM=Math.max(...S.map(s=>s[2]),1);N=[];
  const per=G.map(()=>0),tot=G.map((_,g)=>S.filter(s=>s[1]===g).length),ga=Math.PI*(3-Math.sqrt(5));
@@ -243,7 +245,7 @@ function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHei
   N.push({{kind:'s',i,x:c[0]+Math.cos(k*ga)*r,y:c[1]+Math.sin(k*ga)*r,r:16+14*Math.sqrt(s[2]/maxM),g:s[1],img:s[3]}})}});
  const around={{}};R.forEach((r,i)=>{{const anchor=r[4]>=0?N[r[4]]:null;const key=r[4]>=0?'s'+r[4]:'g'+r[3];const k=around[key]=(around[key]||0)+1;
   const base=anchor?[anchor.x,anchor.y]:centroid(cells[r[3]]);const a=k*2.4+(anchor?anchor.i:r[3]),d=(anchor?anchor.r:24)+40+12*Math.floor(k/6);
-  N.push({{kind:'r',i,x:base[0]+Math.cos(a)*d,y:base[1]+Math.sin(a)*d,r:13,g:r[3],img:r[5],anchor}})}});
+  N.push({{kind:'r',i,x:base[0]+Math.cos(a)*d,y:base[1]+Math.sin(a)*d,r:RR,g:r[3],img:r[5],anchor}})}});
  for(let it=0;it<140;it++){{for(let a=0;a<N.length;a++)for(let b=a+1;b<N.length;b++){{const p=N[a],q=N[b];let dx=q.x-p.x,dy=q.y-p.y;
   const d=Math.hypot(dx,dy)||.01,min=p.r+q.r+10;if(d<min){{const f=(min-d)/2/d;dx*=f;dy*=f;if(p.kind==='r'||q.kind==='s'){{p.x-=dx;p.y-=dy}}if(q.kind==='r'||p.kind==='s'){{q.x+=dx;q.y+=dy}}}}}}
   N.forEach(n=>{{const cell=cells[n.g];if(!inside(cell,n.x,n.y)){{const c=centroid(cell);n.x+=(c[0]-n.x)*.08;n.y+=(c[1]-n.y)*.08}}
@@ -288,49 +290,76 @@ layout();addEventListener('resize',layout);requestAnimationFrame(draw);
     _frame(html, height)
 
 
-# --- recommendation cards ------------------------------------------------------------------------
+# --- the table of recommendations ------------------------------------------------------------------
 
-def rec_cards(recs: pd.DataFrame, labels: dict, color: str, columns: int = 4) -> None:
-    """A grid of recommended tracks: cover with a play button (30 s preview), title, artist,
-    why it is here, and a link to Deezer."""
-    items = [[int(r.track_id), escape(str(r.title)), escape(str(r.artist_name)), r.cover or "", escape(str(r.album_title or "")),
-              escape(str(r.reason or "")), r.link] for r in recs.itertuples(index=False)]
-    rows = -(-len(items) // columns)
-    height = rows * 112 + 12
+def rec_table(recs: pd.DataFrame, labels: dict, color: str, genre_colors: dict[str, str], height: int | None = None) -> None:
+    """Every recommended track in one table: play its 30 s preview from the row, sort by any
+    column, filter as you type; the playing row shows its progress."""
+    rows = [[i + 1, int(r.track_id), str(r.title), str(r.artist_name), str(r.album_title or ""), str(r.reason or ""),
+             str(r.genre or ""), int(r.duration or 0), r.cover or "", r.link, genre_colors.get(r.genre, "#c4c9d0")]
+            for i, r in enumerate(recs.itertuples(index=False))]
+    height = height or min(118 + 62 * len(rows), 860)
+    L = {k: labels[k] for k in ("title", "artist", "album", "why", "genre", "time", "search", "count", "because",
+                                "open", "no_preview", "play")}
     html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
-html,body{{margin:0;background:transparent;font-family:{FONT};color:#1f1f1f;-webkit-font-smoothing:antialiased;overflow:hidden}}
-.grid{{display:grid;grid-template-columns:repeat({columns},minmax(0,1fr));gap:10px;padding:4px}}
-.card{{display:grid;grid-template-columns:84px minmax(0,1fr);gap:12px;align-items:center;padding:8px 12px 8px 8px;border-radius:20px;
- background:rgba(255,255,255,.55);border:1.5px solid rgba(255,255,255,.95);box-shadow:0 12px 24px -20px rgba(40,46,90,.55);transition:transform .2s,background .2s}}
-.card:hover{{background:rgba(255,255,255,.8);transform:translateY(-2px)}}
-.cov{{position:relative;width:84px;height:84px;border-radius:14px;overflow:hidden;cursor:pointer;background:#ddd}}
+html,body{{margin:0;background:transparent;font-family:{FONT};color:#1f1f1f;-webkit-font-smoothing:antialiased}}
+.wrap{{height:{height - 8}px;display:flex;flex-direction:column;background:rgba(255,255,255,.72);border-radius:22px;overflow:hidden}}
+.bar{{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid rgba(31,31,31,.07)}}
+.bar input{{flex:1;max-width:360px;font:500 13px {FONT};padding:9px 16px;border-radius:999px;border:1.5px solid rgba(31,31,31,.12);
+ background:#fff;outline:none}} .bar input:focus{{border-color:{color}}}
+.bar span{{font-size:12px;color:rgba(31,31,31,.6)}}
+.scroll{{overflow:auto;flex:1}}
+table{{width:100%;border-collapse:separate;border-spacing:0;font-size:13px}}
+th{{position:sticky;top:0;z-index:2;background:rgba(250,250,252,.96);backdrop-filter:blur(6px);text-align:left;font-weight:600;
+ font-size:11.5px;letter-spacing:.02em;color:rgba(31,31,31,.6);padding:10px 8px;cursor:pointer;white-space:nowrap;user-select:none}}
+th:hover{{color:#1f1f1f}} th.on{{color:#1f1f1f}} th.on::after{{content:' ↓'}} th.on.asc::after{{content:' ↑'}}
+td{{padding:6px 8px;border-top:1px solid rgba(31,31,31,.05);vertical-align:middle}}
+tr:hover td{{background:rgba(255,255,255,.75)}} tr.playing td{{background:{color}1f}}
+.n{{width:30px;color:rgba(31,31,31,.45);text-align:right;font-variant-numeric:tabular-nums}}
+.cov{{position:relative;width:48px;height:48px;border-radius:12px;overflow:hidden;cursor:pointer;background:#e9e9ee;flex:none}}
 .cov img{{width:100%;height:100%;object-fit:cover;display:block}}
-.btn{{position:absolute;inset:0;margin:auto;width:38px;height:38px;border-radius:50%;background:rgba(17,17,17,.78);display:grid;place-items:center;
- transition:transform .2s,background .2s}}
-.cov:hover .btn{{transform:scale(1.08);background:{color}}}
-.btn svg{{width:15px;height:15px;fill:#fff}}
-.bar{{position:absolute;left:0;bottom:0;height:4px;background:{color};width:0}}
-.playing .btn{{background:{color}}}
-.t b{{display:block;font-size:13px;font-weight:600;letter-spacing:-.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.t span{{display:block;font-size:12px;color:rgba(31,31,31,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.t em{{display:block;font-style:normal;font-size:11px;color:rgba(31,31,31,.6);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.t em i{{font-style:normal;color:#1f1f1f;font-weight:600}}
-.t a{{display:inline-block;margin-top:4px;font-size:11px;color:#0b57d0;text-decoration:none}}
-.none .btn{{background:rgba(120,120,120,.6)}}
-@media (max-width:640px){{.grid{{grid-template-columns:none;grid-template-rows:repeat({rows},auto);grid-auto-flow:column;grid-auto-columns:86%;
- overflow-x:auto;scroll-snap-type:x mandatory}}.card{{scroll-snap-align:start}}}}</style></head><body><div class="grid" id="g"></div>
+.cov .b{{position:absolute;inset:0;display:grid;place-items:center;background:rgba(17,17,17,.0);transition:background .2s}}
+.cov .b svg{{width:18px;height:18px;fill:#fff;opacity:0;transition:opacity .2s;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}}
+tr:hover .cov .b{{background:rgba(17,17,17,.35)}} tr:hover .cov .b svg, tr.playing .cov .b svg{{opacity:1}}
+tr.playing .cov .b{{background:{color}cc}}
+.cov i{{position:absolute;left:0;bottom:0;height:3px;background:#fff;width:0}}
+.t{{font-weight:600;letter-spacing:-.02em;max-width:210px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}}
+.a,.al{{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}} .al{{color:rgba(31,31,31,.62)}}
+.w{{max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:rgba(31,31,31,.7)}} .w b{{color:#1f1f1f;font-weight:600}}
+.g{{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px}} .g i{{width:9px;height:9px;border-radius:50%;display:inline-block}}
+.d{{color:rgba(31,31,31,.55);font-variant-numeric:tabular-nums;white-space:nowrap}}
+.l a{{color:#0b57d0;text-decoration:none;font-size:12px;white-space:nowrap}}
+tr.none .cov{{opacity:.45}}
+@media (max-width:1100px){{.al,th:nth-child(5){{display:none}}}}
+@media (max-width:720px){{.al,.w,.g,.d,th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(8){{display:none}}}}
+</style></head><body><div class="wrap"><div class="bar"><input id="q" placeholder="{escape(L['search'])}"><span id="cnt"></span></div>
+<div class="scroll"><table><thead><tr><th data-k="0">#</th><th></th><th data-k="2">{escape(L['title'])}</th><th data-k="3">{escape(L['artist'])}</th>
+<th data-k="4">{escape(L['album'])}</th><th data-k="5">{escape(L['why'])}</th><th data-k="6">{escape(L['genre'])}</th><th data-k="7">{escape(L['time'])}</th><th></th></tr></thead>
+<tbody id="tb"></tbody></table></div></div>
 <script>
-const I={json.dumps(items, ensure_ascii=False)},L={json.dumps({k: labels[k] for k in ("because", "open", "no_preview")}, ensure_ascii=False)};
+const D={js_data(rows)},L={js_data(L)};{ESC_JS}
 const PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',PAUSE='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
  WAIT='<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
-document.getElementById('g').innerHTML=I.map(x=>`<div class="card"><div class="cov" data-id="${{x[0]}}" title="${{x[1]}}">${{x[3]?`<img src="${{x[3]}}" alt="">`:''}}
- <div class="btn">${{PLAY}}</div><div class="bar"></div></div><div class="t"><b title="${{x[1]}}">${{x[1]}}</b><span>${{x[2]}}${{x[4]?' · '+x[4]:''}}</span>
- <em>${{L.because}} <i>${{x[5]}}</i></em><a href="${{x[6]}}" target="_blank" rel="noopener">${{L.open}} ↗</a></div></div>`).join('');
+let sortK=0,asc=true,q='';const fmt=s=>s?Math.floor(s/60)+':'+String(s%60).padStart(2,'0'):'–';
+function render(){{let rows=D.filter(r=>!q||(r[2]+' '+r[3]+' '+r[4]+' '+r[5]+' '+r[6]).toLowerCase().includes(q));
+ rows.sort((a,b)=>{{const x=a[sortK],y=b[sortK];const c=typeof x==='number'?x-y:String(x).localeCompare(String(y));return asc?c:-c}});
+ document.getElementById('cnt').textContent=L.count.replace('{{n}}',rows.length);
+ document.getElementById('tb').innerHTML=rows.map(r=>`<tr data-id="${{r[1]}}" class="${{playing===r[1]?'playing':''}}"><td class="n">${{r[0]}}</td>
+ <td><div class="cov" title="${{esc(L.play)}}">${{r[8]?`<img src="${{esc(r[8])}}" loading="lazy" alt="">`:''}}<div class="b">${{playing===r[1]?PAUSE:PLAY}}</div><i></i></div></td>
+ <td class="t" title="${{esc(r[2])}}">${{esc(r[2])}}</td><td class="a" title="${{esc(r[3])}}">${{esc(r[3])}}</td><td class="al" title="${{esc(r[4])}}">${{esc(r[4])}}</td>
+ <td class="w" title="${{esc(L.because+' '+r[5])}}">${{esc(L.because)}} <b>${{esc(r[5])}}</b></td>
+ <td><span class="g"><i style="background:${{r[10]}}"></i>${{esc(r[6])}}</span></td><td class="d">${{fmt(r[7])}}</td>
+ <td class="l"><a href="${{esc(r[9])}}" target="_blank" rel="noopener">${{esc(L.open)}} ↗</a></td></tr>`).join('');
+ document.querySelectorAll('.cov').forEach(c=>c.addEventListener('click',()=>toggle(+c.closest('tr').dataset.id)));
+ document.querySelectorAll('th').forEach(h=>h.classList.toggle('on',+h.dataset.k===sortK&&h.dataset.k!==undefined));
+ document.querySelectorAll('th.on').forEach(h=>h.classList.toggle('asc',asc))}}
+document.querySelectorAll('th[data-k]').forEach(h=>h.addEventListener('click',()=>{{const k=+h.dataset.k;asc=sortK===k?!asc:true;sortK=k;render()}}));
+document.getElementById('q').addEventListener('input',e=>{{q=e.target.value.toLowerCase().trim();render()}});
 {PLAYER_JS}
-function setPlaying(id,s){{document.querySelectorAll('.cov').forEach(c=>{{const on=+c.dataset.id===id;
- c.classList.toggle('playing',on);c.querySelector('.btn').innerHTML=on?(s==='loading'?WAIT:PAUSE):PLAY;if(!on)c.querySelector('.bar').style.width=0}})}}
-function noPreview(id){{const c=document.querySelector(`.cov[data-id="${{id}}"]`);if(c){{c.classList.add('none');c.title=L.no_preview}}}}
-audio.addEventListener('timeupdate',()=>{{const c=document.querySelector(`.cov[data-id="${{playing}}"] .bar`);if(c&&audio.duration)c.style.width=(100*audio.currentTime/audio.duration)+'%'}});
-document.querySelectorAll('.cov').forEach(c=>c.addEventListener('click',()=>toggle(+c.dataset.id)));
+function setPlaying(id,s){{document.querySelectorAll('tbody tr').forEach(tr=>{{const on=+tr.dataset.id===id;tr.classList.toggle('playing',on);
+ tr.querySelector('.b').innerHTML=on?(s==='loading'?WAIT:PAUSE):PLAY;if(!on)tr.querySelector('.cov i').style.width=0}})}}
+function noPreview(id){{const tr=document.querySelector(`tr[data-id="${{id}}"]`);if(tr){{tr.classList.add('none');tr.querySelector('.cov').title=L.no_preview}}}}
+audio.addEventListener('timeupdate',()=>{{const i=document.querySelector(`tr[data-id="${{playing}}"] .cov i`);if(i&&audio.duration)i.style.width=(100*audio.currentTime/audio.duration)+'%'}});
+render();
 </script></body></html>"""
     _frame(html, height)

@@ -54,3 +54,15 @@ def test_profile_from_plays():
     assert [s.name for s in p.seeds] == ["A", "B"] and p.moment == "evening"
     assert p.genres[0][0] == "Electro" and abs(sum(s for _, s in p.genres) - 1) < 1e-9
     assert [s.name for s in p.moment_seeds] == ["A"] and p.known_tracks == {10, 11, 12}
+
+
+def test_estimate_grows_with_the_batch_and_progress_reaches_the_end():
+    p = profile()
+    small, big = recommend.estimate("neighbours", 10, p), recommend.estimate("neighbours", 200, p)
+    assert big[0] > small[0] and big[1] > small[1]
+    assert recommend.estimate("genres", 200, p)[0] == 1 + len(p.genres)
+    client = FakeClient({"artist/1/radio": {"data": [track(90, 9), track(91, 10)]}})
+    progress = recommend.Progress(*recommend.estimate("moment", 10, p)[:1], target=10)
+    recs = recommend.run("moment", p, 10, progress, client)
+    assert list(recs["track_id"]) == [90, 91] and progress.finished and progress.fraction == 1.0
+    assert progress.done == 1 and progress.found == 2

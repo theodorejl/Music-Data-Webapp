@@ -238,12 +238,53 @@ def artist_genres() -> dict[int, str]:
     return {int(k): v for k, v in g.drop_duplicates("artist_id").set_index("artist_id")["genre"].items()}
 
 
-@st.cache_data(ttl=6 * 3600, show_spinner=False, max_entries=8)
-def recommendations(key: tuple, _profile) -> pd.DataFrame:
-    """The three engines' picks, kept six hours for the same seeds (key), then refreshed."""
-    from core.recommend import recommend
+# --- recommendations, kept per mode until that mode is generated again ---------------------------
 
-    return recommend(_profile, 12)
+def _reco_dir():
+    import tempfile
+    from pathlib import Path
+
+    from core.config import ROOT
+
+    for base in (ROOT / "data" / "recommendations", Path(tempfile.gettempdir()) / "deezer-stats-reco"):
+        try:
+            base.mkdir(parents=True, exist_ok=True)
+            return base
+        except OSError:
+            continue
+    return None
+
+
+def saved_recommendations(mode: str) -> dict | None:
+    """{"df": DataFrame, "meta": {...}} for a mode: from this session, else from disk."""
+    import json
+
+    store = st.session_state.setdefault("reco_store", {})
+    if mode in store:
+        return store[mode]
+    folder = _reco_dir()
+    path = folder / f"{mode}.json" if folder else None
+    if path and path.exists():
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+            store[mode] = {"df": pd.DataFrame(payload["rows"]), "meta": payload["meta"]}
+            return store[mode]
+        except (ValueError, KeyError, OSError):
+            return None
+    return None
+
+
+def save_recommendations(mode: str, df: pd.DataFrame, meta: dict) -> None:
+    import json
+
+    st.session_state.setdefault("reco_store", {})[mode] = {"df": df, "meta": meta}
+    folder = _reco_dir()
+    if folder:
+        try:
+            rows = json.loads(df.to_json(orient="records", force_ascii=False))
+            (folder / f"{mode}.json").write_text(json.dumps({"meta": meta, "rows": rows}, ensure_ascii=False), encoding="utf-8")
+        except OSError:
+            pass
 
 
 @st.cache_data(ttl=STATS_TTL, show_spinner=False)
