@@ -50,10 +50,21 @@ def load_raw(engine: Engine) -> RawData:
     aliases = _read(engine, select(Alias.id, Alias.kind, Alias.source_key, Alias.target, Alias.created_at))
     try:  # a database published before the genre model has no such table
         decided = _read(engine, select(ArtistGenre.artist_id, ArtistGenre.main, ArtistGenre.sub, ArtistGenre.genre,
-                                       ArtistGenre.confidence, ArtistGenre.words, ArtistGenre.sources))
+                                       ArtistGenre.confidence, ArtistGenre.words, ArtistGenre.sources,
+                                       ArtistGenre.updated))
     except Exception:
         decided = pd.DataFrame()
     return RawData(plays, artists, albums, tags, aliases, decided)
+
+
+def decided_version(raw: RawData) -> str:
+    """When the model's decisions were last stored ("" when there are none): it changes at every sync
+    that decides again, even when the number of decisions does not (a cache key for the atlas)."""
+    g = raw.artist_genre
+    if g.empty or "updated" not in g:
+        return ""
+    last = g["updated"].max()
+    return "" if pd.isna(last) else str(last)
 
 
 def load_sync_runs(engine: Engine, limit: int = 200) -> pd.DataFrame:

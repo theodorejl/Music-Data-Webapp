@@ -161,3 +161,22 @@ def test_top_cover_by_week_matrix_and_moments():
     parts = stats.moments(df)
     assert [m["name"] for m in parts] == ["night", "morning", "afternoon", "evening"]
     assert sum(m["plays"] for m in parts) == 5
+
+
+def test_the_decisions_version_changes_whenever_they_are_stored_again(engine):
+    """The atlas views cache on it: the same number of decisions, recomputed, must still refresh them."""
+    from sqlalchemy.orm import Session
+
+    from core.models import ArtistGenre
+    assert stats.decided_version(stats.load_raw(engine)) == ""          # nothing decided yet
+    versions = []
+    for when in (datetime(2026, 10, 29, 20), datetime(2026, 10, 29, 21)):
+        with Session(engine) as s:
+            s.query(ArtistGenre).delete()
+            s.add(ArtistGenre(artist_id=1, main=0, sub=0, genre="house", confidence="sure", words=[], sources=[],
+                              updated=when))
+            s.commit()
+        raw = stats.load_raw(engine)
+        assert len(raw.artist_genre) == 1 and "updated" in raw.artist_genre
+        versions.append(stats.decided_version(raw))
+    assert versions[0] != versions[1] and "2026-10-29 21" in versions[1]

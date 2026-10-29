@@ -15,7 +15,7 @@ import streamlit as st
 
 from app.components import data, interactive, studio, theme, ui
 from app.i18n import fmt_int, get_lang, t
-from core import atlas, recommend, soundmap
+from core import atlas, recommend, soundmap, stats
 
 MODES = recommend.ENGINES
 f = data.get_filters()
@@ -181,9 +181,9 @@ theme.section(t("reco.map_section"), t(f"reco.map_note_{'paths' if mode == 'subg
 
 
 @st.cache_data(ttl=600, show_spinner=False)
-def _atlas(n_plays: int, n_library: int, n_tags: int, n_decided: int) -> tuple[dict, int]:
+def _atlas(n_plays: int, n_library: int, n_tags: int, decided: str) -> tuple[dict, int]:
     """Every artist of your music on the atlas of genres (see core/atlas.py); computed again
-    whenever plays, library or genre information grow."""
+    whenever plays, library or genre information grow, or the genres are decided again."""
     raw, lib = data.raw_data(), data.library()
     points, missing = atlas.place(raw.artists, everything, raw.tags, raw.albums, lib.playlist_tracks, lib.favorites,
                                   decisions=raw.artist_genre)
@@ -191,7 +191,7 @@ def _atlas(n_plays: int, n_library: int, n_tags: int, n_decided: int) -> tuple[d
 
 
 lib_size = len(data.library().playlist_tracks)
-artists, missing = _atlas(len(everything), lib_size, len(data.raw_data().tags), len(data.raw_data().artist_genre))
+artists, missing = _atlas(len(everything), lib_size, len(data.raw_data().tags), stats.decided_version(data.raw_data()))
 points = []
 for r in recs.itertuples(index=False):
     spot = atlas.anchor(r.subgenre if isinstance(r.subgenre, str) else None, r.anchor_x, r.anchor_y)
