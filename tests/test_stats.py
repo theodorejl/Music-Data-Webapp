@@ -163,6 +163,15 @@ def test_top_cover_by_week_matrix_and_moments():
     assert sum(m["plays"] for m in parts) == 5
 
 
+def test_a_database_without_the_genre_decisions_table_still_loads(engine):
+    """A database published before the genre model has no artist_genre table."""
+    with engine.begin() as con:
+        con.exec_driver_sql("DROP TABLE artist_genre")
+    raw = stats.load_raw(engine)
+    assert raw.artist_genre.empty and raw.plays.empty
+    assert stats.decided_version(raw) == ""
+
+
 def test_the_decisions_version_changes_whenever_they_are_stored_again(engine):
     """The atlas views cache on it: the same number of decisions, recomputed, must still refresh them."""
     from sqlalchemy.orm import Session
