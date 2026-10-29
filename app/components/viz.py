@@ -3,7 +3,6 @@
 - listening_spiral: every play is a dot on a time spiral (one turn = one day or week,
   angle = time of day), sized by listening time, coloured by genre.
 - cover_orbit: album covers on a golden-angle spiral, sized by plays, slowly orbiting.
-- artist_constellation: one particle per play, gathered in a drifting cloud per artist;
   the pointer pushes particles away.
 - fingerprint_svg: generative "listening fingerprint" (one distorted ring per hour of
   the day), computed in Python so it can be downloaded as SVG.
@@ -150,99 +149,6 @@ el.style.left=(Math.cos(a)*r)+'px';el.style.top=(Math.sin(a)*r)+'px';el.style.wi
 el.innerHTML=`<div class="face" style="width:100%;height:100%"><img src="${{d[2]}}" alt="" style="--d:${{(i%7)*-1}}s" loading="lazy"></div>`;
 el.onmouseenter=()=>cap.innerHTML=`<b>${{d[0]}}</b><span class="lab">${{d[1]}} · ${{d[3]}} {escape(plays_label)}</span>`;
 el.onmouseleave=()=>cap.innerHTML=`<span class="lab">{escape(plays_label)}</span>`;o.appendChild(el)}});
-</script></body></html>"""
-    st.iframe(html, height=height + 4)
-
-
-# --- 3. artist constellation (genre territories) ------------------------------------------
-
-GLOW = STRONG  # the clouds of artists, on the light atlas
-GLOW_OTHER = "#8f97a8"
-
-
-def artist_constellation(df: pd.DataFrame, labels: dict, height: int = 680) -> None:
-    """Genres are territories (Voronoi cells, labelled); inside, each artist is a glowing
-    cloud with one particle per play. Wheel or pinch to zoom, drag to move, double-click to
-    come back; hovering a cloud names the artist (with their photo) without moving anything.
-    labels: {'plays', 'artists', 'other', 'hint'}."""
-    from app.components.interactive import ESC_JS, TERRITORY_JS, ZOOM_CSS, ZOOM_HTML, ZOOM_JS, js_data
-
-    if df.empty:
-        return
-    genres = df["genre"].dropna().value_counts().head(6).index.tolist()
-    base = _palette(genres)
-    gcol = {g: base.get(g, GLOW_OTHER) for g in genres}
-    d = df.assign(group=df["genre"].where(df["genre"].isin(genres), labels["other"]))
-    by_artist = d.groupby("artist_name").agg(plays=("play_id", "count"), picture=("artist_picture", "first"),
-                                             group=("group", lambda s: s.mode().iloc[0]))
-    by_artist = by_artist.sort_values("plays", ascending=False).head(48).reset_index()
-    groups = [g for g in genres if g in set(by_artist["group"])]
-    if labels["other"] in set(by_artist["group"]):
-        groups.append(labels["other"])
-    weight = by_artist.groupby("group")["plays"].sum()
-    total = int(by_artist["plays"].sum())
-    scale = min(14.0, 3600 / max(total, 1))
-    G = [[str(g), gcol.get(g, GLOW_OTHER), int(weight.get(g, 0))] for g in groups]
-    A = [[str(r.artist_name), int(r.plays), max(10, int(r.plays * scale)), groups.index(r.group),
-          r.picture if isinstance(r.picture, str) else ""] for r in by_artist.itertuples()]
-    caption = f"{total} {labels['plays']} · {len(A)} {labels['artists']}"
-    from app.components.interactive import GRAIN
-    html = f"""<!doctype html><html><head><meta charset="utf-8">{FONTS}<style>{BASE_CSS}
-.night{{position:relative;border-radius:22px;overflow:hidden;background:linear-gradient(165deg,#ece7fb 0%,#f4ece0 100%)}}
-.night::after{{content:"";position:absolute;inset:0;pointer-events:none;background-image:{GRAIN};background-size:220px;opacity:.3;mix-blend-mode:overlay}}
-canvas{{display:block;width:100%;height:{height}px}}
-.cap{{position:absolute;right:22px;top:20px;font-size:12px;font-weight:600;color:#3e4554;z-index:2}}
-.tip{{background:#FBFAF8;color:#17171A;display:flex;gap:12px;align-items:center;padding:9px 14px 9px 9px}}.tip small{{color:#8A8780}}
-.tip img{{width:48px;height:48px;border-radius:50%;object-fit:cover}}
-{ZOOM_CSS}</style></head><body>
-<div class="night"><canvas id="c"></canvas><div class="cap">{escape(caption)}</div><div class="tip" id="tip"></div>
-{ZOOM_HTML}<div class="hint">{escape(labels["hint"])}</div></div>
-<script>
-const G={js_data(G)}, A={js_data(A)};{ESC_JS}
-const cv=document.getElementById('c'),ctx=cv.getContext('2d'),tip=document.getElementById('tip');
-const still=matchMedia('(prefers-reduced-motion: reduce)').matches;
-let W=0,H=0,cells=[],C=[],P=[],sprites={{}},hoverA=-1,hoverG=-1;const M=30;
-{TERRITORY_JS}
-function sprite(col){{const s=document.createElement('canvas');s.width=s.height=24;const g=s.getContext('2d');
-const r=g.createRadialGradient(12,12,0,12,12,12);r.addColorStop(0,col);r.addColorStop(.25,col+'cc');r.addColorStop(1,col+'00');
-g.fillStyle=r;g.fillRect(0,0,24,24);return s}}
-function layout(){{const dpr=devicePixelRatio||1;W=cv.clientWidth;H=cv.clientHeight;cv.width=W*dpr;cv.height=H*dpr;
-cells=territories(G.length,W,H,M);
-const ga=Math.PI*(3-Math.sqrt(5)),count=G.map(()=>0),maxP=Math.max(...A.map(a=>a[1]));
-C=A.map(a=>{{const g=a[3],k=count[g]++;const cell=cells[g],ce=centroid(cell);const R=Math.min(W,H)*.15;
-let r=R*Math.sqrt((k+.4)/Math.max(1,A.filter(b=>b[3]===g).length)),x=ce[0]+Math.cos(k*ga)*r,y=ce[1]+Math.sin(k*ga)*r;
-for(let t=0;t<12&&!inside(cell,x,y);t++){{x=(x+ce[0])/2;y=(y+ce[1])/2}}
-return{{x,y,s:6+Math.sqrt(a[1]/maxP)*30,g}}}});
-P=[];A.forEach((a,i)=>{{for(let k=0;k<a[2];k++){{const u=(Math.random()+Math.random()+Math.random()+Math.random())/4-.5;
-const rr=Math.abs(u)*2*C[i].s*1.3,t=Math.random()*6.283;
-P.push({{a:i,ox:Math.cos(t)*rr,oy:Math.sin(t)*rr,ph:Math.random()*6.283,z:Math.random()<.12}})}}}});
-G.forEach(g=>{{if(!sprites[g[1]])sprites[g[1]]=sprite(g[1])}})}}
-function draw(time){{const tt=still?0:time/1000,dpr=devicePixelRatio||1,k=view.k;
-ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);ctx.setTransform(dpr*k,0,0,dpr*k,dpr*view.x,dpr*view.y);
-cells.forEach((cell,i)=>{{ctx.fillStyle=G[i][1]+(i===hoverG?'40':'22');ctx.beginPath();cell.forEach((p,j)=>j?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));ctx.closePath();ctx.fill()}});
-for(const p of P){{const c=C[p.a];const x=c.x+p.ox+Math.sin(tt*.35+p.ph)*1.6,y=c.y+p.oy+Math.cos(tt*.3+p.ph*1.3)*1.6;
-const col=G[A[p.a][3]][1];ctx.globalAlpha=(hoverA<0||hoverA===p.a)?(hoverG<0||hoverG===A[p.a][3]?.9:.35):.22;
-const sz=p.z?9:6;ctx.drawImage(sprites[col],x-sz/2,y-sz/2,sz,sz)}}
-ctx.globalAlpha=1;
-drawBorders(ctx,cells,W,H,M,k);
-ctx.textAlign='center';ctx.textBaseline='middle';
-cells.forEach((cell,i)=>{{const ce=centroid(cell);let lx=ce[0],ly=ce[1]-Math.min(W,H)*.2;if(!inside(cell,lx,ly))ly=ce[1];
-ctx.font=`400 ${{26/k}}px "Rubik 80s Fade", "Fira Code", monospace`;ctx.lineJoin='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=6/k;
-ctx.strokeText(G[i][0],lx,ly);ctx.fillStyle='#1c2230';ctx.fillText(G[i][0],lx,ly);
-ctx.font=`600 ${{11.5/k}}px Fira Code, monospace`;ctx.fillStyle='rgba(28,34,48,.7)';ctx.fillText(G[i][2]+' {escape(labels["plays"])}',lx,ly+22/k)}});
-ctx.textAlign='left';ctx.font=`${{11.5/k}}px Fira Code, monospace`;const shown=G.map(()=>0),limit=k>2.2?99:k>1.4?5:2;
-C.forEach((c,i)=>{{if(shown[c.g]<limit||i===hoverA){{shown[c.g]++;const x=c.x+c.s+10/k,y=c.y-c.s*.6;ctx.strokeStyle='rgba(28,34,48,.35)';ctx.lineWidth=1/k;
-ctx.beginPath();ctx.moveTo(c.x+c.s*.6,c.y-c.s*.3);ctx.lineTo(x-4/k,y);ctx.stroke();ctx.fillStyle=i===hoverA?'#1c2230':'rgba(28,34,48,.72)';
-ctx.fillText(A[i][0]+'  '+A[i][1],x,y)}}}});
-requestAnimationFrame(draw)}}
-{ZOOM_JS}
-cv.addEventListener('mousemove',e=>{{if(drag){{tip.classList.remove('on');return}}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;
-const[wx,wy]=toWorld(mx,my);hoverG=cells.findIndex(c=>inside(c,wx,wy));let best=-1,bd=1e9;
-C.forEach((c,i)=>{{const dd=(c.x-wx)**2+(c.y-wy)**2;if(dd<(c.s+8/view.k)**2&&dd<bd){{bd=dd;best=i}}}});hoverA=best;
-if(best>=0){{const a=A[best];tip.innerHTML=(a[4]?`<img src="${{esc(a[4])}}">`:'')+`<div>${{esc(a[0])}}<small>${{esc(G[a[3]][0])}} · ${{a[1]}} {escape(labels["plays"])}</small></div>`;
-tip.style.left=Math.min(mx+16,W-280)+'px';tip.style.top=Math.min(my+16,H-80)+'px';tip.classList.add('on')}}else tip.classList.remove('on')}});
-cv.addEventListener('mouseleave',()=>{{hoverA=hoverG=-1;tip.classList.remove('on')}});
-layout();addEventListener('resize',layout);requestAnimationFrame(draw);
 </script></body></html>"""
     st.iframe(html, height=height + 4)
 

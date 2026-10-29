@@ -35,6 +35,7 @@ import pandas as pd
 from core import genretree, soundmap
 
 PICTURE = re.compile(r"^https://cdn-images\.dzcdn\.net/images/artist/([0-9a-f]{32})/250x250-000000-80-0-0\.jpg$")
+COVER = re.compile(r"^https://cdn-images\.dzcdn\.net/images/cover/([0-9a-f]{32})/250x250-000000-80-0-0\.jpg$")
 GENRE, SUB, MAIN = 0, 1, 2  # how precise a placement is
 # Deezer's first-level genres ("Electro", "Pop"…); the others ("Techno/House", "Indie Rock"…) are sub-genres.
 DEEZER_TOP = set(soundmap.DEEZER) - {"techno/house"}
@@ -143,11 +144,6 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
     lb (label), tg (the words that placed it), sr (their sources)."""
     from core.artistinfo import labels_of
 
-    tree = genretree.tree()
-    where = genretree.position()
-    subs, mains = tree["sub"], tree["main"]
-    ng = len(tree["genres"])
-
     by_artist = plays.dropna(subset=["artist_id"]).groupby("artist_id").agg(pl=("play_id", "count"), mn=("minutes", "sum"))
     played = {int(a): (int(r.pl), float(r.mn)) for a, r in by_artist.iterrows()}
     pt = playlist_tracks.dropna(subset=["artist_id"])
@@ -155,40 +151,8 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
     fav = {int(a): int(n) for a, n in favorites.dropna(subset=["artist_id"]).groupby("artist_id")["album_id"].nunique().items()}
     ids = sorted(set(played) | set(in_lists) | set(fav))
 
-    links = pd.concat([plays[["artist_id", "album_id"]], pt[["artist_id", "album_id"]],
-                       favorites[["artist_id", "album_id"]]], ignore_index=True).dropna().drop_duplicates()
-    links = links.astype({"artist_id": "int64", "album_id": "int64"})
-    albums_of: dict[int, list[int]] = defaultdict(list)
-    for a, al in zip(links["artist_id"], links["album_id"]):
-        albums_of[int(a)].append(int(al))
-
-    # every vote about every artist
-    votes: dict[int, list[tuple[str, str, float]]] = defaultdict(list)
-    if tags is not None and not tags.empty:
-        art = tags[tags["entity_type"] == "artist"]
-        tops = art.groupby(["entity_id", "source"])["count"].max().to_dict()
-        for a, tag, count, source in zip(art["entity_id"], art["tag"], art["count"], art["source"]):
-            votes[int(a)].append((tag, source, _strength(source, count, tops.get((a, source)) or 1)))
-        alb = tags[tags["entity_type"] == "album"]
-        album_tags: dict[int, list] = defaultdict(list)
-        for al, tag, count in zip(alb["entity_id"], alb["tag"], alb["count"]):
-            album_tags[int(al)].append((tag, count))
-        for a, als in albums_of.items():
-            for al in als:
-                for tag, count in album_tags.get(al, []):
-                    votes[a].append((tag, "album", _strength("album", count, 1)))
-    genres_of_album = albums.set_index("id")["deezer_genres"].to_dict() if not albums.empty else {}
-    for a, als in albums_of.items():
-        for al in als:
-            names = genres_of_album.get(al)
-            if isinstance(names, list):
-                for n in names:
-                    if isinstance(n, str) and n.strip():
-                        votes[a].append((n, "deezer_top" if n.strip().lower() in DEEZER_TOP else "deezer", 1.0))
-    if "genre" in plays:  # the genre the plays carry, for played albums not read yet
-        for a, g in plays.dropna(subset=["artist_id", "genre"]).drop_duplicates("artist_id")[["artist_id", "genre"]].itertuples(index=False):
-            if not votes.get(int(a)):
-                votes[int(a)].append((g, "deezer_top" if str(g).lower() in DEEZER_TOP else "deezer", 1.0))
+    links, albums_of = _links(plays, pt, favorites)
+    votes = _artist_votes(plays, tags, albums, albums_of)
 
     placed = {a: d for a in ids if (d := decide(votes.get(a, [])))}
 
@@ -212,7 +176,6 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
             label.setdefault(int(a), lb)
     names = artists.set_index("id")["name"].to_dict() if not artists.empty else {}
     pics = artists.set_index("id")["picture_medium"].to_dict() if not artists.empty else {}
-    area = genretree.ASPECT * .92 / math.pi  # the atlas, in the units of y
 
     out, missing = [], 0
     for a in ids:
@@ -221,31 +184,148 @@ def place(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None,
             missing += 1
             continue
         lv, m = d["level"], d["main"]
-        if lv == GENRE:
-            x, y, si = where[d["genre"]]
-            sigma = .0028
-        elif lv == SUB:
-            si = d["sub"]
-            x, y = subs[si]["x"], subs[si]["y"]
-            sigma = min(.05, max(.006, .45 * math.sqrt(subs[si]["n"] / ng * area)))
-        else:
-            si = None
-            x, y = mains[m]["x"], mains[m]["y"]
-            sigma = min(.08, max(.01, .4 * math.sqrt(mains[m]["n"] / ng * area)))
-        r = sigma * math.sqrt(-2 * math.log(max(1e-6, _hash(a, 11))))
-        t = 2 * math.pi * _hash(a, 13)
+        x, y, si = _spot(d, a)
         pl, mn = played.get(a, (0, 0.0))
         lt, fa = in_lists.get(a, 0), fav.get(a, 0)
         pic = pics.get(a) or ""
         mpic = PICTURE.match(pic) if isinstance(pic, str) else None
         out.append({"id": a, "n": names.get(a) or f"#{a}", "p": mpic.group(1) if mpic else (pic or ""),
-                    "x": round(min(1, max(0, x + r * math.cos(t) / genretree.ASPECT)), 5),
-                    "y": round(min(1, max(0, y + r * math.sin(t))), 5),
-                    "m": m, "s": si if si is not None else -1, "g": d["genre"] or "", "lv": lv,
+                    "x": x, "y": y, "m": m, "s": si, "g": d["genre"] or "", "lv": lv,
                     "pl": pl, "mn": round(mn), "lt": lt, "fa": fa,
                     "w": round(1.2 * math.log1p(mn) + .45 * math.log1p(lt) + .8 * fa + .25, 3),
                     "lb": str(label.get(a) or ""), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"])})
     return out, missing
+
+
+def _links(plays: pd.DataFrame, pt: pd.DataFrame, favorites: pd.DataFrame) -> tuple[pd.DataFrame, dict[int, list[int]]]:
+    """Every (artist, album) pair of your music, and the albums of each artist."""
+    links = pd.concat([plays[["artist_id", "album_id"]], pt[["artist_id", "album_id"]],
+                       favorites[["artist_id", "album_id"]]], ignore_index=True).dropna().drop_duplicates()
+    links = links.astype({"artist_id": "int64", "album_id": "int64"})
+    albums_of: dict[int, list[int]] = defaultdict(list)
+    for a, al in zip(links["artist_id"], links["album_id"]):
+        albums_of[int(a)].append(int(al))
+    return links, albums_of
+
+
+def _album_votes(albums: pd.DataFrame, tags: pd.DataFrame | None) -> dict[int, list[tuple[str, str, float]]]:
+    """What the album itself says: its Deezer genres and its MusicBrainz tags."""
+    votes: dict[int, list[tuple[str, str, float]]] = defaultdict(list)
+    if tags is not None and not tags.empty:
+        alb = tags[tags["entity_type"] == "album"]
+        for al, tag, count in zip(alb["entity_id"], alb["tag"], alb["count"]):
+            votes[int(al)].append((tag, "album", _strength("album", count, 1)))
+    if not albums.empty:
+        for al, names in zip(albums["id"], albums["deezer_genres"]):
+            if isinstance(names, list):
+                for n in names:
+                    if isinstance(n, str) and n.strip():
+                        votes[int(al)].append((n, "deezer_top" if n.strip().lower() in DEEZER_TOP else "deezer", 1.0))
+    return votes
+
+
+def _artist_votes(plays: pd.DataFrame, tags: pd.DataFrame | None, albums: pd.DataFrame,
+                  albums_of: dict[int, list[int]]) -> dict[int, list[tuple[str, str, float]]]:
+    """Every vote about every artist: its own tags, then what its albums say."""
+    votes: dict[int, list[tuple[str, str, float]]] = defaultdict(list)
+    if tags is not None and not tags.empty:
+        art = tags[tags["entity_type"] == "artist"]
+        tops = art.groupby(["entity_id", "source"])["count"].max().to_dict()
+        for a, tag, count, source in zip(art["entity_id"], art["tag"], art["count"], art["source"]):
+            votes[int(a)].append((tag, source, _strength(source, count, tops.get((a, source)) or 1)))
+    of_album = _album_votes(albums, tags)
+    for a, als in albums_of.items():
+        for al in als:
+            votes[a].extend(of_album.get(al, []))
+    if "genre" in plays:  # the genre the plays carry, for played albums not read yet
+        for a, g in plays.dropna(subset=["artist_id", "genre"]).drop_duplicates("artist_id")[["artist_id", "genre"]].itertuples(index=False):
+            if not votes.get(int(a)):
+                votes[int(a)].append((g, "deezer_top" if str(g).lower() in DEEZER_TOP else "deezer", 1.0))
+    return votes
+
+
+def _spot(d: dict, key: int) -> tuple[float, float, int]:
+    """(x, y, sub-genre or -1) of a decided point: on its genre, else in a cloud around the name
+    of its sub-genre or main genre; the same place every time for the same key."""
+    tree = genretree.tree()
+    subs, mains, ng = tree["sub"], tree["main"], len(tree["genres"])
+    area = genretree.ASPECT * .92 / math.pi  # the atlas, in the units of y
+    if d["level"] == GENRE:
+        x, y, si = genretree.position()[d["genre"]]
+        sigma = .0028
+    elif d["level"] == SUB:
+        si = d["sub"]
+        x, y = subs[si]["x"], subs[si]["y"]
+        sigma = min(.05, max(.006, .45 * math.sqrt(subs[si]["n"] / ng * area)))
+    else:
+        si = -1
+        x, y = mains[d["main"]]["x"], mains[d["main"]]["y"]
+        sigma = min(.08, max(.01, .4 * math.sqrt(mains[d["main"]]["n"] / ng * area)))
+    r = sigma * math.sqrt(-2 * math.log(max(1e-6, _hash(key, 11))))
+    t = 2 * math.pi * _hash(key, 13)
+    px, py = x + r * math.cos(t) / genretree.ASPECT, y + r * math.sin(t)
+    # never outside its territory: back towards its middle (territories are convex, so the way in is straight)
+    poly = mains[d["main"]]["poly"] if si == -1 else subs[si]["poly"]
+    cx, cy = (mains[d["main"]]["x"], mains[d["main"]]["y"]) if si == -1 else (subs[si]["x"], subs[si]["y"])
+    for _ in range(14):
+        if _inside(px, py, poly):
+            break
+        px, py = cx + (px - cx) * .7, cy + (py - cy) * .7
+    return round(px, 5), round(py, 5), si
+
+
+def _inside(x: float, y: float, poly: list) -> bool:
+    hit = False
+    for (x1, y1), (x2, y2) in zip(poly, poly[1:] + poly[:1]):
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
+            hit = not hit
+    return hit
+
+
+def place_albums(artists: pd.DataFrame, plays: pd.DataFrame, tags: pd.DataFrame | None, albums: pd.DataFrame,
+                 playlist_tracks: pd.DataFrame, favorites: pd.DataFrame) -> list[dict]:
+    """Your favourite and listened albums on the atlas, placed by what the album says first
+    (Deezer genres, MusicBrainz tags), then by what its artist's votes say (counted half). A
+    point: id, n (title), a (artist), ai (artist id), p (cover id or url), x, y, m, s, g, lv,
+    lb (label), fa (1 if favourite)."""
+    pt = playlist_tracks.dropna(subset=["artist_id"])
+    _, albums_of = _links(plays, pt, favorites)
+    by_artist = _artist_votes(plays, tags, albums, albums_of)
+    own = _album_votes(albums, tags)
+    info = albums.set_index("id") if not albums.empty else pd.DataFrame()
+    played = set(plays.dropna(subset=["album_id"])["album_id"].astype(int))
+    favs = set(favorites.dropna(subset=["album_id"])["album_id"].astype(int))
+    artist_of = {int(al): int(a) for al, a in plays.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values}
+    artist_of.update({int(al): int(a) for al, a in favorites.dropna(subset=["album_id", "artist_id"])[["album_id", "artist_id"]].values})
+    names = artists.set_index("id")["name"].to_dict() if not artists.empty else {}
+    out = []
+    for al in sorted(played | favs):
+        row = info.loc[al] if al in info.index else None
+        a = artist_of.get(al)
+        if row is not None and pd.notna(row.get("artist_id")):
+            a = int(row["artist_id"])
+        d = decide(own.get(al, []) + [(w, src, s * .5) for w, src, s in by_artist.get(a, [])]) if a is not None else decide(own.get(al, []))
+        if d is None:
+            continue
+        x, y, si = _spot(d, al)
+        cover = (row.get("cover_medium") if row is not None else None) or ""
+        m = COVER.match(cover) if isinstance(cover, str) else None
+        label = row.get("label") if row is not None else None
+        out.append({"id": int(al), "n": str((row.get("title") if row is not None else None) or f"#{al}"),
+                    "a": str(names.get(a) or ""), "ai": int(a) if a is not None else 0,
+                    "p": m.group(1) if m else (cover or ""), "x": x, "y": y, "m": d["main"], "s": si,
+                    "g": d["genre"] or "", "lv": d["level"], "lb": str(label) if isinstance(label, str) else "",
+                    "fa": int(al in favs), "tg": ", ".join(d["words"][:4]), "sr": ", ".join(d["sources"])})
+    return out
+
+
+def top_share(ids, minutes: dict, pct: float, all_history: bool) -> list:
+    """The `pct` % most listened of `ids` (never none when there are some). Outside « all the
+    history », only what was listened in the period counts; within it, what was never listened
+    comes last."""
+    cands = list(ids) if all_history else [i for i in ids if minutes.get(i, 0) > 0]
+    cands.sort(key=lambda i: (-minutes.get(i, 0), i))
+    return cands[:max(1, math.ceil(len(cands) * pct / 100))] if cands else []
 
 
 def anchor(subgenre: str | None, x_px: float | None = None, y_px: float | None = None) -> tuple[float, float] | None:
@@ -262,6 +342,6 @@ def anchor(subgenre: str | None, x_px: float | None = None, y_px: float | None =
 
 
 def columns(points: list[dict]) -> dict[str, list]:
-    """The points as columns (much lighter in the page than one object per artist)."""
-    keys = ("id", "n", "p", "x", "y", "m", "s", "g", "lv", "pl", "mn", "lt", "fa", "w", "lb", "tg", "sr")
-    return {k: [p[k] for p in points] for k in keys}
+    """The points as columns (much lighter in the page than one object per point): artists or
+    albums, every point having the same fields."""
+    return {k: [p[k] for p in points] for k in points[0]} if points else {}

@@ -526,6 +526,6 @@ button[data-variant="segmented_control"][aria-checked="true"] p { color: #fff !i
   mask: var(--ico-play) center / contain no-repeat; }
 
 /* the map of sound fills the window */
-.st-key-p-ocean-reco-map { padding: 16px 16px 12px; }
-.st-key-p-ocean-reco-map [data-testid="stIFrame"] { height: calc(100vh - 118px) !important; min-height: 560px; }
-.st-key-p-ocean-reco-map .stElementContainer:has(> [data-testid="stIFrame"]) { height: auto !important; }
+:is(.st-key-p-ocean-reco-map, .st-key-p-lilac-atlas) { padding: 16px 16px 12px; }
+:is(.st-key-p-ocean-reco-map, .st-key-p-lilac-atlas) [data-testid="stIFrame"] { height: calc(100vh - 118px) !important; min-height: 560px; }
+:is(.st-key-p-ocean-reco-map, .st-key-p-lilac-atlas) .stElementContainer:has(> [data-testid="stIFrame"]) { height: auto !important; }

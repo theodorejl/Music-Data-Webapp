@@ -572,14 +572,38 @@ HUES = {"electronic": 192, "pop": 322, "indie": 258, "rock": 22, "metal": 352, "
 LIGHT = {"metal": 58, "classical": 80, "sacred": 80, "experimental": 74, "other": 76, "blues": 70, "rock": 63, "latin": 63}
 
 
-def _outline(n: int = 240) -> np.ndarray:
-    """The edge of the atlas: a rounded continent whose coast wobbles a little (display space,
-    x in 0..ASPECT, y in 0..1)."""
-    t = np.linspace(0, 2 * np.pi, n, endpoint=False)
-    wobble = 1 + .035 * np.sin(3 * t + .7) + .025 * np.sin(5 * t + 2.1) + .012 * np.sin(11 * t + .3)
-    c, s = np.cos(t), np.sin(t)
-    r = wobble / (np.abs(c) ** 3.2 + np.abs(s) ** 3.2) ** (1 / 3.2)
-    return np.stack([ASPECT / 2 + .47 * ASPECT * r * c, .5 + .46 * r * s], 1)
+def _outline(corner: int = 10) -> np.ndarray:
+    """The edge of the atlas: a rectangle with rounded corners, like a panel of the site (display
+    space, x in 0..ASPECT, y in 0..1)."""
+    x0, x1, y0, y1, r = .02 * ASPECT, .98 * ASPECT, .03, .97, .08
+    out = []
+    for cx, cy, a0 in ((x1 - r, y0 + r, -90), (x1 - r, y1 - r, 0), (x0 + r, y1 - r, 90), (x0 + r, y0 + r, 180)):
+        for k in range(corner + 1):
+            a = np.radians(a0 + 90 * k / corner)
+            out.append((cx + r * np.cos(a), cy + r * np.sin(a)))
+    return np.array(out)
+
+
+def _clip(poly: np.ndarray, a: np.ndarray, c: float) -> np.ndarray:
+    """The part of a convex polygon where a·x <= c."""
+    out = []
+    for p, q in zip(poly, np.roll(poly, -1, 0)):
+        fp, fq = a @ p - c, a @ q - c
+        if fp <= 0:
+            out.append(p)
+        if fp * fq < 0:
+            out.append(p + (q - p) * fp / (fp - fq))
+    return np.array(out) if out else np.zeros((0, 2))
+
+
+def _cell(j: int, seeds: np.ndarray, w: np.ndarray, domain: np.ndarray) -> np.ndarray:
+    """The power cell of seed j inside a convex domain: where |x - s_j|² - w_j is the smallest.
+    Straight edges: each neighbour k cuts along 2x·(s_k - s_j) <= |s_k|² - |s_j|² - w_k + w_j."""
+    poly = domain
+    for k in range(len(seeds)):
+        if k != j and len(poly):
+            poly = _clip(poly, 2 * (seeds[k] - seeds[j]), seeds[k] @ seeds[k] - seeds[j] @ seeds[j] - w[k] + w[j])
+    return poly
 
 
 def _inside(pts: np.ndarray, poly: np.ndarray) -> np.ndarray:
@@ -598,9 +622,10 @@ def _spread(v: np.ndarray, lo: float, hi: float) -> np.ndarray:
     return lo + (hi - lo) * np.argsort(np.argsort(v, kind="stable"), kind="stable") / (len(v) - 1)
 
 
-def _balance(pts: np.ndarray, seeds: np.ndarray, share: np.ndarray, iters: int = 60) -> np.ndarray:
+def _balance(pts: np.ndarray, seeds: np.ndarray, share: np.ndarray, iters: int = 60) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Give each seed a contiguous part of `pts` of the wanted share: a power diagram whose
-    weights grow for the seeds that have too little, with the seeds moving to their centroid."""
+    weights grow for the seeds that have too little, with the seeds moving to their centroid.
+    Returns the labels, and the seeds and weights of the diagram that drew them."""
     seeds = seeds.astype(float).copy()
     share = share / share.sum()
     area = np.ptp(pts[:, 0]) * np.ptp(pts[:, 1]) or 1.0
@@ -616,7 +641,8 @@ def _balance(pts: np.ndarray, seeds: np.ndarray, share: np.ndarray, iters: int =
                 mine = pts[lab == j]
                 if len(mine):
                     seeds[j] = 0.5 * seeds[j] + 0.5 * mine.mean(0)
-    return lab
+    lab = (((pts[:, None, :] - seeds[None, :, :]) ** 2).sum(-1) - w[None, :]).argmin(1)
+    return lab, seeds, w
 
 
 def build(grid: tuple[int, int] = (400, 250)) -> dict:
@@ -642,13 +668,14 @@ def build(grid: tuple[int, int] = (400, 250)) -> dict:
     x0, x1, y0, y1 = pts[:, 0].min(), pts[:, 0].max(), pts[:, 1].min(), pts[:, 1].max()
     seeds = np.stack([_spread(cen[:, 0], x0 + .16 * (x1 - x0), x1 - .16 * (x1 - x0)),
                       _spread(cen[:, 1], y0 + .16 * (y1 - y0), y1 - .16 * (y1 - y0))], 1)
-    lab_main = _balance(pts, seeds, np.array([len(by_main[m]) ** .8 for m in main_keys], float))
+    lab_main, mseeds, mw = _balance(pts, seeds, np.array([len(by_main[m]) ** .8 for m in main_keys], float))
 
     pos = np.zeros((len(names), 2))
     out_main, out_sub = [], []
     sub_index: dict[str, int] = {}
     for mi, m in enumerate(main_keys):
         region = pts[lab_main == mi]
+        mpoly = _cell(mi, mseeds, mw, outline)
         members = by_main[m]
         sub_keys = [s for s in SUB if SUB[s][0] == m and any(subs[i] == s for i in members)]
         by_sub = {s: [i for i in members if subs[i] == s] for s in sub_keys}
@@ -657,7 +684,9 @@ def build(grid: tuple[int, int] = (400, 250)) -> dict:
         guess = np.stack([_spread(scen[:, 0], rx0 + .2 * (rx1 - rx0), rx1 - .2 * (rx1 - rx0)),
                           _spread(scen[:, 1], ry0 + .2 * (ry1 - ry0), ry1 - .2 * (ry1 - ry0))], 1)
         snap = region[((region[:, None, :] - guess[None, :, :]) ** 2).sum(-1).argmin(0)]
-        lab_sub = _balance(region, snap, np.array([len(by_sub[s]) ** .9 for s in sub_keys], float), iters=50)
+        raw = np.array([len(by_sub[s]) ** .9 for s in sub_keys], float)
+        raw = np.maximum(raw, .025 * raw.sum())  # even a sub-genre of two genres gets a district
+        lab_sub, sseeds, sw = _balance(region, snap, raw, iters=50)
         for si, s in enumerate(sub_keys):
             district = region[lab_sub == si]
             if not len(district):
@@ -667,24 +696,73 @@ def build(grid: tuple[int, int] = (400, 250)) -> dict:
             g = np.stack([_spread(en[ids, 0], dx0, dx1), _spread(en[ids, 1], dy0, dy1)], 1)
             gsnap = district[((district[:, None, :] - g[None, :, :]) ** 2).sum(-1).argmin(0)]
             if len(ids) > 1 and len(district) >= len(ids):
-                lab_g = _balance(district, gsnap, np.ones(len(ids)), iters=30)
+                lab_g = _balance(district, gsnap, np.ones(len(ids)), iters=30)[0]
                 for gi, i in enumerate(ids):
                     mine = district[lab_g == gi]
                     pos[i] = mine.mean(0) if len(mine) else gsnap[gi]
             else:
                 pos[ids] = gsnap
+            # a hair towards the middle of the district: no genre sits on a border (districts are convex)
+            pos[ids] += (district.mean(0) - pos[ids]) * .03
             sub_index[s] = len(out_sub)
             out_sub.append({"key": s, "main": mi, "fr": SUB[s][1], "en": SUB[s][2],
                             "x": round(float(district[:, 0].mean() / ASPECT), 4), "y": round(float(district[:, 1].mean()), 4),
-                            "n": len(ids)})
+                            "n": len(ids), "poly": _norm(_cell(si, sseeds, sw, mpoly))})
         out_main.append({"key": m, "fr": MAIN[m][0], "en": MAIN[m][1], "hue": HUES[m], "light": LIGHT.get(m, 66),
                          "x": round(float(region[:, 0].mean() / ASPECT), 4), "y": round(float(region[:, 1].mean()), 4),
-                         "n": len(members)})
+                         "n": len(members), "poly": _norm(mpoly)})
+    for m, tone in zip(out_main, _colour([m["poly"] for m in out_main], 4)):
+        m["tone"] = tone  # which of the page's four tones it is painted in
+    for mi in range(len(out_main)):
+        siblings = [s for s in out_sub if s["main"] == mi]
+        for s, shade in zip(siblings, _colour([s["poly"] for s in siblings], 4)):
+            s["shade"] = shade  # lighter or darker than its main genre
     return {"source": "Every Noise at Once genres, classified and laid out by core/genretree.py",
             "main": out_main, "sub": out_sub,
             "genres": [[n, sub_index[s], round(float(p[0] / ASPECT), 5), round(float(p[1]), 5)]
                        for n, s, p in zip(names, subs, pos)],
-            "outline": [[round(float(x / ASPECT), 4), round(float(y), 4)] for x, y in outline]}
+            "outline": _norm(outline)}
+
+
+def _touch(p: list, q: list, eps: float = 2e-4) -> bool:
+    """Two straight-edged polygons share a border when a corner of one lies on an edge of the other."""
+    for x, y in p:
+        for (x1, y1), (x2, y2) in zip(q, q[1:] + q[:1]):
+            dx, dy = x2 - x1, y2 - y1
+            t = max(0.0, min(1.0, ((x - x1) * dx + (y - y1) * dy) / ((dx * dx + dy * dy) or 1)))
+            if (x - x1 - t * dx) ** 2 + (y - y1 - t * dy) ** 2 < eps * eps:
+                return True
+    return False
+
+
+def _colour(polys: list[list], colours: int = 4) -> list[int]:
+    """A colour per polygon, never the same as a neighbour's (four always suffice on a flat map):
+    a search that colours the most surrounded first and steps back when it gets stuck."""
+    n = len(polys)
+    near = [{j for j in range(n) if j != i and (_touch(polys[i], polys[j]) or _touch(polys[j], polys[i]))} for i in range(n)]
+    order = sorted(range(n), key=lambda i: -len(near[i]))
+    out = [-1] * n
+
+    def place(k: int) -> bool:
+        if k == n:
+            return True
+        i = order[k]
+        for c in range(colours):
+            if all(out[j] != c for j in near[i]):
+                out[i] = c
+                if place(k + 1):
+                    return True
+        out[i] = -1
+        return False
+
+    if not place(0):
+        raise ValueError("no colouring found")
+    return out
+
+
+def _norm(poly: np.ndarray) -> list[list[float]]:
+    """A polygon of the display space in the page's units (x and y in 0..1)."""
+    return [[round(float(x / ASPECT), 5), round(float(y), 5)] for x, y in poly]
 
 
 @lru_cache(maxsize=1)

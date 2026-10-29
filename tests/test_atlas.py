@@ -112,3 +112,102 @@ def test_library_genres_fetch_one_album_per_unknown_artist_most_present_first(en
         assert client.asked == [20, 10]  # artist 2 has 4 tracks, artist 1 has 3 (two on album 10)
         assert s.get(Album, 20).deezer_genres == ["Electro", "Techno/House"]
         assert enrich_library_genres(s, FakeDeezer(), time.monotonic() + 30) == 0  # nothing left
+
+
+def _inside(x, y, poly):
+    hit = False
+    for (x1, y1), (x2, y2) in zip(poly, poly[1:] + poly[:1]):
+        if (y1 > y) != (y2 > y) and x < (x2 - x1) * (y - y1) / (y2 - y1) + x1:
+            hit = not hit
+    return hit
+
+
+def _convex(poly, aspect):
+    pts = [(x * aspect, y) for x, y in poly]
+    signs = set()
+    for (ax, ay), (bx, by), (cx, cy) in zip(pts, pts[1:] + pts[:1], pts[2:] + pts[:2]):
+        cross = (bx - ax) * (cy - by) - (by - ay) * (cx - bx)
+        if abs(cross) > 1e-9:
+            signs.add(cross > 0)
+    return len(signs) == 1
+
+
+def test_territories_are_straight_edged_polygons_that_hold_their_genres():
+    t = genretree.tree()
+    assert all(_convex(m["poly"], genretree.ASPECT) for m in t["main"])
+    assert all(_convex(s["poly"], genretree.ASPECT) for s in t["sub"])
+    for name, si, x, y in t["genres"]:
+        sub = t["sub"][si]
+        assert _inside(x, y, sub["poly"]), (name, sub["key"])
+        assert _inside(x, y, t["main"][sub["main"]]["poly"]), name
+    # the edge of the atlas is a rounded rectangle, not a wobbly coast
+    xs, ys = [p[0] for p in t["outline"]], [p[1] for p in t["outline"]]
+    assert _convex(t["outline"], genretree.ASPECT)
+    assert sum(1 for x in xs if abs(x - min(xs)) < 1e-3) >= 2 and sum(1 for y in ys if abs(y - max(ys)) < 1e-3) >= 2
+
+
+def test_top_share_keeps_the_most_listened_and_never_listened_ones_only_in_all_history():
+    minutes = {1: 50.0, 2: 30.0, 3: 5.0}
+    ids = [1, 2, 3, 4, 5]  # 4 and 5: favourites never played
+    assert atlas.top_share(ids, minutes, 100, all_history=False) == [1, 2, 3]
+    assert atlas.top_share(ids, minutes, 1, all_history=False) == [1]  # never nothing
+    assert atlas.top_share(ids, minutes, 40, all_history=True) == [1, 2]
+    assert atlas.top_share(ids, minutes, 100, all_history=True) == [1, 2, 3, 4, 5]
+    assert atlas.top_share([], minutes, 50, all_history=True) == []
+
+
+def test_albums_are_placed_by_their_own_genres_then_by_their_artist():
+    artists, plays, tags, albums, pt, fav = frames()
+    albums = pd.concat([albums, pd.DataFrame({"id": [500], "artist_id": [1], "deezer_genres": [None]})], ignore_index=True)
+    albums["title"] = ["Tagged Album", "House Album", "Pop Album", "Untagged"]
+    albums["label"] = ["Kompakt", "Ed Banger", None, None]
+    albums["cover_medium"] = ["https://cdn-images.dzcdn.net/images/cover/" + "b" * 32 + "/250x250-000000-80-0-0.jpg", None, None, None]
+    plays = pd.concat([plays, pd.DataFrame({"play_id": [12], "artist_id": [1], "album_id": [500], "minutes": [2.0], "genre": [None]})])
+    points = {p["id"]: p for p in atlas.place_albums(artists, plays, tags, albums, pt, fav)}
+    t = genretree.tree()
+    assert set(points) == {100, 200, 500}  # listened (100, 500) or favourite (200); 300 is neither
+    assert t["sub"][points[200]["s"]]["key"] == "house" and points[200]["lb"] == "Ed Banger" and points[200]["fa"] == 1
+    assert points[500]["lv"] == atlas.GENRE and points[500]["g"] == "dub techno"  # from its artist's tags
+    assert points[100]["p"] == "b" * 32 and points[100]["a"] == "Tagged" and points[100]["n"] == "Tagged Album"
+
+
+def _touch(p, q, eps=2e-4):
+    """Two straight-edged polygons share a border when a corner of one lies on an edge of the other."""
+    for x, y in p:
+        for (x1, y1), (x2, y2) in zip(q, q[1:] + q[:1]):
+            dx, dy = x2 - x1, y2 - y1
+            t = max(0, min(1, ((x - x1) * dx + (y - y1) * dy) / ((dx * dx + dy * dy) or 1)))
+            if (x - x1 - t * dx) ** 2 + (y - y1 - t * dy) ** 2 < eps * eps:
+                return True
+    return False
+
+
+def test_neighbouring_territories_never_share_a_tone():
+    t = genretree.tree()
+    mains = t["main"]
+    assert all(0 <= m["tone"] < 4 for m in mains)
+    for i, a in enumerate(mains):
+        for b in mains[i + 1:]:
+            if _touch(a["poly"], b["poly"]) or _touch(b["poly"], a["poly"]):
+                assert a["tone"] != b["tone"], (a["key"], b["key"])
+    for i, a in enumerate(t["sub"]):
+        for b in t["sub"][i + 1:]:
+            if a["main"] == b["main"] and (_touch(a["poly"], b["poly"]) or _touch(b["poly"], a["poly"])):
+                assert a["shade"] != b["shade"], (a["key"], b["key"])
+
+
+def test_columns_keep_the_fields_of_albums_too():
+    cols = atlas.columns([{"id": 1, "n": "Discovery", "a": "Daft Punk", "x": .5}, {"id": 2, "n": "Homework", "a": "Daft Punk", "x": .6}])
+    assert cols == {"id": [1, 2], "n": ["Discovery", "Homework"], "a": ["Daft Punk", "Daft Punk"], "x": [.5, .6]}
+    assert atlas.columns([]) == {}
+
+
+def test_every_point_stays_inside_its_territory():
+    t = genretree.tree()
+    for key in range(600):
+        m = key % len(t["main"])
+        x, y, _ = atlas._spot({"level": atlas.MAIN, "main": m, "sub": None, "genre": None}, key)
+        assert _inside(x, y, t["main"][m]["poly"]), (t["main"][m]["key"], key)
+        si = key % len(t["sub"])
+        x, y, _ = atlas._spot({"level": atlas.SUB, "main": t["sub"][si]["main"], "sub": si, "genre": None}, key)
+        assert _inside(x, y, t["sub"][si]["poly"]), (t["sub"][si]["key"], key)

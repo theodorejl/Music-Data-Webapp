@@ -212,7 +212,7 @@ with theme.panel("ocean", "reco-map"):
          "lv0": t("reco.map_lv0"), "lv1": t("reco.map_lv1"), "lv2": t("reco.map_lv2"), "zone": t("reco.map_zone"),
          "zoom_in": t("reco.map_zoom_in"), "genre": t("common.genre"), "artist": t("common.artist"),
          "label": t("reco.map_label"), "words": t("reco.map_words")},
-        studio.MODE_COLORS[mode][0], get_lang(), height=820)
+        studio.MODE_COLORS[mode][0], get_lang(), height=820, family="ocean")
     st.caption(t("reco.map_credit", n=fmt_int(len(artists["id"])), missing=fmt_int(missing)))
 
 # --- the table ----------------------------------------------------------------------------------------

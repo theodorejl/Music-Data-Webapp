@@ -40,9 +40,10 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
 7. [En cas de problème](#7-en-cas-de-problème)
 8. [L'apparence](#lapparence)
 9. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
-10. [Depuis Insta : la playlist d'un compte Instagram](#depuis-insta--la-playlist-dun-compte-instagram)
-11. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
-12. [Limites connues](#limites-connues)
+10. [Univers : l'atlas de ta musique](#univers--latlas-de-ta-musique)
+11. [Depuis Insta : la playlist d'un compte Instagram](#depuis-insta--la-playlist-dun-compte-instagram)
+12. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
+13. [Limites connues](#limites-connues)
 
 Les commandes sont à taper dans un **terminal** :
 - **macOS** : app « Terminal » (Cmd + Espace, puis tape « Terminal »).
@@ -376,7 +377,7 @@ L'app utilise une API **non officielle** : Deezer peut la modifier sans préveni
 - **Le fond** est vivant. De temps en temps, des souffles invisibles le traversent et déplacent de grandes zones de couleur, chaque fois ailleurs.
 - **Les encadrés** sont remplis du même dégradé, avec un fin liseré blanc. Ils prennent toute la largeur de l'écran.
 - **Les polices** : Rubik 80s Fade pour les titres et les grands chiffres, Fira Code Medium pour le reste.
-- **Les icônes et le logo** sont dessinés au pinceau, en quelques traits (code : `app/components/icons.py`). Le logo est un disque vinyle qui sert de lentille à une loupe.
+- **Les icônes et le logo** sont géométriques : quelques traits droits ou en arc, d'épaisseur régulière, qui s'affinent juste au bout comme un trait de pinceau (code : `app/components/icons.py`). Le logo est un disque vinyle qui sert de lentille à une loupe ; ses sillons tournent lentement.
 - **La barre de lecture** : quand un extrait de 30 s démarre (tableau, carte, fiche d'un morceau), une barre fine apparaît en bas de l'écran. Elle permet de mettre en pause, d'avancer dans l'extrait ou de fermer. La lecture continue quand tu changes de page.
 
 ## Excel, albums & playlists, affiche A3
@@ -441,11 +442,13 @@ Chaque genre est rangé d'après son nom : le dernier mot décide (« pop punk �
 
 Chaque genre principal occupe un seul territoire, découpé en quartiers pour ses sous-genres. Les territoires restent placés comme sur Every Noise : le plus mécanique et électrique en haut, le plus organique en bas.
 
-- **Chaque point est un artiste de ta discothèque** : il a au moins une écoute, un titre dans tes playlists ou un album favori. Il prend la couleur de son genre principal ; un anneau blanc signale ceux que tu as écoutés.
+Le dessin reprend celui du site. Les territoires sont des polygones à bords droits et coins arrondis, séparés par un liseré blanc, dans le cadre arrondi de la carte. Ils prennent quatre teintes de la famille de couleurs de la page, et deux territoires voisins n'ont jamais la même. Le grain argentique passe dessus, et tous les textes sont en Fira Code.
+
+- **Chaque point est un artiste de ta discothèque** : il a au moins une écoute, un titre dans tes playlists ou un album favori. C'est un point d'encre, toujours à l'intérieur de son territoire ; un anneau blanc signale ceux que tu as écoutés.
   - Survole un point pour voir son nom, son genre et ce qu'il représente pour toi.
   - Clique pour **ouvrir sa page Deezer**.
   - De près, chaque point devient sa photo.
-- **L'encre violette** montre où vit ta musique : elle s'accumule là où tes artistes sont nombreux, écoutés ou très présents dans ta bibliothèque. Chaque genre principal a son aplat pastel, et la carte occupe toute la hauteur de l'écran.
+- **L'encre** montre où vit ta musique : elle s'accumule là où tes artistes sont nombreux, écoutés ou très présents dans ta bibliothèque. La carte occupe toute la hauteur de l'écran.
 - **Les anneaux bleus** (ou de la couleur du mode) montrent **où zoomer pour voir tes découvertes**, avec leur nombre. Clique sur un anneau pour y aller.
 - **Les découvertes** sont posées sur leur sous-genre. De près, elles deviennent leurs pochettes : clique pour écouter **30 s**.
 - **Pour te déplacer** : les **pastilles** volent vers chaque sous-genre exploré, la **recherche** trouve un genre ou un artiste, ◎ montre tes découvertes et ⟲ la carte entière.
@@ -478,6 +481,15 @@ Sans clé, compte quelques heures pour 8 000 artistes. Avec une clé Last.fm (gr
 **Le tableau** dessous liste chaque découverte avec son sous-genre. Il permet d'écouter, de trier, de filtrer et d'exporter en Excel.
 
 Les tags MusicBrainz de tes artistes s'enrichissent à chaque synchro. Plus ils sont nombreux, plus ton territoire est précis.
+
+## Univers : l'atlas de ta musique
+
+En haut de la page « Univers », le même atlas que la carte du son, aux couleurs lilas de la page et sans recommandations. Il montre ta musique à toi :
+
+- **Albums ou artistes** : tes albums favoris ou écoutés, ou tes artistes favoris ou écoutés. Un album est placé d'après ses propres genres, puis d'après ceux de son artiste.
+- **La période** : jour, semaine, mois, année ou tout l'historique. Sur une période précise, seuls ceux que tu as écoutés pendant la période apparaissent. Ceux qui n'ont aucune écoute datée (favoris, playlists) n'apparaissent que dans **Tout l'historique**.
+- **Le curseur « top % »** garde seulement les plus écoutés en minutes sur la période : 1 % pour le cœur de ton écoute, 100 % pour tout voir.
+- Survole un point pour voir son nom, son genre et tes écoutes. Clique pour l'ouvrir sur Deezer ; de près, chaque point devient sa pochette ou sa photo.
 
 ## Depuis Insta : la playlist d'un compte Instagram
 
@@ -594,7 +606,7 @@ app/                 application Streamlit (lecture seule, sauf la page admin)
   shell.py           rail de navigation, recherche, actualisation, fond vivant
   devreload.py       rechargement à chaud de tout le projet (aucune relance nécessaire)
   views/             une page par fichier (pas « pages/ » : ce nom active un ancien mode de Streamlit)
-  components/        thème (dégradés granuleux, fond vivant, barre de lecture), icônes au pinceau, blocs, graphiques Plotly, visualisations,
+  components/        thème (dégradés granuleux, fond vivant, barre de lecture), icônes géométriques, blocs, graphiques Plotly, visualisations,
                      interactive.py : roue des genres (D3), carte et cartes de recommandations, extraits
   assets/theme.css   tout le style : familles de couleurs, panneaux, rail, puces
   i18n/              fr.json, en.json + t("clé")

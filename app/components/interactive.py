@@ -60,24 +60,6 @@ cv.addEventListener('touchmove',e=>{e.preventDefault();const r=cv.getBoundingCli
 cv.addEventListener('touchend',()=>{drag=null;pinch=null});
 """
 
-# Voronoi territories of the genres (shared by the constellation and the map of recommendations).
-TERRITORY_JS = """
-function clip(poly,a,b,c){const out=[];for(let i=0;i<poly.length;i++){const p=poly[i],q=poly[(i+1)%poly.length];
- const fp=a*p[0]+b*p[1]-c,fq=a*q[0]+b*q[1]-c;if(fp<=0)out.push(p);if(fp*fq<0){const t=fp/(fp-fq);out.push([p[0]+(q[0]-p[0])*t,p[1]+(q[1]-p[1])*t])}}return out}
-function inside(poly,x,y){let k=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const[xi,yi]=poly[i],[xj,yj]=poly[j];
- if(((yi>y)!==(yj>y))&&(x<(xj-xi)*(y-yi)/(yj-yi)+xi))k=!k}return k}
-function centroid(poly){let x=0,y=0;poly.forEach(p=>{x+=p[0];y+=p[1]});return[x/poly.length,y/poly.length]}
-function territories(n,W,H,m){const cx=W/2,cy=H/2,rx=W*.3,ry=H*.28;
- const seeds=Array.from({length:n},(_,i)=>n===1?[cx,cy]:[cx+Math.cos(i/n*6.283-1.2)*rx*(i%2?.82:1),cy+Math.sin(i/n*6.283-1.2)*ry*(i%2?.82:1)]);
- const frame=[[m,m],[W-m,m],[W-m,H-m],[m,H-m]];
- return seeds.map((s,i)=>{let poly=frame.slice();seeds.forEach((o,j)=>{if(i===j)return;const a=o[0]-s[0],b=o[1]-s[1];
-  const c=(o[0]*o[0]+o[1]*o[1]-s[0]*s[0]-s[1]*s[1])/2;poly=clip(poly,a,b,c)});return poly})}
-function drawBorders(ctx,cells,W,H,m,k){ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=2.2/k;
- cells.forEach(cell=>{for(let i=0;i<cell.length;i++){const p=cell[i],q=cell[(i+1)%cell.length];
-  const onFrame=(Math.abs(p[0]-q[0])<.5&&(Math.abs(p[0]-m)<.5||Math.abs(p[0]-(W-m))<.5))||(Math.abs(p[1]-q[1])<.5&&(Math.abs(p[1]-m)<.5||Math.abs(p[1]-(H-m))<.5));
-  if(!onFrame){ctx.beginPath();ctx.moveTo(p[0],p[1]);ctx.lineTo(q[0],q[1]);ctx.stroke()}}})}
-"""
-
 PLAYER_JS = """
 const DP=(()=>{try{return window.parent&&window.parent!==window&&window.parent.dsPlayer||null}catch(e){return null}})();
 let playing=null;const timeFns=[];function onTime(fn){timeFns.push(fn)}
@@ -356,57 +338,82 @@ render();
 
 @lru_cache(maxsize=2)
 def _tree_table(lang: str) -> str:
-    """The atlas of genres (core/genretree.py) as compact JSON, names in the page's language."""
+    """The atlas of genres (core/genretree.py) as compact JSON, names in the page's language:
+    main genres and sub-genres with their straight-edged territory and their tone or shade."""
     from core import genretree
 
     t = genretree.tree()
     lang = lang if lang in ("fr", "en") else "fr"
     g = t["genres"]
-    return js_data({"main": [{"n": m[lang], "h": m["hue"], "l": m["light"], "x": m["x"], "y": m["y"], "c": m["n"]}
+    return js_data({"main": [{"n": m[lang], "x": m["x"], "y": m["y"], "c": m["n"], "t": m["tone"], "p": m["poly"]}
                              for m in t["main"]],
-                    "sub": [{"n": s[lang], "m": s["main"], "x": s["x"], "y": s["y"], "c": s["n"]} for s in t["sub"]],
+                    "sub": [{"n": s[lang], "m": s["main"], "x": s["x"], "y": s["y"], "c": s["n"], "t": s["shade"], "p": s["poly"]}
+                            for s in t["sub"]],
                     "g": {"n": [r[0] for r in g], "s": [r[1] for r in g], "x": [r[2] for r in g], "y": [r[3] for r in g]},
                     "o": t["outline"]})
 
 
+def _mix(a: str, b: str, t: float) -> str:
+    pa = [int(a[i:i + 2], 16) for i in (1, 3, 5)]
+    pb = [int(b[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02x}" for x, y in zip(pa, pb))
+
+
+def _map_palette(family: str) -> dict:
+    """The map in the colours of its page: four tones for the territories (the family's main hue,
+    its neighbouring hue, both mixed, its vivid mid tone), each softened towards the family's cream;
+    its deep ink for the density and the points."""
+    from app.components.theme import FAMILIES
+
+    f = FAMILIES.get(family, FAMILIES["ocean"])
+    c1, c2, c3 = f["stops"]
+    tones = [_mix(c1, c3, .38), _mix(c2, c3, .34), _mix(_mix(c1, c2, .5), c3, .5), _mix(f["mid"], c3, .62)]
+    return {"tones": tones, "cream": c3, "ink": f["ink"], "mid": f["mid"], "stops": [c1, c2, c3]}
+
+
+MAP_FONT_LINK = ('<link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@500&display=swap" '
+                 'rel="stylesheet">')
+
 SOUND_MAP_CSS = """
-html,body{margin:0;background:transparent;font-family:__FONT__;-webkit-font-smoothing:antialiased;overflow:hidden;color:#1c2230}
+html,body{margin:0;background:transparent;font-family:__FONT__;font-weight:500;-webkit-font-smoothing:antialiased;overflow:hidden;color:__INK__}
+b,strong,button,input{font-family:inherit;font-weight:500}
 .space{position:relative;height:100vh;display:flex;flex-direction:column;border-radius:22px;overflow:hidden;
- background:linear-gradient(170deg,#eaf3f6,#f4ece0)}
-.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 16px 6px;font-size:12px;font-weight:500;color:#3e4554}
+ background:linear-gradient(165deg,__C1S__,__C3__ 70%)}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:12px 16px 6px;font-size:12px;font-weight:500;color:__INK__}
 .top span{display:flex;align-items:center;gap:7px}
-.top b.neb{width:34px;height:10px;border-radius:5px;background:linear-gradient(90deg,#efe9fb,#b9b3ef,#7d6fdc,#3b2f8f)}
-.top b.dots{width:30px;height:10px;background:radial-gradient(circle,#e04a85 2px,transparent 2.6px) 0 1px/10px 10px,
- radial-gradient(circle,#1f97d1 2px,transparent 2.6px) 5px 0/10px 10px,radial-gradient(circle,#d39a06 2px,transparent 2.6px) 2px 5px/10px 10px}
+.top b.neb{width:34px;height:10px;border-radius:5px;background:linear-gradient(90deg,__C3__,__INK__)}
+.top b.dots{width:30px;height:10px;background:radial-gradient(circle,__INK__ 2px,transparent 2.6px) 0 1px/10px 10px,
+ radial-gradient(circle,__INK__ 2px,transparent 2.6px) 5px 0/10px 10px}
 .top b.ring{width:14px;height:14px;border-radius:50%;border:2px dashed __C__}
 .top i.rec{width:9px;height:9px;border-radius:50%;display:inline-block;background:__C__;box-shadow:0 0 0 2px #fff}
 .find{margin-left:auto;position:relative}
 .find input{font:500 12px __FONT__;padding:8px 14px;border-radius:12px;border:1.5px solid rgba(255,255,255,.95);
- background:rgba(255,255,255,.7);color:#1c2230;outline:none;width:280px}
-.find input::placeholder{color:#7a8090}
-.sug{position:absolute;right:0;top:38px;width:330px;background:rgba(255,255,255,.94);border:1.5px solid #fff;border-radius:14px;
+ background:rgba(255,255,255,.7);color:__INK__;outline:none;width:280px}
+.find input::placeholder{color:#6b7280}
+.sug{position:absolute;right:0;top:38px;width:330px;background:rgba(255,255,255,.95);border:1.5px solid #fff;border-radius:14px;
  padding:6px;display:none;z-index:9;backdrop-filter:blur(10px);box-shadow:0 18px 40px -24px rgba(40,46,90,.5)}
-.sug.on{display:block}.sug div{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;color:#1c2230;font-size:12px;cursor:pointer}
-.sug div:hover,.sug div.sel{background:rgba(28,34,48,.06)}.sug small{margin-left:auto;color:#7a8090}
-.sug i{width:8px;height:8px;border-radius:50%;flex:none}
+.sug.on{display:block}.sug div{display:flex;align-items:center;gap:8px;padding:7px 9px;border-radius:9px;color:__INK__;font-size:12px;cursor:pointer}
+.sug div:hover,.sug div.sel{background:rgba(28,34,48,.06)}.sug small{margin-left:auto;color:#6b7280}
+.sug i{width:8px;height:8px;border-radius:50%;flex:none;background:__INK__}
 .chips{display:flex;gap:6px;overflow-x:auto;padding:4px 16px 8px;scrollbar-width:none}.chips::-webkit-scrollbar{display:none}
-.chips button{flex:none;font:600 11.5px __FONT__;color:#1c2230;background:rgba(255,255,255,.66);border:1.5px solid rgba(255,255,255,.95);
- border-radius:10px;padding:5px 11px;cursor:pointer;white-space:nowrap}.chips button b{color:__C__;margin-left:6px;font-weight:700}
+.chips:empty{display:none}
+.chips button{flex:none;font:500 11.5px __FONT__;color:__INK__;background:rgba(255,255,255,.66);border:1.5px solid rgba(255,255,255,.95);
+ border-radius:10px;padding:5px 11px;cursor:pointer;white-space:nowrap}.chips button b{color:__C__;margin-left:6px;font-weight:500}
 .chips button:hover,.chips button.on{background:#fff;border-color:__C__}
 .stage{position:relative;flex:1;min-height:0}
 .stage::after{content:"";position:absolute;inset:0;pointer-events:none;background-image:__GRAIN__;background-size:220px;opacity:.3;mix-blend-mode:overlay}
 canvas{display:block;width:100%;height:100%}
 #ov{position:absolute;inset:0;pointer-events:none}
-.tip{position:absolute;pointer-events:none;display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.94);color:#1c2230;padding:10px 14px 10px 10px;
+.tip{position:absolute;pointer-events:none;display:flex;gap:12px;align-items:center;background:rgba(255,255,255,.95);color:__INK__;padding:10px 14px 10px 10px;
  border:1.5px solid #fff;border-radius:14px;font-size:12px;line-height:1.45;opacity:0;transform:translateY(4px);
  transition:opacity .15s,transform .15s;max-width:370px;z-index:7;backdrop-filter:blur(10px);box-shadow:0 18px 40px -22px rgba(40,46,90,.55)}
 .tip.on{opacity:1;transform:none}.tip img{width:58px;height:58px;border-radius:50%;object-fit:cover;flex:none}
-.tip img.sq{border-radius:10px}.tip b{display:block;font-size:13.5px}
-.tip small{display:block;color:#5f6675}.tip em{display:block;font-style:normal;font-weight:650;margin-top:2px}
-.tip .act{color:#1c2230;margin-top:4px;font-weight:650}
+.tip img.sq{border-radius:10px}.tip b{display:block;font-size:13.5px;font-weight:500}
+.tip small{display:block;color:#5f6675}.tip em{display:block;font-style:normal;font-weight:500;margin-top:2px}
+.tip .act{margin-top:4px;font-weight:500}
 .zoom{position:absolute;right:16px;bottom:16px;display:flex;gap:6px;z-index:6}
-.zoom button{width:36px;height:36px;border-radius:12px;border:1.5px solid #fff;background:rgba(255,255,255,.72);color:#1c2230;
- font:600 16px/1 __FONT__;cursor:pointer;backdrop-filter:blur(8px)}
+.zoom button{width:36px;height:36px;border-radius:12px;border:1.5px solid #fff;background:rgba(255,255,255,.72);color:__INK__;
+ font:500 16px/1 __FONT__;cursor:pointer;backdrop-filter:blur(8px)}
 .zoom button:hover{background:#fff}
 .hint{position:absolute;left:18px;bottom:22px;font:500 11.5px __FONT__;color:#5f6675;z-index:6;pointer-events:none}
 @media (max-width:640px){.hint{display:none}}
@@ -415,48 +422,51 @@ canvas{display:block;width:100%;height:100%}
 SOUND_MAP_JS = r"""
 const cv=document.getElementById('c'),ctx=cv.getContext('2d'),ov=document.getElementById('ov'),octx=ov.getContext('2d'),tip=document.getElementById('tip');
 let W=0,H=0,dirty=true;
-const NG=T.g.n.length,NM=T.main.length,NA=A.id.length,DPR=()=>devicePixelRatio||1;
+const NG=T.g.n.length,NM=T.main.length,NA=A.id.length,DPR=()=>devicePixelRatio||1,ALB=KIND==='albums';
+const FONTF='"Fira Code", monospace';
 const cap=s=>s?s.charAt(0).toUpperCase()+s.slice(1):s;
-const hsl=(m,a=1,dl=0,sat=78)=>`hsla(${T.main[m].h},${sat}%,${Math.min(96,T.main[m].l+dl)}%,${a})`;
-const MAINC=T.main.map((_,m)=>hsl(m));
 const gidx={};T.g.n.forEach((n,i)=>gidx[n]=i);
 const mainOfG=i=>T.sub[T.g.s[i]].m;
-const pic=i=>{const p=A.p[i];return !p?'':(p.length===32?'https://cdn-images.dzcdn.net/images/artist/'+p+'/250x250-000000-80-0-0.jpg':p)};
+const pic=i=>{const p=A.p[i];return !p?'':(p.length===32?'https://cdn-images.dzcdn.net/images/'+(ALB?'cover':'artist')+'/'+p+'/250x250-000000-80-0-0.jpg':p)};
 const ramp=(k,a,b)=>Math.max(0,Math.min(1,(k-a)/(b-a)));
+const hex=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),mixc=(a,b,t)=>a.map((v,i)=>Math.round(v+(b[i]-v)*t));
+const rgba=(c,a)=>`rgba(${c[0]},${c[1]},${c[2]},${a})`;
+const INK=hex(PAL.ink),CREAM=hex(PAL.cream),TONES=PAL.tones.map(hex),WHITE=[255,255,255];
 const hash=i=>{let h=(i+1)*2654435761>>>0;h^=h>>>15;h=Math.imul(h,2246822519)>>>0;h^=h>>>13;return (h>>>0)/4294967296};
 // discoveries: scattered around their sub-genre, the same way every time
 R.forEach((p,i)=>{const u=Math.max(1e-6,hash(977+i*2)),v=hash(978+i*2),r=.0034*Math.sqrt(-2*Math.log(u));p.px=p.x+Math.cos(6.283*v)*r/1.6;p.py=p.y+Math.sin(6.283*v)*r});
 const nearestG=(x,y)=>{let b=0,bd=1e9;for(let i=0;i<NG;i++){const d=(T.g.x[i]-x)**2+(T.g.y[i]-y)**2;if(d<bd){bd=d;b=i}}return b};
 const explored=new Set();R.forEach(r=>{const g=gidx[r.subgenre];if(g!==undefined)explored.add(g)});
-// where to zoom: the discoveries grouped by sub-genre district
 const groups={};R.forEach((r,i)=>{const g=gidx[r.subgenre]!==undefined?gidx[r.subgenre]:nearestG(r.x,r.y);const s=T.g.s[g];(groups[s]=groups[s]||[]).push(i)});
 const zones=Object.entries(groups).map(([s,ids])=>{const xs=ids.map(i=>R[i].px),ys=ids.map(i=>R[i].py);
  return{s:+s,ids,x:xs.reduce((a,b)=>a+b)/xs.length,y:ys.reduce((a,b)=>a+b)/ys.length,x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)}});
 const pathIdx=P.map(([a,b])=>[gidx[a],gidx[b]]).filter(([a,b])=>a!==undefined&&b!==undefined);
 const imgs={};function img(u){if(!u)return null;if(!imgs[u]){const im=new Image();im.onload=()=>dirty=true;im.src=u;imgs[u]=im}return imgs[u]}
-// the nebula: the density of your artists (weighted by listening and library), in magma colours
-const STOPS=[[0,[255,255,255]],[.25,[226,222,250]],[.5,[178,168,240]],[.72,[124,108,222]],[.88,[82,66,180]],[1,[52,40,128]]];
+// the density of your music, in the page's ink, multiplied over the territories
+const STOPS=[[0,WHITE],[.35,mixc(INK,WHITE,.78)],[.7,mixc(INK,WHITE,.42)],[1,INK]];
 const LUT=new Uint8ClampedArray(256*4);for(let i=0;i<256;i++){const t=i/255;let a=STOPS[0],b=STOPS[STOPS.length-1];
  for(let j=0;j<STOPS.length-1;j++)if(t>=STOPS[j][0]&&t<=STOPS[j+1][0]){a=STOPS[j];b=STOPS[j+1];break}
- const f=(t-a[0])/Math.max(1e-6,b[0]-a[0]);for(let c=0;c<3;c++)LUT[i*4+c]=a[1][c]+(b[1][c]-a[1][c])*f;LUT[i*4+3]=Math.min(235,Math.pow(t,.7)*320)}
-const dc=document.createElement('canvas'),cc=document.createElement('canvas'),cctx=cc.getContext('2d');let G=null;
+ const f=(t-a[0])/Math.max(1e-6,b[0]-a[0]);for(let c=0;c<3;c++)LUT[i*4+c]=a[1][c]+(b[1][c]-a[1][c])*f;LUT[i*4+3]=Math.min(225,Math.pow(t,.75)*300)}
+const cc=document.createElement('canvas'),cctx=cc.getContext('2d');let G=null;
+// the atlas: straight-edged territories with softly rounded corners (in pixels at zoom 1)
+function rpath(poly,r){const p=new Path2D(),n=poly.length;if(n<3)return p;const Q=poly.map(([x,y])=>[x*W,y*H]);
+ const len=(a,b)=>Math.hypot(b[0]-a[0],b[1]-a[1]);const s=[(Q[n-1][0]+Q[0][0])/2,(Q[n-1][1]+Q[0][1])/2];p.moveTo(s[0],s[1]);
+ for(let i=0;i<n;i++){const a=Q[i],b=Q[(i+1)%n],z=Q[(i-1+n)%n];p.arcTo(a[0],a[1],b[0],b[1],Math.min(r,len(a,b)/2,len(z,a)/2))}p.closePath();return p}
 let geo=null;
-function buildGeo(){const outline=new Path2D();T.o.forEach(([x,y],i)=>i?outline.lineTo(x*W,y*H):outline.moveTo(x*W,y*H));outline.closePath();
- geo={outline,tint:[],b1:new Path2D(),b2:new Path2D(),b3:new Path2D(),ok:false};
- if(!window.d3||!d3.Delaunay)return;
- const pts=new Float64Array(NG*2);for(let i=0;i<NG;i++){pts[2*i]=T.g.x[i]*W;pts[2*i+1]=T.g.y[i]*H}
- const del=new d3.Delaunay(pts),vor=del.voronoi([-W*.05,-H*.05,W*1.05,H*1.05]);
- for(let m=0;m<NM;m++)geo.tint.push(new Path2D());
- for(let i=0;i<NG;i++)vor.renderCell(i,geo.tint[mainOfG(i)]);
- const he=del.halfedges,tr=del.triangles,ccs=vor.circumcenters;
- for(let e=0;e<he.length;e++){const j=he[e];if(j<e)continue;const a=tr[e],b=tr[e%3===2?e-2:e+1],t1=Math.floor(e/3),t2=Math.floor(j/3);
-  const sa=T.g.s[a],sb=T.g.s[b],p=T.sub[sa].m!==T.sub[sb].m?geo.b1:(sa!==sb?geo.b2:geo.b3);p.moveTo(ccs[2*t1],ccs[2*t1+1]);p.lineTo(ccs[2*t2],ccs[2*t2+1])}
- geo.ok=true}
+function buildGeo(){const bbox=poly=>{const xs=poly.map(p=>p[0]*W),ys=poly.map(p=>p[1]*H);return[Math.min(...xs),Math.min(...ys),Math.max(...xs),Math.max(...ys)]};
+ geo={outline:rpath(T.o,0),main:T.main.map(m=>{const b=bbox(m.p),tone=TONES[m.t],g=ctx.createLinearGradient(b[0],b[1],b[2],b[3]);
+   g.addColorStop(0,rgba(mixc(tone,WHITE,.1),1));g.addColorStop(1,rgba(mixc(tone,CREAM,.42),1));return{path:null,fill:g,run:run(m.p,m.y)}}),
+  sub:T.sub.map(s=>({path:null,shade:s.t,run:run(s.p,s.y)})),k:0}}
+// where a territory's name can sit: its width at the height of the name (the territories are convex)
+function run(p,y){const xs=[];p.forEach((a,i)=>{const b=p[(i+1)%p.length];if((a[1]<=y)!==(b[1]<=y))xs.push(a[0]+(y-a[1])*(b[0]-a[0])/(b[1]-a[1]))});
+ return xs.length<2?null:[Math.min(...xs),Math.max(...xs)]}
+// the corners keep the same roundness on screen whatever the zoom
+function corners(k){if(geo.k===k)return;geo.k=k;geo.main.forEach((m,j)=>m.path=rpath(T.main[j].p,9/k));geo.sub.forEach((s,j)=>s.path=rpath(T.sub[j].p,6/k))}
 function layout(){const d=DPR();W=cv.clientWidth;H=cv.clientHeight;cv.width=ov.width=W*d;cv.height=ov.height=H*d;
- dc.width=cc.width=Math.ceil(W/4);dc.height=cc.height=Math.ceil(H/4);buildGeo();dirty=true}
+ cc.width=Math.ceil(W/4);cc.height=Math.ceil(H/4);buildGeo();dirty=true}
 const sx=x=>x*W*view.k+view.x,sy=y=>y*H*view.k+view.y;
 const world=c=>{const d=DPR();c.setTransform(d*view.k,0,0,d*view.k,d*view.x,d*view.y)},screen=c=>{const d=DPR();c.setTransform(d,0,0,d,0,0)};
-function nebula(){const k=view.k,q=1/4,w=cc.width,h=cc.height;if(!G||G.length!==w*h)G=new Float32Array(w*h);else G.fill(0);
+function density(){const k=view.k,q=1/4,w=cc.width,h=cc.height;if(!G||G.length!==w*h)G=new Float32Array(w*h);else G.fill(0);
  const R0=Math.max(1.3,9*Math.pow(k,.5)*q),s2=2*(R0*.55)**2,rad=Math.ceil(R0*1.5),K=[];
  for(let dy=-rad;dy<=rad;dy++)for(let dx=-rad;dx<=rad;dx++){const v=Math.exp(-(dx*dx+dy*dy)/s2);if(v>.03)K.push(dx+dy*w,dx,dy,v)}
  for(let i=0;i<NA;i++){const cx=Math.round(sx(A.x[i])*q),cy=Math.round(sy(A.y[i])*q);if(cx<-rad||cy<-rad||cx>=w+rad||cy>=h+rad)continue;
@@ -465,82 +475,89 @@ function nebula(){const k=view.k,q=1/4,w=cc.width,h=cc.height;if(!G||G.length!==
  const top=sample.length?sample[Math.floor(sample.length*.993)]:1;
  const out=cctx.createImageData(w,h),o=out.data;for(let p=0,j=0;p<G.length;p++,j+=4){const v=G[p];if(v<=0)continue;
   const t=Math.min(255,Math.round(Math.pow(v/top,.9)*255))*4;o[j]=LUT[t];o[j+1]=LUT[t+1];o[j+2]=LUT[t+2];o[j+3]=LUT[t+3]}
- cctx.putImageData(out,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.85-.45*ramp(k,4,12);ctx.globalCompositeOperation='multiply';ctx.drawImage(cc,0,0,W,H);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1}
+ cctx.putImageData(out,0,0);ctx.imageSmoothingEnabled=true;ctx.imageSmoothingQuality='high';ctx.globalAlpha=.8-.4*ramp(k,4,12);
+ ctx.globalCompositeOperation='multiply';ctx.drawImage(cc,0,0,W,H);ctx.globalCompositeOperation='source-over';ctx.globalAlpha=1}
+const SHADE=[null,[WHITE,.2],[INK,.06],[CREAM,.32]];
 let nodes=[],labelsDrawn=[],hover=null,fly=null,pulse=null,state={},zoneHits=[];
-function draw(){const k=view.k;screen(ctx);const gr=ctx.createLinearGradient(0,0,W*.4,H);gr.addColorStop(0,'#e6f1f6');gr.addColorStop(1,'#f3eadc');ctx.fillStyle=gr;ctx.fillRect(0,0,W,H);
- world(ctx);ctx.save();ctx.clip(geo.outline);ctx.fillStyle='#fbf7ef';ctx.fill(geo.outline);
- if(geo.ok)geo.tint.forEach((p,m)=>{ctx.fillStyle=`hsla(${T.main[m].h},72%,${Math.max(74,T.main[m].l+14)}%,.62)`;ctx.fill(p)});
- screen(ctx);nebula();world(ctx);
- if(geo.ok){ctx.lineJoin='round';
-  if(k>=4){ctx.strokeStyle=`rgba(255,255,255,${.5*ramp(k,4,8)})`;ctx.lineWidth=.8/k;ctx.stroke(geo.b3)}
-  ctx.strokeStyle=`rgba(255,255,255,${.85*ramp(k,1.25,1.9)})`;ctx.lineWidth=1.2/k;ctx.stroke(geo.b2);
-  ctx.strokeStyle='#ffffff';ctx.lineWidth=2.6/k;ctx.stroke(geo.b1)}
- ctx.restore();world(ctx);ctx.strokeStyle='rgba(28,34,48,.22)';ctx.lineWidth=1.4/k;ctx.stroke(geo.outline);screen(ctx);
- // paths from your sub-genres to the ones explored (sub-genres mode)
+function draw(){const k=view.k;corners(k);screen(ctx);ctx.fillStyle=rgba(CREAM,1);ctx.fillRect(0,0,W,H);
+ // the atlas, like a panel of the site: a soft shadow, a white rim
+ world(ctx);ctx.save();ctx.shadowColor='rgba(40,46,90,.22)';ctx.shadowBlur=34/k*DPR();ctx.shadowOffsetY=16/k*DPR();
+ ctx.fillStyle=rgba(mixc(CREAM,WHITE,.4),1);ctx.fill(geo.outline);ctx.restore();
+ ctx.save();ctx.clip(geo.outline);
+ geo.main.forEach(m=>{ctx.fillStyle=m.fill;ctx.fill(m.path)});
+ const sa=ramp(k,1.25,1.9);if(sa>0)geo.sub.forEach(s=>{const sh=SHADE[s.shade];if(sh){ctx.fillStyle=rgba(sh[0],sh[1]*sa);ctx.fill(s.path)}});
+ screen(ctx);density();world(ctx);
+ ctx.lineJoin='round';
+ if(sa>0){ctx.strokeStyle=`rgba(255,255,255,${.9*sa})`;ctx.lineWidth=1.3/k;geo.sub.forEach(s=>ctx.stroke(s.path))}
+ ctx.strokeStyle='#ffffff';ctx.lineWidth=3.2/k;geo.main.forEach(m=>ctx.stroke(m.path));
+ ctx.restore();world(ctx);ctx.strokeStyle='#ffffff';ctx.lineWidth=3.5/k;ctx.stroke(geo.outline);screen(ctx);
+ // from your sub-genres to the ones explored (sub-genres mode)
  pathIdx.forEach(([a,b])=>{const x1=sx(T.g.x[a]),y1=sy(T.g.y[a]),x2=sx(T.g.x[b]),y2=sy(T.g.y[b]),mx=(x1+x2)/2+(y2-y1)*.2,my=(y1+y2)/2-(x2-x1)*.2;
-  ctx.strokeStyle=MC;ctx.globalAlpha=.5;ctx.lineWidth=1.2;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1});
- // your artists: one point each, in the colour of its main genre; photos once close enough
+  ctx.strokeStyle=MC;ctx.globalAlpha=.6;ctx.lineWidth=1.3;ctx.setLineDash([4,5]);ctx.beginPath();ctx.moveTo(x1,y1);ctx.quadraticCurveTo(mx,my,x2,y2);ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1});
+ // your artists or albums: ink points; their picture once close enough
  const photos=k>=7,vis=[];
  for(let i=0;i<NA;i++){const x=sx(A.x[i]),y=sy(A.y[i]);if(x<-30||y<-30||x>W+30||y>H+30)continue;vis.push(i)}
  nodes=[];
- if(!photos){const grow=Math.min(2.6,.85+k*.2),byM=Array.from({length:NM},()=>new Path2D()),rings=new Path2D();
-  vis.forEach(i=>{const x=sx(A.x[i]),y=sy(A.y[i]),r=(.75+.3*Math.sqrt(A.w[i]))*grow;byM[A.m[i]].moveTo(x+r,y);byM[A.m[i]].arc(x,y,r,0,6.283);
-   if(A.pl[i]>0){rings.moveTo(x+r+1.6,y);rings.arc(x,y,r+1.6,0,6.283)}nodes.push({kind:'a',i,x,y,r})});
-  byM.forEach((p,m)=>{ctx.fillStyle=`hsla(${T.main[m].h},82%,${Math.min(52,T.main[m].l-12)}%,.92)`;ctx.fill(p)});ctx.strokeStyle='#1c2230';ctx.lineWidth=1.2;ctx.stroke(rings)}
+ if(!photos){const grow=Math.min(2.6,.85+k*.2),dots=new Path2D(),rings=new Path2D();
+  vis.forEach(i=>{const x=sx(A.x[i]),y=sy(A.y[i]),r=(.75+.3*Math.sqrt(A.w[i]))*grow;dots.moveTo(x+r,y);dots.arc(x,y,r,0,6.283);
+   if(A.pl[i]>0){rings.moveTo(x+r+1.2,y);rings.arc(x,y,r+1.2,0,6.283)}nodes.push({kind:'a',i,x,y,r})});
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=1.6;ctx.stroke(rings);ctx.fillStyle=rgba(INK,.86);ctx.fill(dots)}
  else{const grow=Math.min(1.7,1+(k-7)*.06);vis.forEach(i=>{nodes.push({kind:'a',i,x:sx(A.x[i]),y:sy(A.y[i]),r:Math.min(24,(6.5+2.3*Math.sqrt(A.w[i]))*grow)})})}
- // the discoveries
  const covers=k>=5,rc=7+Math.min(10,Math.max(0,k-5))*.55;
- R.forEach((p,i)=>{const x=sx(p.px),y=sy(p.py);if(x<-30||y<-30||x>W+30||y>H+30)return;nodes.push({kind:'r',i,x,y,r:covers?rc:3.2})});
+ R.forEach((p,i)=>{const x=sx(p.px),y=sy(p.py);if(x<-30||y<-30||x>W+30||y>H+30)return;nodes.push({kind:'r',i,x,y,r:covers?rc:3.4})});
  if(photos||covers){const big=nodes.filter(n=>n.kind==='r'||photos);if(big.length<420)for(let pass=0;pass<4;pass++)for(let a=0;a<big.length;a++)for(let b=a+1;b<big.length;b++){
   const p=big[a],q=big[b];let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+2;if(d>=m)continue;const f=(m-d)/d/2;dx*=f;dy*=f;p.x-=dx;p.y-=dy;q.x+=dx;q.y+=dy}}
- if(photos)nodes.filter(n=>n.kind==='a').forEach(n=>{const i=n.i,im=img(pic(i));ctx.save();ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);
-  if(im&&im.complete&&im.naturalWidth){ctx.clip();ctx.drawImage(im,n.x-n.r,n.y-n.r,2*n.r,2*n.r)}else{ctx.fillStyle=`hsl(${T.main[A.m[i]].h},70%,48%)`;ctx.fill();
-   ctx.fillStyle='#fff';ctx.font=`600 ${Math.round(n.r)}px Fira Code, monospace`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText((A.n[i]||'?').charAt(0),n.x,n.y+1)}
-  ctx.restore();ctx.beginPath();ctx.arc(n.x,n.y,n.r+1.4,0,6.283);ctx.strokeStyle=A.pl[i]>0?'#1c2230':'#ffffff';ctx.lineWidth=A.pl[i]>0?2.2:2;ctx.stroke();
-  if(k>=11){ctx.font='10px Fira Code, monospace';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle='rgba(28,34,48,.86)';
+ const shape=(x,y,r,c)=>{c.beginPath();if(ALB)c.roundRect(x-r,y-r,2*r,2*r,r*.28);else c.arc(x,y,r,0,6.283)};
+ if(photos)nodes.filter(n=>n.kind==='a').forEach(n=>{const i=n.i,im=img(pic(i));ctx.save();shape(n.x,n.y,n.r,ctx);
+  if(im&&im.complete&&im.naturalWidth){ctx.clip();ctx.drawImage(im,n.x-n.r,n.y-n.r,2*n.r,2*n.r)}else{ctx.fillStyle=rgba(INK,.86);ctx.fill();
+   ctx.fillStyle='#fff';ctx.font=`500 ${Math.round(n.r)}px ${FONTF}`;ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText((A.n[i]||'?').charAt(0),n.x,n.y+1)}
+  ctx.restore();shape(n.x,n.y,n.r+1.4,ctx);ctx.strokeStyle=A.pl[i]>0?rgba(INK,1):'#ffffff';ctx.lineWidth=A.pl[i]>0?2.2:2;ctx.stroke();
+  if(k>=11){ctx.font=`500 10px ${FONTF}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle=rgba(INK,.86);
    const nm=A.n[i]||'';ctx.fillText(nm.length>18?nm.slice(0,17)+'…':nm,n.x,n.y+n.r+11)}});
  nodes.filter(n=>n.kind==='r').forEach(n=>{const p=R[n.i];
-  if(!covers){ctx.shadowColor=MC;ctx.shadowBlur=10;ctx.fillStyle=MC;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.shadowBlur=0;
-   ctx.strokeStyle='#fff';ctx.lineWidth=1.6;ctx.stroke();return}
+  if(!covers){ctx.fillStyle=MC;ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);ctx.fill();ctx.strokeStyle='#fff';ctx.lineWidth=1.6;ctx.stroke();return}
   const im=img(p.img);ctx.save();ctx.beginPath();ctx.arc(n.x,n.y,n.r,0,6.283);if(im&&im.complete&&im.naturalWidth){ctx.clip();ctx.drawImage(im,n.x-n.r,n.y-n.r,2*n.r,2*n.r)}
-  else{ctx.fillStyle='#d9deea';ctx.fill()}ctx.restore();ctx.beginPath();ctx.arc(n.x,n.y,n.r+1.4,0,6.283);ctx.strokeStyle=MC;ctx.lineWidth=2.6;ctx.stroke();
-  if(k>=12){ctx.font='10px Fira Code, monospace';ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle='rgba(28,34,48,.86)';ctx.fillText(p.title.length>18?p.title.slice(0,17)+'…':p.title,n.x,n.y+n.r+11)}});
- // names: main genres, then sub-genres, then every genre, never overlapping
+  else{ctx.fillStyle=rgba(CREAM,1);ctx.fill()}ctx.restore();ctx.beginPath();ctx.arc(n.x,n.y,n.r+1.4,0,6.283);ctx.strokeStyle=MC;ctx.lineWidth=2.6;ctx.stroke();
+  if(k>=12){ctx.font=`500 10px ${FONTF}`;ctx.textAlign='center';ctx.textBaseline='alphabetic';ctx.fillStyle=rgba(INK,.86);ctx.fillText(p.title.length>18?p.title.slice(0,17)+'…':p.title,n.x,n.y+n.r+11)}});
+ // names in Fira Code: main genres, then sub-genres, then every genre, never overlapping
  const cell=10,grid=new Set();labelsDrawn=[];
  const put=(text,x,y,fs,weight,fill,alpha,force,info)=>{if(alpha<=.03||x<-90||y<-20||x>W+90||y>H+20)return;const w=text.length*fs*.6,x0=x-w/2,y0=y-fs/2,cs=[];
   for(let cx=Math.floor(x0/cell);cx<=Math.floor((x0+w)/cell);cx++)for(let cy=Math.floor(y0/cell);cy<=Math.floor((y0+fs)/cell);cy++)cs.push(cx+','+cy);
-  if(!force&&cs.some(c=>grid.has(c)))return;cs.forEach(c=>grid.add(c));ctx.globalAlpha=alpha;ctx.font=weight==='display'?`400 ${fs}px "Rubik 80s Fade", "Fira Code", monospace`:`${weight} ${fs}px Fira Code, monospace`;
-  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=Math.max(3.4,fs*.28);ctx.strokeText(text,x,y);
+  if(!force&&cs.some(c=>grid.has(c)))return;cs.forEach(c=>grid.add(c));ctx.globalAlpha=alpha;ctx.font=`${weight} ${fs}px ${FONTF}`;
+  ctx.textAlign='center';ctx.textBaseline='middle';ctx.lineJoin='round';ctx.strokeStyle='rgba(255,255,255,.88)';ctx.lineWidth=Math.max(3.2,fs*.3);ctx.strokeText(text,x,y);
   ctx.fillStyle=fill;ctx.fillText(text,x,y);ctx.globalAlpha=1;labelsDrawn.push([info,x0,y0,w,fs])};
- const a1=1-ramp(k,2.3,3.4),a2=ramp(k,1.3,1.9)*(1-ramp(k,16,30)),a3=ramp(k,3.3,4.8);
- if(pulse!==null){if(pulse.g!==undefined)put(cap(T.g.n[pulse.g]),sx(T.g.x[pulse.g]),sy(T.g.y[pulse.g])-12,14,700,'#fff',1,true,['g',pulse.g])}
- T.main.forEach((m,j)=>put(m.n,sx(m.x),sy(m.y),28,'display','#1c2230',a1,false,['m',j]));
- T.sub.forEach((s,j)=>put(s.n,sx(s.x),sy(s.y),13.5,650,`hsl(${T.main[s.m].h},55%,26%)`,a2,false,['s',j]));
- explored.forEach(i=>put(T.g.n[i],sx(T.g.x[i]),sy(T.g.y[i])-10,12,650,MC,Math.max(a3,.9*ramp(k,1.6,2.6)),false,['g',i]));
- if(a3>0){const lim=Math.min(NG,Math.round(30*Math.pow(k,1.8)));for(let i=0;i<lim;i++)put(T.g.n[i],sx(T.g.x[i]),sy(T.g.y[i]),11,500,'rgba(28,34,48,.78)',a3*.92,false,['g',i])}
+ const a1=1-ramp(k,2.3,3.4),a2=ramp(k,1.3,1.9)*(1-ramp(k,16,30)),a3=ramp(k,3.3,4.8),ink=rgba(INK,1);
+ if(pulse!==null){if(pulse.g!==undefined)put(cap(T.g.n[pulse.g]),sx(T.g.x[pulse.g]),sy(T.g.y[pulse.g])-12,13,500,ink,1,true,['g',pulse.g])}
+ // a name stays inside its territory: it slides along the territory's width, then shrinks if it must
+ const fit=(text,x,r,fs,least)=>{if(!r)return[x,fs];const l=sx(r[0])+10,rr=sx(r[1])-10,size=Math.max(least,Math.min(fs,(rr-l)/(text.length*.6))),half=text.length*size*.3;
+  return[half*2>=rr-l?(l+rr)/2:Math.min(Math.max(x,l+half),rr-half),size]};
+ T.main.forEach((m,j)=>{const[x,fs]=fit(m.n,sx(m.x),geo.main[j].run,19,12);put(m.n,x,sy(m.y),fs,500,ink,a1,false,['m',j])});
+ T.sub.forEach((s,j)=>{const r=geo.sub[j].run,[x,fs]=fit(s.n,sx(s.x),r,12.5,10);  // a sub-genre with no room yet waits for more zoom
+  if(!r||s.n.length*fs*.6<=sx(r[1])-sx(r[0])-20)put(s.n,x,sy(s.y),fs,500,rgba(INK,.86),a2,false,['s',j])});
+ explored.forEach(i=>put(T.g.n[i],sx(T.g.x[i]),sy(T.g.y[i])-10,12,500,MC,Math.max(a3,.9*ramp(k,1.6,2.6)),false,['g',i]));
+ if(a3>0){const lim=Math.min(NG,Math.round(30*Math.pow(k,1.8)));for(let i=0;i<lim;i++)put(T.g.n[i],sx(T.g.x[i]),sy(T.g.y[i]),11,500,rgba(INK,.72),a3*.92,false,['g',i])}
 }
 // the overlay: where to zoom for the discoveries (rings that breathe), the hovered and the playing points
 function overlay(t){const k=view.k;screen(octx);octx.clearRect(0,0,W,H);zoneHits=[];
  const za=1-ramp(k,4.5,7);if(za>0)zones.forEach(z=>{const x=sx(z.x),y=sy(z.y),spread=Math.max((z.x1-z.x0)*W,(z.y1-z.y0)*H)*k/2,r=Math.max(14,spread+10)+3*Math.sin(t/420+z.s);
-  if(x<-r||y<-r||x>W+r||y>H+r)return;const g=octx.createRadialGradient(x,y,r*.2,x,y,r*1.5);g.addColorStop(0,MC+'00');g.addColorStop(.62,MC+'40');g.addColorStop(1,MC+'00');
-  octx.globalAlpha=za;octx.fillStyle=g;octx.beginPath();octx.arc(x,y,r*1.5,0,6.283);octx.fill();
+  if(x<-r||y<-r||x>W+r||y>H+r)return;octx.globalAlpha=za;
   octx.strokeStyle=MC;octx.lineWidth=2;octx.setLineDash([6,5]);octx.lineDashOffset=-t/60;octx.beginPath();octx.arc(x,y,r,0,6.283);octx.stroke();octx.setLineDash([]);
-  const txt=String(z.ids.length),bw=12+txt.length*7.5;octx.fillStyle=MC;octx.beginPath();octx.roundRect(x+r*.7-bw/2,y-r*.7-10,bw,20,10);octx.fill();
-  octx.fillStyle='#ffffff';octx.font='700 12px Fira Code, monospace';octx.textAlign='center';octx.textBaseline='middle';octx.fillText(txt,x+r*.7,y-r*.7);octx.globalAlpha=1;
+  const txt=String(z.ids.length),bw=12+txt.length*7.5;octx.fillStyle=MC;octx.beginPath();octx.roundRect(x+r*.7-bw/2,y-r*.7-10,bw,20,8);octx.fill();
+  octx.fillStyle='#ffffff';octx.font=`500 12px ${FONTF}`;octx.textAlign='center';octx.textBaseline='middle';octx.fillText(txt,x+r*.7,y-r*.7);octx.globalAlpha=1;
   zoneHits.push({z,x,y,r})});
- const ring=(n,c,w,extra)=>{octx.beginPath();octx.arc(n.x,n.y,n.r+4+extra,0,6.283);octx.strokeStyle=c;octx.lineWidth=w;octx.stroke()};
- if(hover&&hover.kind)ring(hover,'#1c2230',2,0);
+ const ring=(n,c,w,extra)=>{octx.beginPath();if(ALB&&n.kind==='a')octx.roundRect(n.x-n.r-4-extra,n.y-n.r-4-extra,2*(n.r+4+extra),2*(n.r+4+extra),(n.r+4)*.3);else octx.arc(n.x,n.y,n.r+4+extra,0,6.283);octx.strokeStyle=c;octx.lineWidth=w;octx.stroke()};
+ if(hover&&hover.kind)ring(hover,rgba(INK,1),2,0);
  nodes.forEach(n=>{if(n.kind==='r'&&state.id===R[n.i].track_id){ring(n,MC,2.5,2+2*Math.sin(t/180));
   if(n.r>6){octx.fillStyle='rgba(0,0,0,.45)';octx.beginPath();octx.arc(n.x,n.y,n.r,0,6.283);octx.fill();octx.fillStyle='#fff';
    if(state.s!=='loading'){octx.fillRect(n.x-4,n.y-5,3,10);octx.fillRect(n.x+1,n.y-5,3,10)}else{octx.beginPath();octx.arc(n.x,n.y,2,0,6.283);octx.fill()}}}});
- if(pulse&&pulse.a!==undefined){const i=pulse.a,x=sx(A.x[i]),y=sy(A.y[i]),r=10+6*((t/700)%1)*3;octx.strokeStyle=`rgba(28,34,48,${1-((t/700)%1)})`;octx.lineWidth=2;octx.beginPath();octx.arc(x,y,r,0,6.283);octx.stroke()}}
+ if(pulse&&pulse.a!==undefined){const i=pulse.a,x=sx(A.x[i]),y=sy(A.y[i]),r=10+18*((t/700)%1);octx.strokeStyle=rgba(INK,1-((t/700)%1));octx.lineWidth=2;octx.beginPath();octx.arc(x,y,r,0,6.283);octx.stroke()}}
 function frame(t){if(fly){const e=Math.min(1,(t-fly.t0)/750),q=1-Math.pow(1-e,3);view.k=fly.k0+(fly.k1-fly.k0)*q;view.x=fly.x0+(fly.x1-fly.x0)*q;view.y=fly.y0+(fly.y1-fly.y0)*q;dirty=true;if(e>=1)fly=null}
  const key=view.k+','+view.x+','+view.y;if(dirty||key!==frame.last){draw();dirty=false;frame.last=key}overlay(t);requestAnimationFrame(frame)}
 function flyTo(x01,y01,k){const k1=Math.min(window.KMAX,Math.max(1,k)),mx=W*window.EDGE,my=H*window.EDGE;
  const x1=Math.min(mx,Math.max(W-W*k1-mx,W/2-x01*W*k1)),y1=Math.min(my,Math.max(H-H*k1-my,H/2-y01*H*k1));fly={t0:performance.now(),k0:view.k,x0:view.x,y0:view.y,k1,x1,y1}}
 const fitBox=(x0,x1,y0,y1,kmin,kmax)=>flyTo((x0+x1)/2,(y0+y1)/2,Math.max(kmin,Math.min(kmax,1/Math.max(.02,(x1-x0)*1.6),1/Math.max(.02,(y1-y0)*1.6))));
-function fitMine(){if(!R.length){resetView();return}const q=(arr,f)=>{const s=arr.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.max(0,Math.round(f*(s.length-1))))]};
- const xs=R.map(p=>p.px),ys=R.map(p=>p.py);fitBox(q(xs,.1),q(xs,.9),q(ys,.1),q(ys,.9),1.4,10)}
+function fitMine(){const q=(arr,f)=>{const s=arr.slice().sort((a,b)=>a-b);return s[Math.min(s.length-1,Math.max(0,Math.round(f*(s.length-1))))]};
+ const xs=R.length?R.map(p=>p.px):A.x,ys=R.length?R.map(p=>p.py):A.y;if(!xs.length){resetView();return}fitBox(q(xs,.1),q(xs,.9),q(ys,.1),q(ys,.9),1.2,10)}
 __ZOOM_JS__
 document.getElementById('zfit').onclick=fitMine;
 __PLAYER_JS__
@@ -549,16 +566,17 @@ function noPreview(id){tip.innerHTML='<div><b>'+esc(L.no_preview)+'</b></div>';t
 function pick(mx,my){let best=null,bd=1e9;for(const n of nodes){const d=(n.x-mx)**2+(n.y-my)**2,r=Math.max(n.r,4)+2;if(d<r*r&&(d<bd||(best&&best.kind==='a'&&n.kind==='r'))){bd=d;best=n}}return best}
 function zoneAt(mx,my){for(const h of zoneHits){if((h.x-mx)**2+(h.y-my)**2<h.r*h.r)return h.z}return null}
 function labelAt(mx,my){for(let j=labelsDrawn.length-1;j>=0;j--){const[info,x0,y0,w,h]=labelsDrawn[j];if(mx>=x0&&mx<=x0+w&&my>=y0&&my<=y0+h)return info}return null}
-const fmt=(s,n)=>s.replace('{n}',n);
-function artistTip(i){const s=A.s[i]>=0?T.sub[A.s[i]]:null,m=T.main[A.m[i]],lines=[];
+const fmt=(s,n)=>{const f=(s||'').split('|');return(n==1?f[0]:f[f.length-1]).replace('{n}',n)};  // « singular|plural »
+function pointTip(i){const s=A.s[i]>=0?T.sub[A.s[i]]:null,m=T.main[A.m[i]],lines=[];
+ if(ALB&&A.a[i])lines.push(A.a[i]);
  if(A.pl[i])lines.push(fmt(L.plays,A.pl[i])+(A.mn[i]?' · '+fmt(L.minutes,A.mn[i]):''));
- if(A.lt[i])lines.push(fmt(L.lists,A.lt[i]));if(A.fa[i])lines.push(fmt(L.favs,A.fa[i]));
+ if(!ALB&&A.lt[i])lines.push(fmt(L.lists,A.lt[i]));if(ALB?A.fa[i]:A.fa[i])lines.push(ALB?L.fav:fmt(L.favs,A.fa[i]));
  if(A.lb[i])lines.push(L.label.replace('{x}',A.lb[i]));if(A.tg[i])lines.push(L.words.replace('{src}',A.sr[i]).replace('{x}',A.tg[i]));
- return (pic(i)?'<img src="'+esc(pic(i))+'">':'')+'<div><b>'+esc(A.n[i])+'</b><em style="color:'+hsl(A.m[i],1,14,90)+'">'+esc(m.n+(s?' › '+s.n:'')+(A.lv[i]===0&&A.g[i]?' › '+cap(A.g[i]):''))+'</em>'+
+ return (pic(i)?'<img class="'+(ALB?'sq':'')+'" src="'+esc(pic(i))+'">':'')+'<div><b>'+esc(A.n[i])+'</b><em>'+esc(m.n+(s?' › '+s.n:'')+(A.lv[i]===0&&A.g[i]?' › '+cap(A.g[i]):''))+'</em>'+
   lines.map(l=>'<small>'+esc(l)+'</small>').join('')+'<small>'+esc(L['lv'+A.lv[i]])+'</small><div class="act">'+esc(L.open)+'</div></div>'}
 cv.addEventListener('mousemove',e=>{if(drag){tip.classList.remove('on');hover=null;return}const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top;hover=pick(mx,my);let html='';
  if(hover&&hover.kind==='r'){const p=R[hover.i];html=(p.img?'<img class="sq" src="'+esc(p.img)+'">':'')+'<div><b>'+esc(p.title)+'</b><small>'+esc(p.artist)+'</small><em style="color:'+MC+'">'+esc(p.subgenre||'')+'</em><small>'+esc(L.because+' '+p.reason)+'</small><div class="act">'+esc(state.id===p.track_id?L.pause:L.play)+'</div></div>'}
- else if(hover&&hover.kind==='a')html=artistTip(hover.i);
+ else if(hover&&hover.kind==='a')html=pointTip(hover.i);
  else{const z=zoneAt(mx,my);if(z){html='<div><b style="color:'+MC+'">'+esc(fmt(L.zone,z.ids.length))+'</b><small>'+esc(T.sub[z.s].n+' · '+T.main[T.sub[z.s].m].n)+'</small><div class="act">'+esc(L.zoom_in)+'</div></div>';hover={zone:z}}
   else{const info=labelAt(mx,my);if(info){if(info[0]==='g'){const i=info[1];html='<div><b>'+esc(cap(T.g.n[i]))+'</b><small>'+esc(T.sub[T.g.s[i]].n+' · '+T.main[mainOfG(i)].n)+'</small></div>'}
    else{const lv=info[0]==='m'?T.main:T.sub,j=info[1];html='<div><b>'+esc(lv[j].n)+'</b><small>'+esc(fmt(L.count,lv[j].c))+'</small><div class="act">'+esc(L.zoom_in)+'</div></div>'}}}}
@@ -567,22 +585,20 @@ cv.addEventListener('mousemove',e=>{if(drag){tip.classList.remove('on');hover=nu
 cv.addEventListener('mouseleave',()=>{hover=null;tip.classList.remove('on')});
 cv.addEventListener('click',e=>{if(moved)return;const b=cv.getBoundingClientRect(),mx=e.clientX-b.left,my=e.clientY-b.top,n=pick(mx,my);
  if(n&&n.kind==='r'){const p=R[n.i];toggle(p.track_id,{title:p.title,artist:p.artist,cover:p.img});return}
- if(n&&n.kind==='a'){window.open('https://www.deezer.com/artist/'+A.id[n.i],'_blank','noopener');return}
+ if(n&&n.kind==='a'){window.open((ALB?'https://www.deezer.com/album/':'https://www.deezer.com/artist/')+A.id[n.i],'_blank','noopener');return}
  const z=zoneAt(mx,my);if(z){fitBox(z.x0,z.x1,z.y0,z.y1,6,16);return}
  const info=labelAt(mx,my);if(info&&info[0]!=='g'){const lv=info[0]==='m'?T.main:T.sub;flyTo(lv[info[1]].x,lv[info[1]].y,info[0]==='m'?2.6:6)}});
-// chips: each explored sub-genre
 const counts={};R.forEach(r=>{if(r.subgenre)counts[r.subgenre]=(counts[r.subgenre]||0)+1});
 document.getElementById('chips').innerHTML=Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(([g,c])=>'<button data-g="'+esc(g)+'">'+esc(g)+'<b>'+c+'</b></button>').join('');
 document.querySelectorAll('#chips button').forEach(bt=>bt.addEventListener('click',()=>{const g=bt.dataset.g,i=gidx[g];
  document.querySelectorAll('#chips button').forEach(x=>x.classList.toggle('on',x===bt));const own=R.filter(r=>r.subgenre===g);
  if(own.length){const xs=own.map(p=>p.px),ys=own.map(p=>p.py);pulse=i!==undefined?{g:i}:null;fitBox(Math.min(...xs),Math.max(...xs),Math.min(...ys),Math.max(...ys),8,16)}}));
-// search a genre or an artist
 const norm=s=>s.normalize('NFKD').replace(/[̀-ͯ]/g,'').toLowerCase();
 const index=T.g.n.map((n,i)=>[norm(n),'g',i]).concat(A.n.map((n,i)=>[norm(n||''),'a',i]));
 const find=document.getElementById('find'),sug=document.getElementById('sug');let found=[],sel=0;
 function go(f){if(!f)return;sug.classList.remove('on');if(f[1]==='g'){const i=f[2];pulse={g:i};find.value=cap(T.g.n[i]);flyTo(T.g.x[i],T.g.y[i],Math.max(view.k,12))}
  else{const i=f[2];pulse={a:i};find.value=A.n[i];flyTo(A.x[i],A.y[i],Math.max(view.k,14))}}
-function showSug(){sug.innerHTML=found.map((f,j)=>'<div data-j="'+j+'" class="'+(j===sel?'sel':'')+'"><i style="background:'+(f[1]==='g'?hsl(mainOfG(f[2])):hsl(A.m[f[2]]))+'"></i>'+
+function showSug(){sug.innerHTML=found.map((f,j)=>'<div data-j="'+j+'" class="'+(j===sel?'sel':'')+'"><i></i>'+
   esc(f[1]==='g'?cap(T.g.n[f[2]]):A.n[f[2]])+'<small>'+esc(f[1]==='g'?L.genre:L.artist)+'</small></div>').join('');sug.classList.toggle('on',found.length>0);
  sug.querySelectorAll('div').forEach(d=>d.addEventListener('mousedown',e=>{e.preventDefault();go(found[+d.dataset.j])}))}
 find.addEventListener('input',()=>{const q=norm(find.value.trim());sel=0;if(q.length<2){found=[];showSug();return}
@@ -594,26 +610,24 @@ layout();addEventListener('resize',layout);requestAnimationFrame(frame);if(docum
 """
 
 
-def sound_map(artists: dict, recs: list[dict], paths: list[tuple[str, str]], labels: dict, color: str, lang: str,
-              height: int = 800) -> None:
-    """The map of sound: an atlas of every genre (main genres, sub-genres, then the 6,291 genres
-    of Every Noise at Once) where each point is an artist of your music, coloured by its main
-    genre, the nebula is where your music lives, and rings show where to zoom for the discoveries.
-    Hover a point for its name, click it to open the artist on Deezer; click a discovery to hear
-    it. artists: columns from core.atlas.columns(); recs: {title, artist, img, track_id, reason,
-    subgenre, x, y}; paths: (from genre, to genre) for the sub-genres mode."""
+def sound_map_html(points: dict, recs: list[dict], paths: list[tuple[str, str]], labels: dict, color: str, lang: str,
+                   family: str = "ocean", kind: str = "artists") -> str:
+    """The page of the map of sound (see sound_map)."""
+    pal = _map_palette(family)
     legend = (f"<span><b class='neb'></b>{escape(labels['density'])}</span>"
-              f"<span><b class='dots'></b>{escape(labels['artists'])}</span>"
-              f"<span><i class='rec'></i>{escape(labels['found'])}</span>"
-              f"<span><b class='ring'></b>{escape(labels['zones'])}</span>")
+              f"<span><b class='dots'></b>{escape(labels['artists'])}</span>")
+    if recs:
+        legend += (f"<span><i class='rec'></i>{escape(labels['found'])}</span>"
+                   f"<span><b class='ring'></b>{escape(labels['zones'])}</span>")
     keys = ("play", "pause", "no_preview", "because", "count", "plays", "minutes", "lists", "favs", "open", "lv0", "lv1", "lv2",
-            "zone", "zoom_in", "genre", "artist", "label", "words")
-    css = SOUND_MAP_CSS.replace("__FONT__", FONT).replace("__C__", color).replace("__GRAIN__", GRAIN)
-    script = (f"window.KMAX=80;window.EDGE=.06;const T={_tree_table(lang)},A={js_data(artists)},R={js_data(recs)},"
-              f"P={js_data(paths)},MC={js_data(color)},L={js_data({k: labels[k] for k in keys})};{ESC_JS}"
+            "zone", "zoom_in", "genre", "artist", "label", "words", "fav")
+    css = (SOUND_MAP_CSS.replace("__FONT__", FONT).replace("__C__", color).replace("__GRAIN__", GRAIN)
+           .replace("__INK__", pal["ink"]).replace("__C3__", pal["cream"]).replace("__C1S__", _mix(pal["stops"][0], pal["cream"], .55)))
+    script = (f"window.KMAX=80;window.EDGE=.06;const T={_tree_table(lang)},A={js_data(points)},R={js_data(recs)},"
+              f"P={js_data(paths)},MC={js_data(color)},PAL={js_data(pal)},KIND={js_data(kind)},"
+              f"L={js_data({k: labels.get(k, '') for k in keys})};{ESC_JS}"
               + SOUND_MAP_JS.replace("__ZOOM_JS__", ZOOM_JS).replace("__PLAYER_JS__", PLAYER_JS))
-    html = (f'<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>{css}</style>'
-            '<script src="https://cdn.jsdelivr.net/npm/d3-delaunay@6/dist/d3-delaunay.min.js"></script></head><body>'
+    return (f'<!doctype html><html><head><meta charset="utf-8">{MAP_FONT_LINK}<style>{css}</style></head><body>'
             f'<div class="space"><div class="top">{legend}<div class="find"><input id="find" autocomplete="off" '
             f'placeholder="{escape(labels["search"])}"><div class="sug" id="sug"></div></div></div>'
             '<div class="chips" id="chips"></div><div class="stage"><canvas id="c"></canvas><canvas id="ov"></canvas></div>'
@@ -621,4 +635,15 @@ def sound_map(artists: dict, recs: list[dict], paths: list[tuple[str, str]], lab
             f'<div class="zoom"><button id="zfit" title="{escape(labels["fit"])}">◎</button><button id="zin">+</button>'
             f'<button id="zout">−</button><button id="zreset" title="{escape(labels["whole"])}">⟲</button></div>'
             f'<div class="hint">{escape(labels["hint"])}</div></div><script>{script}</script></body></html>')
-    _frame(html, height)
+
+
+def sound_map(points: dict, recs: list[dict], paths: list[tuple[str, str]], labels: dict, color: str, lang: str,
+              height: int = 800, family: str = "ocean", kind: str = "artists") -> None:
+    """The map of sound: an atlas of every genre (main genres, sub-genres, then the 6,291 genres of
+    Every Noise at Once) in straight-edged territories painted in the tones of the page, where each
+    point is an artist (or an album) of your music in the page's ink and the density is where your
+    music lives. Hover a point for its details, click to open it on Deezer. On « Pour toi », the
+    discoveries add their points, rings show where to zoom for them, a click plays them.
+    points: columns from core.atlas.columns() (artists) or album columns; recs: {title, artist,
+    img, track_id, reason, subgenre, x, y}; paths: (from genre, to genre) for the sub-genres mode."""
+    _frame(sound_map_html(points, recs, paths, labels, color, lang, family, kind), height)
