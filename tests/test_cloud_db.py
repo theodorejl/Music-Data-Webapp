@@ -169,3 +169,29 @@ def test_publishing_after_a_database_from_the_old_code_loses_nothing(tmp_path, h
     with Session(get_engine(f"sqlite:///{copy}")) as s:
         assert [g.artist_id for g in s.scalars(select(ArtistGenre))] == [99]   # and the decisions were published
 
+
+def _refresh_with(monkeypatch, pull_code):
+    """Run the "Actualiser" button's sync with fake processes; returns (result, scripts run)."""
+    from app.components import refresh
+    calls = []
+
+    def fake_run(cmd, **kwargs):
+        script = cmd[2]
+        calls.append(script if script != "scripts.cloud_db" else f"cloud_db {cmd[3]}")
+        code = pull_code if cmd[2:4] == ["scripts.cloud_db", "pull"] else 0
+        out = "3 new stored" if script == "scripts.sync" else ""
+        return subprocess.CompletedProcess(cmd, code, stdout=out, stderr="")
+
+    monkeypatch.setattr(refresh.subprocess, "run", fake_run)
+    return refresh._run_sync(), calls
+
+
+def test_refresh_never_publishes_after_a_failed_pull(monkeypatch):
+    """Publishing without the published copy merged in would replace it with the local one."""
+    result, calls = _refresh_with(monkeypatch, pull_code=1)
+    assert calls == ["cloud_db pull", "scripts.sync"]          # synced locally, not published
+    assert result == (True, 3, "")
+
+    result, calls = _refresh_with(monkeypatch, pull_code=0)
+    assert calls == ["cloud_db pull", "scripts.sync", "cloud_db push"]
+    assert result == (True, 3, "")

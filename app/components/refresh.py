@@ -63,10 +63,12 @@ def _run_sync() -> tuple[bool, int, str]:
     run = lambda *args: subprocess.run([sys.executable, "-m", *args], cwd=ROOT,  # noqa: E731
                                        capture_output=True, text=True, timeout=180)
     try:
-        run("scripts.cloud_db", "pull")  # latest plays collected by GitHub, local corrections kept
+        pulled = run("scripts.cloud_db", "pull").returncode == 0  # plays collected by GitHub, local corrections kept
         res = run("scripts.sync", "--no-library", "--no-excel", "--enrich-budget", "20")
-        if res.returncode == 0:
-            run("scripts.cloud_db", "push")  # publish for the hosted site and the next GitHub run
+        # Publish for the hosted site and the next GitHub run, but never without the published
+        # copy merged in first: that would replace it with ours and lose its plays.
+        if res.returncode == 0 and pulled:
+            run("scripts.cloud_db", "push")
     except subprocess.TimeoutExpired:
         return False, 0, t("refresh.timeout")
     match = re.search(r"(\d+) new stored", res.stdout)

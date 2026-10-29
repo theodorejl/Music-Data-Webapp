@@ -312,6 +312,8 @@ Ensuite, à chaque passage, toutes les 30 minutes (à h 13 et h 43), GitHub :
 
 La base de ton Mac et celle de GitHub restent donc identiques. La récupération ne remplace pas ta base : elle y fusionne la version publiée, et ce qui n'existe que chez toi (tes corrections admin, par exemple) est conservé.
 
+Si la récupération échoue (pas de réseau, par exemple), la synchro se fait quand même sur ta base, mais rien n'est republié : la base publiée serait sinon remplacée par la tienne, sans les écoutes collectées par GitHub. La publication reprend au lancement suivant.
+
 Ton Mac et GitHub peuvent publier au même moment. Chacun ne remplace la base publiée que si personne n'a publié depuis sa dernière lecture. Sinon, il récupère d'abord la version arrivée entre-temps, y ajoute ses propres écoutes, puis republie. Aucune écoute ne se perd, et la synchro n'échoue plus pour cette raison.
 
 Commandes manuelles : `python -m scripts.cloud_db pull` (récupérer) et `python -m scripts.cloud_db push` (publier).
