@@ -36,10 +36,12 @@ class Session_:
 def test_wikidata_reads_genres_labels_and_ids_by_deezer_id():
     body = {"results": {"bindings": [{"dz": {"value": "27"}, "item": {"value": "http://www.wikidata.org/entity/Q185828"},
                                       "mbid": {"value": "056e4f3e"}, "discogs": {"value": "1289"},
-                                      "genres": {"value": "French house|nu-disco"}, "labels": {"value": "Virgin Records"}}]}}
+                                      "genres": {"value": "French house|nu-disco"}, "labels": {"value": "Virgin Records"},
+                                      "spotify": {"value": "4tZwfgrHOc3mvqYlEYSvVi"}}]}}
     wd = ai.Wikidata(session=Session_(lambda url, p: Response(body)))
     assert wd.lookup([27, 28]) == {27: {"qid": "Q185828", "mbid": "056e4f3e", "discogs": 1289,
-                                        "genres": ["French house", "nu-disco"], "labels": ["Virgin Records"]}}
+                                        "genres": ["French house", "nu-disco"], "labels": ["Virgin Records"],
+                                        "spotify": ["4tZwfgrHOc3mvqYlEYSvVi"]}}
 
 
 def test_lastfm_tags_by_mbid_then_by_name_and_a_refused_key_stops_it():
@@ -77,6 +79,29 @@ class FakeWikidata:
         return {1: {"qid": "Q1", "mbid": None, "discogs": 77, "genres": ["synth-pop"], "labels": ["Kitsuné"]}}
 
 
+class FakeSpotifyWikidata:
+    def __init__(self):
+        self.calls = []
+
+    def lookup(self, ids):
+        self.calls.append(list(ids))
+        return {a: {"qid": f"Q{a}", "mbid": None, "discogs": None, "genres": [], "labels": [],
+                    "spotify": ["4tZwfgrHOc3mvqYlEYSvVi"]} for a in ids}
+
+
+class FakeMusicBrainz:
+    def __init__(self):
+        self.asked = []
+
+    def by_deezer(self, deezer_id):
+        return "mbid-1"
+
+    def artist(self, mbid):
+        self.asked.append(mbid)
+        return {"genres": [], "tags": [], "relations": [
+            {"url": {"resource": "https://open.spotify.com/artist/0GG2cWaonE4JPrjcCCQ1EG"}}]}
+
+
 class FakeLastfm:
     def top_tags(self, name, mbid=None):
         return [("jazz-funk", 100), ("80s", 60)] if name == "Wally" else []
@@ -103,6 +128,37 @@ def test_enrich_asks_each_source_once_and_stores_what_it_says(engine):
         info = s.get(ArtistInfo, 1)
         assert info.discogs_id == 77 and {"wikidata", "discogs", "lastfm"} <= set(info.checked)
         assert ai.enrich(s, time.monotonic() + 30, wikidata=FakeWikidata(), discogs=FakeDiscogs(), lastfm=FakeLastfm()) == {}
+
+
+def test_enrich_stores_spotify_ids_from_wikidata_and_musicbrainz(engine):
+    class Wd(FakeWikidata):
+        def lookup(self, ids):
+            return {1: {**super().lookup(ids)[1], "spotify": ["4tZwfgrHOc3mvqYlEYSvVi"]}}
+
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="Parcels"), Track(id=10, title="t", artist_id=1)])
+        s.add(PlaylistTrack(playlist_id=1, position=0, track_id=10))
+        s.commit()
+        ai.enrich(s, time.monotonic() + 30, wikidata=Wd(), musicbrainz=FakeMusicBrainz())
+        tags = {(t.entity_type, t.entity_id, t.tag, t.source) for t in s.query(Tag) if t.entity_type == "artist_spotify"}
+        assert tags == {("artist_spotify", 1, "4tZwfgrHOc3mvqYlEYSvVi", "wikidata"),
+                        ("artist_spotify", 1, "0GG2cWaonE4JPrjcCCQ1EG", "musicbrainz")}
+        assert {"spotify_wd", "spotify_mb"} <= set(s.get(ArtistInfo, 1).checked)
+
+
+def test_spotify_backfill_asks_only_artists_not_asked_yet(engine):
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="Parcels"), Track(id=10, title="t", artist_id=1)])
+        s.add(PlaylistTrack(playlist_id=1, position=0, track_id=10))
+        s.add(ArtistInfo(artist_id=1, mbid="mbid-1", checked={"wikidata": "2026-01-01"}))
+        s.commit()
+        wd, mb = FakeSpotifyWikidata(), FakeMusicBrainz()
+        done = ai.enrich_spotify_ids(s, time.monotonic() + 30, wd, mb)
+        assert wd.calls == [[1]] and mb.asked == ["mbid-1"] and done == {"wikidata": 1, "musicbrainz": 1}
+        ids = {(t.tag, t.source) for t in s.query(Tag) if t.entity_type == "artist_spotify"}
+        assert ids == {("4tZwfgrHOc3mvqYlEYSvVi", "wikidata"), ("0GG2cWaonE4JPrjcCCQ1EG", "musicbrainz")}
+        assert ai.enrich_spotify_ids(s, time.monotonic() + 30, wd, mb) == {}
+        assert wd.calls == [[1]] and mb.asked == ["mbid-1"]
 
 
 def test_words_are_read_on_the_tree_and_noise_is_ignored():

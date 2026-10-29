@@ -61,6 +61,22 @@ class _Pace:
             self.last = time.monotonic()
 
 
+SPOTIFY_ARTIST = re.compile(r"open\.spotify\.com/artist/([0-9A-Za-z]{22})")
+
+
+def _store_spotify(session: Session, artist_id: int, ids: list[str], source: str) -> int:
+    """Keep the Spotify artist ids (22 characters) a source gave for an artist; how many were kept."""
+    ids = [i for i in dict.fromkeys(ids) if re.fullmatch(r"[0-9A-Za-z]{22}", i)]
+    insert_ignore(session, Tag, [{"entity_type": "artist_spotify", "entity_id": artist_id, "tag": i, "count": None,
+                                  "source": source} for i in ids], ["entity_type", "entity_id", "tag", "source"])
+    return len(ids)
+
+
+def _spotify_in(relations: list[dict]) -> list[str]:
+    found = (SPOTIFY_ARTIST.search((r.get("url") or {}).get("resource", "")) for r in relations or [])
+    return [m.group(1) for m in found if m]
+
+
 def _clean_tag(tag: str) -> str:
     return re.sub(r"\s+", " ", str(tag)).strip()[:200]
 
@@ -75,12 +91,13 @@ class Wikidata:
         self.session.headers.update({"User-Agent": AGENT, "Accept": "application/sparql-results+json"})
 
     def lookup(self, deezer_ids: list[int]) -> dict[int, dict]:
-        """{deezer id: {qid, mbid, discogs, genres, labels}} for the artists Wikidata links to Deezer."""
+        """{deezer id: {qid, mbid, discogs, genres, labels, spotify}} for the artists Wikidata links to Deezer."""
         values = " ".join(f'"{int(i)}"' for i in deezer_ids)
         query = f"""SELECT ?dz ?item (SAMPLE(?mb) AS ?mbid) (SAMPLE(?dg) AS ?discogs)
+          (GROUP_CONCAT(DISTINCT ?sp; separator="|") AS ?spotify)
           (GROUP_CONCAT(DISTINCT ?gl; separator="|") AS ?genres) (GROUP_CONCAT(DISTINCT ?ll; separator="|") AS ?labels) WHERE {{
           VALUES ?dz {{ {values} }} ?item wdt:P2722 ?dz .
-          OPTIONAL {{ ?item wdt:P434 ?mb }} OPTIONAL {{ ?item wdt:P1953 ?dg }}
+          OPTIONAL {{ ?item wdt:P434 ?mb }} OPTIONAL {{ ?item wdt:P1953 ?dg }} OPTIONAL {{ ?item wdt:P1902 ?sp }}
           OPTIONAL {{ ?item wdt:P136 ?g . ?g rdfs:label ?gl FILTER(lang(?gl) = "en") }}
           OPTIONAL {{ ?item wdt:P264 ?l . ?l rdfs:label ?ll FILTER(lang(?ll) = "en") }}
         }} GROUP BY ?dz ?item"""
@@ -102,7 +119,8 @@ class Wikidata:
                 out[int(get("dz"))] = {"qid": get("item").rsplit("/", 1)[-1], "mbid": get("mbid"),
                                        "discogs": int(discogs) if discogs and discogs.isdigit() else None,
                                        "genres": [g for g in (get("genres") or "").split("|") if g],
-                                       "labels": [lb for lb in (get("labels") or "").split("|") if lb]}
+                                       "labels": [lb for lb in (get("labels") or "").split("|") if lb],
+                                       "spotify": [x for x in (get("spotify") or "").split("|") if x]}
             return out
         raise SourceError("wikidata unreachable")
 
@@ -318,6 +336,8 @@ def enrich(session: Session, deadline: float, wikidata: Wikidata | None = None, 
                     store(a, [(g, None, "wikidata") for g in w["genres"]])
                     store(a, [(lb, None, "wikidata") for lb in w["labels"]], "artist_label")
                     done["wikidata"] += 1
+                    if _store_spotify(session, a, w.get("spotify") or [], "wikidata"):
+                        mark(a, "spotify_wd")
                 mark(a, "wikidata")
             session.commit()
             if progress:
@@ -390,6 +410,8 @@ def enrich(session: Session, deadline: float, wikidata: Wikidata | None = None, 
                 m = re.search(r"discogs\.com/artist/(\d+)", (rel.get("url") or {}).get("resource", ""))
                 if m:
                     info(a).discogs_id = info(a).discogs_id or int(m.group(1))
+            if _store_spotify(session, a, _spotify_in(art.get("relations")), "musicbrainz"):
+                mark(a, "spotify_mb")
             done["musicbrainz"] += bool(rows)
         elif source == "discogs" and answer:
             store(a, [(s, n, "discogs") for s, n in answer["styles"].items()] +
@@ -407,6 +429,60 @@ def enrich(session: Session, deadline: float, wikidata: Wikidata | None = None, 
                 progress(source, done[source])
     session.commit()
     return dict(done)
+
+
+def enrich_spotify_ids(session: Session, deadline: float, wikidata: Wikidata | None = None,
+                       musicbrainz: MusicBrainz | None = None,
+                       progress: Callable[[str, int], None] | None = None) -> dict[str, int]:
+    """Backfill the Spotify artist ids: Wikidata for the artists it already answered about, then
+    MusicBrainz for the artists with a MusicBrainz id. Each artist is asked once per source.
+    Returns how many artists each source gave an id for."""
+    order = library_artists(session)
+    infos = {i.artist_id: i for i in session.scalars(select(ArtistInfo)).all()}
+    done: Counter = Counter()
+
+    def asked(a: int, source: str) -> bool:
+        return a in infos and source in (infos[a].checked or {})
+
+    def mark(a: int, source: str) -> None:
+        infos[a].checked = {**(infos[a].checked or {}), source: utcnow().isoformat()}
+
+    if wikidata is not None:
+        todo = [a for a in order if asked(a, "wikidata") and not asked(a, "spotify_wd")]
+        for k in range(0, len(todo), 300):
+            if time.monotonic() > deadline:
+                break
+            batch = todo[k:k + 300]
+            try:
+                found = wikidata.lookup(batch)
+            except SourceError as exc:
+                log.warning("Artist info: %s", exc)
+                break
+            for a in batch:
+                done["wikidata"] += bool(_store_spotify(session, a, (found.get(a) or {}).get("spotify") or [], "wikidata"))
+                mark(a, "spotify_wd")
+            session.commit()
+            if progress:
+                progress("wikidata", done["wikidata"])
+
+    if musicbrainz is not None:
+        todo = [a for a in order if a in infos and infos[a].mbid and not asked(a, "spotify_mb")]
+        for n, a in enumerate(todo, 1):
+            if time.monotonic() > deadline:
+                break
+            try:
+                art = musicbrainz.artist(infos[a].mbid) or {}
+            except Exception as exc:  # one artist must not stop the source
+                log.warning("Artist info: musicbrainz failed for %s: %s", a, redact(exc))
+                continue
+            done["musicbrainz"] += bool(_store_spotify(session, a, _spotify_in(art.get("relations")), "musicbrainz"))
+            mark(a, "spotify_mb")
+            if n % 20 == 0:
+                session.commit()
+                if progress:
+                    progress("musicbrainz", done["musicbrainz"])
+        session.commit()
+    return {k: v for k, v in done.items() if v}
 
 
 def labels_of(albums, links) -> dict[int, str]:
