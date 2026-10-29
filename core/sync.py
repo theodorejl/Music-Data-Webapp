@@ -362,6 +362,8 @@ def run_enrichment(engine: Engine, budget_seconds: float = 120,
 
         summary = genremodel.run(engine)
         log.info("Genres decided: %d artists (%d without anything known)", summary["artists"], summary["missing"])
+        log.info("Reliability that moved from its starting weight (source:main genre): %s",
+                 ", ".join(f"{k}={w}" for k, w in sorted(summary["weights"].items())) or "none")
     except Exception as exc:
         log.warning("Genre classification failed (the previous decisions stay): %s", redact(exc))
 

@@ -92,3 +92,18 @@ def test_estimate_listened_pure():
     rows = [(t, 200), (t + timedelta(seconds=30), 200), (t + timedelta(seconds=600), 150), (t + timedelta(hours=2), None)]
     assert estimate_listened(rows) == [30, 200, 150, None]
     assert estimate_listened([]) == []
+
+
+def test_the_enrichment_logs_the_measured_reliability_of_the_sources(engine, monkeypatch, caplog):
+    """Spec 4.2: the reliability weights are written in the log, to be read again."""
+    import logging
+
+    from core import genremodel, sync
+    for step in ("enrich_public", "enrich_musicbrainz", "enrich_library_genres", "_artist_info"):
+        monkeypatch.setattr(sync, step, lambda session, client, deadline: 0)
+    monkeypatch.setattr(genremodel, "run", lambda engine: {"artists": 2, "sure": 1, "likely": 1, "neighbours": 0,
+                                                           "missing": 0, "weights": {"deezer:1": 0.4, "mb_genre:0": 3.6}})
+    with caplog.at_level(logging.INFO, logger="core.sync"):
+        sync.run_enrichment(engine, budget_seconds=0, public=object(), mb=object())
+    logged = [r.getMessage() for r in caplog.records if r.levelno == logging.INFO]
+    assert any("deezer:1=0.4" in m and "mb_genre:0=3.6" in m for m in logged), logged
