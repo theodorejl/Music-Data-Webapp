@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from core import artistinfo as ai
 from core import atlas, genretree
-from core.models import Album, Artist, ArtistInfo, PlaylistTrack, Tag, Track
+from core.models import Album, Artist, ArtistInfo, ArtistRelated, PlaylistTrack, Tag, Track
 
 
 class Response:
@@ -159,6 +159,29 @@ def test_spotify_backfill_asks_only_artists_not_asked_yet(engine):
         assert ids == {("4tZwfgrHOc3mvqYlEYSvVi", "wikidata"), ("0GG2cWaonE4JPrjcCCQ1EG", "musicbrainz")}
         assert ai.enrich_spotify_ids(s, time.monotonic() + 30, wd, mb) == {}
         assert wd.calls == [[1]] and mb.asked == ["mbid-1"]
+
+
+class FakeRelatedPublic:
+    def __init__(self):
+        self.asked = []
+
+    def related(self, artist_id, limit=20):
+        self.asked.append(artist_id)
+        return [{"id": 100 + k, "name": f"Rel {k}"} for k in range(3)]
+
+
+def test_related_artists_are_stored_with_their_rank_once(engine):
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="Parcels"), Track(id=10, title="t", artist_id=1)])
+        s.add(PlaylistTrack(playlist_id=1, position=0, track_id=10))
+        s.commit()
+        pub = FakeRelatedPublic()
+        assert ai.fetch_related(s, pub, time.monotonic() + 30) == 1
+        rows = sorted((r.related_id, r.rank, r.related_name) for r in s.query(ArtistRelated).filter_by(artist_id=1))
+        assert rows == [(100, 0, "Rel 0"), (101, 1, "Rel 1"), (102, 2, "Rel 2")]
+        assert "deezer_related" in s.get(ArtistInfo, 1).checked
+        assert ai.fetch_related(s, pub, time.monotonic() + 30) == 0
+        assert pub.asked == [1]
 
 
 def test_words_are_read_on_the_tree_and_noise_is_ignored():

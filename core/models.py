@@ -129,6 +129,17 @@ class ArtistInfo(Base):
     checked: Mapped[dict | None] = mapped_column(JSON)  # source -> date asked (ISO)
 
 
+class ArtistRelated(Base):
+    """The artists Deezer lists as related to an artist; rank 0 is the closest."""
+
+    __tablename__ = "artist_related"
+
+    artist_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    related_id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False)
+    rank: Mapped[int] = mapped_column(Integer)
+    related_name: Mapped[str | None] = mapped_column(String(300))
+
+
 class Alias(Base):
     """Manual corrections, applied when computing stats (raw data untouched).
 

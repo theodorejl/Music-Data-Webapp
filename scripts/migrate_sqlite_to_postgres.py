@@ -15,7 +15,7 @@ from sqlalchemy import select
 
 from core.config import DEFAULT_SQLITE, redact
 from core.db import get_engine, init_db, insert_ignore
-from core.models import (Alias, Album, Artist, FavoriteAlbum, Play, Playlist, PlaylistTrack, SyncRun,
+from core.models import (Alias, Album, Artist, ArtistRelated, FavoriteAlbum, Play, Playlist, PlaylistTrack, SyncRun,
                          SyncState, Tag, Track, TrackArtist)
 from sqlalchemy.orm import Session
 
@@ -33,6 +33,7 @@ TABLES = [
     (Playlist, ["id"], []),
     (PlaylistTrack, ["playlist_id", "position"], []),
     (SyncState, ["key"], []),
+    (ArtistRelated, ["artist_id", "related_id"], []),
 ]
 
 

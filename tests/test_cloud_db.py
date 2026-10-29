@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from core.cloud_db import BRANCH, fetch_remote, publish, pull
 from core.db import get_engine, init_db
 from core.deezer_gw import parse_history
-from core.models import Alias, Play
+from core.models import Alias, ArtistRelated, Play
 from core.sync import run_sync
 
 
@@ -36,6 +36,9 @@ def test_publish_and_pull_round_trip(tmp_path, history_response):
     db_a = tmp_path / "a.db"
     run_sync(init_db(get_engine(f"sqlite:///{db_a}")), Src(parse_history(history_response)), enrich=False)
     assert fetch_remote(repo_a) is None
+    with Session(get_engine(f"sqlite:///{db_a}")) as s:
+        s.add(ArtistRelated(artist_id=1, related_id=2, rank=0, related_name="Rel"))
+        s.commit()
     publish(db_a, repo_a)
     publish(db_a, repo_a)  # republishing keeps a single commit on the data branch
     assert git(remote, "rev-list", "--count", BRANCH) == "1"
@@ -50,6 +53,7 @@ def test_publish_and_pull_round_trip(tmp_path, history_response):
     with Session(eng_b) as s:  # the app's open engine keeps working after the pull
         assert s.scalar(select(func.count()).select_from(Play)) == 6       # published plays arrived
         assert s.scalar(select(func.count()).select_from(Alias)) == 1      # local correction kept
+        assert s.scalar(select(func.count()).select_from(ArtistRelated)) == 1  # related artists arrived
 
 
 def _published_plays(repo, tmp_path) -> int:

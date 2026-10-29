@@ -34,7 +34,7 @@ from sqlalchemy.orm import Session
 
 from core.config import get_setting, redact
 from core.db import insert_ignore
-from core.models import Album, ArtistInfo, Artist, FavoriteAlbum, Play, PlaylistTrack, Tag, Track, utcnow
+from core.models import Album, ArtistInfo, ArtistRelated, Artist, FavoriteAlbum, Play, PlaylistTrack, Tag, Track, utcnow
 
 log = logging.getLogger(__name__)
 
@@ -485,6 +485,44 @@ def enrich_spotify_ids(session: Session, deadline: float, wikidata: Wikidata | N
     return {k: v for k, v in done.items() if v}
 
 
+def fetch_related(session: Session, public, deadline: float,
+                  progress: Callable[[str, int], None] | None = None) -> int:
+    """Store the artists Deezer lists as related to each artist of the library (rank 0 is the
+    closest). Each artist is asked once. Returns how many artists were answered."""
+    infos = {i.artist_id: i for i in session.scalars(select(ArtistInfo)).all()}
+    done = 0
+    for a in library_artists(session):
+        if "deezer_related" in ((infos[a].checked or {}) if a in infos else {}):
+            continue
+        if time.monotonic() > deadline:
+            break
+        try:
+            related = public.related(a)
+        except Exception as exc:  # one artist must not stop the pass
+            log.warning("Artist info: deezer related failed for %s: %s", a, redact(exc))
+            continue
+        rows, seen = [], set()
+        for rank, r in enumerate(related):
+            rid = r.get("id")
+            if not isinstance(rid, int) or rid == a or rid in seen:
+                continue
+            seen.add(rid)
+            rows.append({"artist_id": a, "related_id": rid, "rank": rank,
+                         "related_name": (r.get("name") or "")[:300] or None})
+        insert_ignore(session, ArtistRelated, rows, ["artist_id", "related_id"])
+        if a not in infos:
+            infos[a] = ArtistInfo(artist_id=a, checked={})
+            session.add(infos[a])
+        infos[a].checked = {**(infos[a].checked or {}), "deezer_related": utcnow().isoformat()}
+        done += 1
+        if done % 50 == 0:
+            session.commit()
+            if progress:
+                progress("related", done)
+    session.commit()
+    return done
+
+
 def labels_of(albums, links) -> dict[int, str]:
     """The label that released most of an artist's Deezer albums (albums: id, label;
     links: artist_id, album_id)."""
@@ -510,4 +548,7 @@ def sources_from_settings() -> dict:
 
 def enrich_from_settings(session: Session, public, deadline: float) -> int:
     """For the sync: one pass over every source available, until the deadline."""
-    return sum(enrich(session, deadline, public=public, **sources_from_settings()).values())
+    sources = sources_from_settings()
+    total = sum(enrich(session, deadline, public=public, **sources).values())
+    total += sum(enrich_spotify_ids(session, deadline, sources.get("wikidata"), sources.get("musicbrainz")).values())
+    return total + fetch_related(session, public, deadline)

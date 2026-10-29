@@ -86,6 +86,10 @@ class DeezerPublicClient:
     def artist(self, artist_id: int) -> dict | None:
         return self.get(f"artist/{artist_id}")
 
+    def related(self, artist_id: int, limit: int = 20) -> list[dict]:
+        data = self.get(f"artist/{artist_id}/related?limit={limit}")
+        return (data or {}).get("data") or []
+
 
 def cover_url(md5: str | None, size: int = 250) -> str | None:
     """Build a cover URL from the image hash returned by the internal API."""

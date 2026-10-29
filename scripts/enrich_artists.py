@@ -3,6 +3,7 @@ core/artistinfo.py). Resumes where it stopped; the sync also does a little of it
 
     python -m scripts.enrich_artists                # for up to 60 minutes
     python -m scripts.enrich_artists --minutes 240
+    python -m scripts.enrich_artists --related      # only the related artists (Deezer)
     python -m scripts.enrich_artists --spotify-ids  # only the Spotify artist ids (Wikidata, MusicBrainz)
 
 Add LASTFM_API_KEY (and optionally DISCOGS_TOKEN) to .env for the widest and fastest coverage.
@@ -16,7 +17,7 @@ import time
 
 from sqlalchemy.orm import sessionmaker
 
-from core.artistinfo import MusicBrainz, Wikidata, enrich, enrich_spotify_ids, sources_from_settings
+from core.artistinfo import MusicBrainz, Wikidata, enrich, enrich_spotify_ids, fetch_related, sources_from_settings
 from core.db import get_engine, init_db
 from core.deezer_public import DeezerPublicClient
 
@@ -25,10 +26,17 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--minutes", type=float, default=60)
     parser.add_argument("--spotify-ids", action="store_true", help="only look for the Spotify artist ids")
+    parser.add_argument("--related", action="store_true", help="only fetch the related artists from Deezer")
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING, format="%(asctime)s %(message)s")
     engine = init_db(get_engine())
     deadline = time.monotonic() + args.minutes * 60
+    if args.related:
+        with sessionmaker(bind=engine, expire_on_commit=False)() as session:
+            n = fetch_related(session, DeezerPublicClient(timeout=12), deadline,
+                              progress=lambda source, n: print(time.strftime("%H:%M"), source, n, flush=True))
+        print("artists with related artists:", n, flush=True)
+        return 0
     if args.spotify_ids:
         with sessionmaker(bind=engine, expire_on_commit=False)() as session:
             found = enrich_spotify_ids(session, deadline, Wikidata(), MusicBrainz(),
