@@ -184,6 +184,28 @@ def test_related_artists_are_stored_with_their_rank_once(engine):
         assert pub.asked == [1]
 
 
+def test_related_without_an_answer_is_retried_not_recorded(engine):
+    class Flaky(FakeRelatedPublic):
+        def related(self, artist_id, limit=20):
+            self.asked.append(artist_id)
+            return None if artist_id == 1 else [{"id": 100, "name": "Rel"}]
+
+    with Session(engine) as s:
+        s.add_all([Artist(id=1, name="A"), Artist(id=2, name="B"),
+                   Track(id=10, title="t", artist_id=1), Track(id=11, title="u", artist_id=2)])
+        s.add_all([PlaylistTrack(playlist_id=1, position=0, track_id=10), PlaylistTrack(playlist_id=1, position=1, track_id=11)])
+        s.commit()
+        pub = Flaky()
+        assert ai.fetch_related(s, pub, time.monotonic() + 30) == 1
+        assert s.query(ArtistRelated).filter_by(artist_id=1).count() == 0
+        assert "deezer_related" not in ((s.get(ArtistInfo, 1) and s.get(ArtistInfo, 1).checked) or {})
+        assert s.query(ArtistRelated).filter_by(artist_id=2).count() == 1
+        assert "deezer_related" in s.get(ArtistInfo, 2).checked
+        pub.asked.clear()
+        ai.fetch_related(s, pub, time.monotonic() + 30)
+        assert pub.asked == [1]
+
+
 def test_words_are_read_on_the_tree_and_noise_is_ignored():
     g, sub, broad = atlas.meaning("Nu-Disco")
     assert g == "nu disco" and genretree.tree()["sub"][sub]["key"] == "disco" and not broad

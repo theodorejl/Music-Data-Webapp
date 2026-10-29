@@ -86,9 +86,12 @@ class DeezerPublicClient:
     def artist(self, artist_id: int) -> dict | None:
         return self.get(f"artist/{artist_id}")
 
-    def related(self, artist_id: int, limit: int = 20) -> list[dict]:
+    def related(self, artist_id: int, limit: int = 20) -> list[dict] | None:
+        """The related artists (possibly an empty list), or None when Deezer gave no answer."""
         data = self.get(f"artist/{artist_id}/related?limit={limit}")
-        return (data or {}).get("data") or []
+        if not isinstance(data, dict):
+            return None
+        return data.get("data") or []
 
 
 def cover_url(md5: str | None, size: int = 250) -> str | None:

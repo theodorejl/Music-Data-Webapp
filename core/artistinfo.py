@@ -501,6 +501,8 @@ def fetch_related(session: Session, public, deadline: float,
         except Exception as exc:  # one artist must not stop the pass
             log.warning("Artist info: deezer related failed for %s: %s", a, redact(exc))
             continue
+        if related is None:  # no answer (outage, quota): leave the artist unmarked to retry later
+            continue
         rows, seen = [], set()
         for rank, r in enumerate(related):
             rid = r.get("id")
