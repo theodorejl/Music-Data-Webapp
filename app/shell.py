@@ -26,6 +26,7 @@ RAIL = [
     ("rhythms", "rhythms.py", ":material/graphic_eq:"),
     ("discoveries", "discoveries.py", ":material/explore:"),
     ("foryou", "foryou.py", ":material/headphones:"),
+    ("insta", "instagram.py", ":material/photo_camera:"),
     ("explore", "explore.py", ":material/blur_on:"),
     ("wrapped", "wrapped.py", ":material/auto_awesome:"),
     ("library", "library.py", ":material/library_music:"),

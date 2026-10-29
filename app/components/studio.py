@@ -1,4 +1,4 @@
-"""The recommendation studio: the three mode cards and the loading bar.
+"""The studios (« Pour toi » and « Depuis Insta »): their cards and the loading bar.
 
 The loading bar is a sound wave that fills from left to right under a spinning record (the
 playhead), with the step in words, the share done, the time left and the tracks found. It is
@@ -14,7 +14,10 @@ from html import escape
 from app.components import theme
 
 # Each mode: its colour (same as on the map) and the second colour of its gradient.
-MODE_COLORS = {"neighbours": ("#ff7a59", "#e8558e"), "subgenres": ("#38b6ff", "#119f86"), "moment": ("#a98bff", "#e8558e")}
+MODE_COLORS = {"neighbours": ("#ff7a59", "#e8558e"), "subgenres": ("#38b6ff", "#119f86"), "moment": ("#a98bff", "#e8558e"),
+               "insta": ("#f77737", "#c13584")}  # Instagram's orange to magenta
+# Where « Depuis Insta » finds music in a post.
+SOURCE_COLORS = {"caption": "#f77737", "comment": "#c13584", "audio": "#5b5bd6"}
 
 
 def _mix(c1: str, c2: str, t: float) -> str:
@@ -95,3 +98,39 @@ def progress_html(mode: str, fraction: float, elapsed: float, eta: float | None,
             f"<div class='rp-foot num'><span><b>{found}</b> / {target} {escape(labels['found'])}</span>"
             f"<span>{calls} / {max(calls, planned)} {escape(labels['calls'])}</span>"
             f"<span>{elapsed:.1f} s</span></div></div>")
+
+
+def source_art(source: str) -> str:
+    """A small line drawing of where the music is found in a post."""
+    c = SOURCE_COLORS[source]
+    if source == "caption":  # a post, its caption, one line of it is a track
+        body = ("<rect x='22' y='6' width='76' height='76' rx='12' fill='none' stroke='#1f1f1f' stroke-width='2'/>"
+                f"<rect x='30' y='14' width='60' height='30' rx='6' fill='{c}' opacity='.22'/>"
+                "<rect x='30' y='52' width='44' height='3' rx='1.5' fill='#1f1f1f' opacity='.3'/>"
+                f"<rect x='30' y='60' width='56' height='5' rx='2.5' fill='{c}'/>"
+                "<rect x='30' y='71' width='34' height='3' rx='1.5' fill='#1f1f1f' opacity='.3'/>"
+                f"<path d='M58 22v14' stroke='{c}' stroke-width='2.4'/><circle cx='55' cy='37' r='3.6' fill='{c}'/>"
+                f"<path d='M58 22l8 3' stroke='{c}' stroke-width='2.4' stroke-linecap='round'/>")
+    elif source == "comment":  # speech bubbles, one names a track
+        body = ("<path d='M14 14h56a8 8 0 0 1 8 8v20a8 8 0 0 1-8 8H34l-12 10v-10h-8a8 8 0 0 1-8-8V22a8 8 0 0 1 8-8z' "
+                "fill='none' stroke='#1f1f1f' stroke-width='2'/>"
+                f"<path d='M50 40h50a8 8 0 0 1 8 8v18a8 8 0 0 1-8 8h-6v10l-12-10H50a8 8 0 0 1-8-8V48a8 8 0 0 1 8-8z' fill='{c}' opacity='.9'/>"
+                "<rect x='18' y='26' width='40' height='3' rx='1.5' fill='#1f1f1f' opacity='.3'/>"
+                "<rect x='18' y='34' width='28' height='3' rx='1.5' fill='#1f1f1f' opacity='.3'/>"
+                "<rect x='54' y='52' width='44' height='4' rx='2' fill='#fff'/><rect x='54' y='61' width='30' height='4' rx='2' fill='#fff' opacity='.7'/>")
+    else:  # the sound of a video: a waveform and a record
+        bars = "".join(f"<rect x='{8 + i * 6}' y='{44 - h / 2:.1f}' width='3.4' height='{h:.1f}' rx='1.7' fill='{c}' "
+                       f"opacity='{.45 + .55 * (i % 3 == 0):.2f}'/>"
+                       for i, h in enumerate(70 * w for w in _wave_heights(12)))
+        body = (bars + "<circle cx='94' cy='44' r='22' fill='#1f1f1f'/><circle cx='94' cy='44' r='15' fill='none' stroke='#fff' "
+                "stroke-width='1' opacity='.35'/>" f"<circle cx='94' cy='44' r='7' fill='{c}'/><circle cx='94' cy='44' r='2' fill='#fff'/>")
+    return f"<svg viewBox='0 0 120 88' class='rs-art'>{body}</svg>"
+
+
+def source_card(source: str, name: str, tagline: str, text: str, status: str, state: str) -> str:
+    """state: on (used), todo (needs a setting), off (not available with the official API)."""
+    c = SOURCE_COLORS[source]
+    dot = {"on": c, "todo": "#d39a06", "off": "rgba(31,31,31,.3)"}[state]
+    return (f"<div class='rs-card rs-src is-{state}' style='--c:{c}'>{source_art(source)}"
+            f"<div class='rs-tag'>{escape(tagline)}</div><h3 class='rs-name'>{escape(name)}</h3>"
+            f"<p class='rs-text'>{escape(text)}</p><div class='rs-status'><i style='background:{dot}'></i>{escape(status)}</div></div>")

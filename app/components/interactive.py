@@ -294,17 +294,10 @@ layout();addEventListener('resize',layout);requestAnimationFrame(draw);
 
 # --- the table of recommendations ------------------------------------------------------------------
 
-def rec_table(recs: pd.DataFrame, labels: dict, color: str, genre_colors: dict[str, str], height: int | None = None) -> None:
-    """Every recommended track in one table: play its 30 s preview from the row, sort by any
-    column, filter as you type; the playing row shows its progress."""
-    rows = [[i + 1, int(r.track_id), str(r.title), str(r.artist_name), str(r.album_title or ""), str(r.reason or ""),
-             str(r.genre or ""), int(r.duration or 0), r.cover or "", r.link, genre_colors.get(r.genre, "#c4c9d0")]
-            for i, r in enumerate(recs.itertuples(index=False))]
-    height = height or min(118 + 62 * len(rows), 860)
-    L = {k: labels[k] for k in ("title", "artist", "album", "why", "genre", "time", "search", "count", "because",
-                                "open", "no_preview", "play")}
-    html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
-html,body{{margin:0;background:transparent;font-family:{FONT};color:#1f1f1f;-webkit-font-smoothing:antialiased}}
+def _table_css(color: str, height: int) -> str:
+    """The look shared by the track tables: a frosted panel, a filter bar, sticky headers, covers
+    that play their preview."""
+    return f"""html,body{{margin:0;background:transparent;font-family:{FONT};color:#1f1f1f;-webkit-font-smoothing:antialiased}}
 .wrap{{height:{height - 8}px;display:flex;flex-direction:column;background:rgba(255,255,255,.72);border-radius:22px;overflow:hidden}}
 .bar{{display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid rgba(31,31,31,.07)}}
 .bar input{{flex:1;max-width:360px;font:500 13px {FONT};padding:9px 16px;border-radius:999px;border:1.5px solid rgba(31,31,31,.12);
@@ -331,7 +324,20 @@ tr.playing .cov .b{{background:{color}cc}}
 .g{{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px}} .g i{{width:9px;height:9px;border-radius:50%;display:inline-block}}
 .d{{color:rgba(31,31,31,.55);font-variant-numeric:tabular-nums;white-space:nowrap}}
 .l a{{color:#0b57d0;text-decoration:none;font-size:12px;white-space:nowrap}}
-tr.none .cov{{opacity:.45}}
+tr.none .cov{{opacity:.45}}"""
+
+
+def rec_table(recs: pd.DataFrame, labels: dict, color: str, genre_colors: dict[str, str], height: int | None = None) -> None:
+    """Every recommended track in one table: play its 30 s preview from the row, sort by any
+    column, filter as you type; the playing row shows its progress."""
+    rows = [[i + 1, int(r.track_id), str(r.title), str(r.artist_name), str(r.album_title or ""), str(r.reason or ""),
+             str(r.genre or ""), int(r.duration or 0), r.cover or "", r.link, genre_colors.get(r.genre, "#c4c9d0")]
+            for i, r in enumerate(recs.itertuples(index=False))]
+    height = height or min(118 + 62 * len(rows), 860)
+    L = {k: labels[k] for k in ("title", "artist", "album", "why", "genre", "time", "search", "count", "because",
+                                "open", "no_preview", "play")}
+    html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
+{_table_css(color, height)}
 @media (max-width:1100px){{.al,th:nth-child(5){{display:none}}}}
 @media (max-width:720px){{.al,.w,.g,.d,th:nth-child(5),th:nth-child(6),th:nth-child(7),th:nth-child(8){{display:none}}}}
 </style></head><body><div class="wrap"><div class="bar"><input id="q" placeholder="{escape(L['search'])}"><span id="cnt"></span></div>
@@ -356,6 +362,62 @@ function render(){{let rows=D.filter(r=>!q||(r[2]+' '+r[3]+' '+r[4]+' '+r[5]+' '
  document.querySelectorAll('th').forEach(h=>h.classList.toggle('on',+h.dataset.k===sortK&&h.dataset.k!==undefined));
  document.querySelectorAll('th.on').forEach(h=>h.classList.toggle('asc',asc))}}
 document.querySelectorAll('th[data-k]').forEach(h=>h.addEventListener('click',()=>{{const k=+h.dataset.k;asc=sortK===k?!asc:true;sortK=k;render()}}));
+document.getElementById('q').addEventListener('input',e=>{{q=e.target.value.toLowerCase().trim();render()}});
+{PLAYER_JS}
+function setPlaying(id,s){{document.querySelectorAll('tbody tr').forEach(tr=>{{const on=+tr.dataset.id===id;tr.classList.toggle('playing',on);
+ tr.querySelector('.b').innerHTML=on?(s==='loading'?WAIT:PAUSE):PLAY;if(!on)tr.querySelector('.cov i').style.width=0}})}}
+function noPreview(id){{const tr=document.querySelector(`tr[data-id="${{id}}"]`);if(tr){{tr.classList.add('none');tr.querySelector('.cov').title=L.no_preview}}}}
+audio.addEventListener('timeupdate',()=>{{const i=document.querySelector(`tr[data-id="${{playing}}"] .cov i`);if(i&&audio.duration)i.style.width=(100*audio.currentTime/audio.duration)+'%'}});
+render();
+</script></body></html>"""
+    _frame(html, height)
+
+
+def insta_table(rows: list[dict], labels: dict, color: str, source_colors: dict[str, str], height: int | None = None) -> None:
+    """The playlist of an Instagram account: newest post first, each track with its post (date and
+    link), where it was found (with the words it came from) and its 30 s preview; sort by any
+    column, filter as you type.
+    rows: {track_id, title, artist, album, kind, at (ISO), date, source, line, post, link, cover, posts}"""
+    data = [[i + 1, int(r["track_id"]), r["title"], r["artist"], r["album"], r["at"], r["date"], r["source"], r["line"],
+             r["post"], r["link"], r["cover"], r["kind"], int(r["posts"])] for i, r in enumerate(rows)]
+    height = height or min(118 + 62 * len(data), 860)
+    L = {k: labels[k] for k in ("title", "artist", "album", "posted", "found", "search", "count", "open", "post", "no_preview",
+                                "play", "album_badge", "sources", "times")}
+    html = f"""<!doctype html><html><head><meta charset="utf-8">{FONT_LINK}<style>
+{_table_css(color, height)}
+.badge{{display:inline-block;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;padding:1px 6px;border-radius:999px;
+ background:rgba(31,31,31,.08);color:rgba(31,31,31,.7);margin-left:6px;vertical-align:1px}}
+.dt{{white-space:nowrap;font-variant-numeric:tabular-nums}} .dt small{{display:block;font-size:11px;color:rgba(31,31,31,.5)}}
+.src{{display:inline-flex;align-items:center;gap:6px;white-space:nowrap;font-size:12px;max-width:230px}}
+.src i{{width:9px;height:9px;border-radius:50%;flex:none}} .src span{{overflow:hidden;text-overflow:ellipsis;color:rgba(31,31,31,.62)}}
+.src b{{font-weight:600}}
+.l a.ig{{color:#c13584}}
+@media (max-width:1100px){{.al,th:nth-child(5){{display:none}}}}
+@media (max-width:720px){{.al,.src,.l.dz,th:nth-child(5),th:nth-child(7),th:nth-child(9){{display:none}}}}
+</style></head><body><div class="wrap"><div class="bar"><input id="q" placeholder="{escape(L['search'])}"><span id="cnt"></span></div>
+<div class="scroll"><table><thead><tr><th data-k="0">#</th><th></th><th data-k="2">{escape(L['title'])}</th><th data-k="3">{escape(L['artist'])}</th>
+<th data-k="4">{escape(L['album'])}</th><th data-k="5">{escape(L['posted'])}</th><th data-k="7">{escape(L['found'])}</th><th></th><th></th></tr></thead>
+<tbody id="tb"></tbody></table></div></div>
+<script>
+const D={js_data(data)},L={js_data(L)},SC={js_data(source_colors)};{ESC_JS}
+const PLAY='<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',PAUSE='<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
+ WAIT='<svg viewBox="0 0 24 24"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+let sortK=5,asc=false,q='';
+function render(){{let rows=D.filter(r=>!q||(r[2]+' '+r[3]+' '+r[4]+' '+r[6]+' '+r[8]).toLowerCase().includes(q));
+ rows.sort((a,b)=>{{const x=a[sortK],y=b[sortK];const c=typeof x==='number'?x-y:String(x).localeCompare(String(y));return asc?c:-c}});
+ document.getElementById('cnt').textContent=L.count.replace('{{n}}',rows.length);
+ document.getElementById('tb').innerHTML=rows.map(r=>`<tr data-id="${{r[1]}}" class="${{playing===r[1]?'playing':''}}"><td class="n">${{r[0]}}</td>
+ <td><div class="cov" title="${{esc(L.play)}}">${{r[11]?`<img src="${{esc(r[11])}}" loading="lazy" alt="">`:''}}<div class="b">${{playing===r[1]?PAUSE:PLAY}}</div><i></i></div></td>
+ <td class="t" title="${{esc(r[2])}}">${{esc(r[2])}}${{r[12]==='album'?`<span class="badge">${{esc(L.album_badge)}}</span>`:''}}</td>
+ <td class="a" title="${{esc(r[3])}}">${{esc(r[3])}}</td><td class="al" title="${{esc(r[4])}}">${{esc(r[4])}}</td>
+ <td class="dt">${{esc(r[6])}}${{r[13]>1?`<small>${{esc(L.times.replace('{{n}}',r[13]))}}</small>`:''}}</td>
+ <td><span class="src" title="${{esc(r[8])}}"><i style="background:${{SC[r[7]]||'#c4c9d0'}}"></i><b>${{esc(L.sources[r[7]]||r[7])}}</b>${{r[8]?`<span>· ${{esc(r[8])}}</span>`:''}}</span></td>
+ <td class="l"><a class="ig" href="${{esc(r[9])}}" target="_blank" rel="noopener">${{esc(L.post)}} ↗</a></td>
+ <td class="l dz"><a href="${{esc(r[10])}}" target="_blank" rel="noopener">${{esc(L.open)}} ↗</a></td></tr>`).join('');
+ document.querySelectorAll('.cov').forEach(c=>c.addEventListener('click',()=>toggle(+c.closest('tr').dataset.id)));
+ document.querySelectorAll('th').forEach(h=>h.classList.toggle('on',+h.dataset.k===sortK&&h.dataset.k!==undefined));
+ document.querySelectorAll('th.on').forEach(h=>h.classList.toggle('asc',asc))}}
+document.querySelectorAll('th[data-k]').forEach(h=>h.addEventListener('click',()=>{{const k=+h.dataset.k;asc=sortK===k?!asc:k!==5;sortK=k;render()}}));
 document.getElementById('q').addEventListener('input',e=>{{q=e.target.value.toLowerCase().trim();render()}});
 {PLAYER_JS}
 function setPlaying(id,s){{document.querySelectorAll('tbody tr').forEach(tr=>{{const on=+tr.dataset.id===id;tr.classList.toggle('playing',on);

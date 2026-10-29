@@ -40,7 +40,7 @@ OTHER = "#c4c9d0"
 PAGE_FAMILY = {
     "": "sky", "home": "sky", "tops": "coral", "rhythms": "lime", "discoveries": "rose", "explore": "lilac",
     "wrapped": "butter", "library": "teal", "history": "mist", "artist": "lilac", "album": "coral",
-    "track": "rose", "admin": "mist", "foryou": "ocean",
+    "track": "rose", "admin": "mist", "foryou": "ocean", "insta": "rose",
 }
 
 

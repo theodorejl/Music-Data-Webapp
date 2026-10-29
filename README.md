@@ -39,8 +39,9 @@ Passer de la phase 1 à la phase 2 ne demande **que de la configuration** : le c
 6. [Publier l'app sur Streamlit Community Cloud](#6-publier-lapp-sur-streamlit-community-cloud)
 7. [En cas de problème](#7-en-cas-de-problème)
 8. [Excel, albums & playlists, affiche A3](#excel-albums--playlists-affiche-a3)
-9. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
-10. [Limites connues](#limites-connues)
+9. [Depuis Insta : la playlist d'un compte Instagram](#depuis-insta--la-playlist-dun-compte-instagram)
+10. [Récupérer l'historique plus ancien (export Deezer)](#récupérer-lhistorique-plus-ancien-export-deezer)
+11. [Limites connues](#limites-connues)
 
 Les commandes sont à taper dans un **terminal** :
 - **macOS** : app « Terminal » (Cmd + Espace, puis tape « Terminal »).
@@ -441,6 +442,52 @@ Les familles sont calculées à partir des positions (regroupement k-means, touj
 
 Les tags MusicBrainz de tes artistes s'enrichissent à chaque synchro. Plus ils sont nombreux, plus ton territoire est précis.
 
+## Depuis Insta : la playlist d'un compte Instagram
+
+Écris le nom d'un compte Instagram (par exemple `@delicieusemusique`, ou colle le lien du profil). L'app parcourt ses posts du plus récent au plus ancien et repère la musique. Elle vérifie chaque titre sur Deezer et en fait une **playlist rangée par date de post**, chaque titre avec le **lien vers son post**.
+
+### Où l'app trouve la musique
+
+- **Les légendes** : chaque ligne du texte est lue. L'app reconnaît « Artiste - Titre », « Titre by Artiste », Artiste « Titre », « Titre » de Artiste, « Artist: … / Track: … », les listes numérotées ou minutées et les @mentions. Elle essaie aussi l'ordre inverse (« Titre - Artiste »).
+  - Chaque piste est vérifiée sur l'API publique de Deezer : un morceau, sinon un album. Elle n'est gardée que si l'artiste **et** le titre correspondent.
+  - Le texte qui n'est pas de la musique (« New video out now - link in bio ») ne trouve rien et disparaît.
+- **Le son des vidéos** (optionnel), pour les comptes qui postent des vidéos de vinyles sans texte. Chaque vidéo du post, et chaque vidéo d'un carrousel, est identifiée par **AudD**, un service officiel de reconnaissance musicale, puis retrouvée sur Deezer.
+- **Les commentaires** : l'API officielle d'Instagram ne donne pas les commentaires des posts des autres comptes. Ils ne sont donc pas lus.
+
+### Le studio
+
+- Choisis le **nombre de titres à extraire** (10 à 300). L'app affiche une **estimation du temps** avant de lancer, puis une barre de chargement pendant l'extraction.
+- Tout est **gardé en mémoire par compte**, dans `data/instagram/<compte>.json`. Une nouvelle extraction ne lit que les posts nouveaux, et les comptes déjà lus se rouvrent en un clic.
+- Dans **la playlist**, on peut écouter 30 s de chaque titre, trier, filtrer et ouvrir le post Instagram ou le titre sur Deezer.
+  - On peut l'exporter en Excel ou en liste texte « Artiste - Titre ».
+  - La liste texte s'importe dans Deezer avec un outil comme Soundiiz ou TuneMyMusic.
+- Un titre posté plusieurs fois n'apparaît qu'une fois, avec son post le plus récent et le nombre de posts.
+
+### Configurer l'accès (une seule fois, environ 15 min)
+
+L'app lit Instagram uniquement par l'**API officielle de Meta** (« Business Discovery »). Elle ne fait pas de scraping, interdit par les conditions d'Instagram. Cette API lit les posts publics des **comptes professionnels** (créateurs, marques, médias), à travers ton propre compte professionnel. C'est le cas de la plupart des comptes musicaux.
+
+1. Passe ton compte Instagram en **compte professionnel** (gratuit) : Paramètres › *Type de compte et outils* › *Passer à un compte professionnel*. Le type « Créateur » convient.
+2. Relie-le à une **Page Facebook** (crées-en une si besoin) : Instagram › *Modifier le profil* › *Page*.
+3. Sur [developers.facebook.com/apps](https://developers.facebook.com/apps), crée une app de type *Business* et ajoute-lui le produit **Instagram** (« API Instagram avec connexion Facebook »).
+4. Dans l'[explorateur de l'API Graph](https://developers.facebook.com/tools/explorer/), choisis ton app.
+   - Demande les autorisations `instagram_basic`, `pages_show_list` et `pages_read_engagement`.
+   - Ajoute `business_management` si ta Page appartient à un portefeuille business.
+   - Clique sur **Generate Access Token**.
+5. Rends ce jeton durable (60 jours) dans le [débogueur de jetons](https://developers.facebook.com/tools/debug/accesstoken/) : **Extend Access Token**.
+6. Dans l'explorateur, lance `me/accounts?fields=instagram_business_account`. Le nombre affiché sous `instagram_business_account` est ton `IG_USER_ID`.
+7. Ajoute dans `.env` :
+   ```
+   IG_USER_ID=1784...
+   IG_ACCESS_TOKEN=EAAG...
+   ```
+8. (Optionnel) Pour le son des vidéos, crée un compte sur [audd.io](https://audd.io) et ajoute `AUDD_API_TOKEN=...`. AudD offre 300 reconnaissances, la suite est payante, de 2 à 5 $ les 1 000.
+
+Le jeton Instagram est un secret, comme le cookie `arl`.
+- Il est envoyé dans un en-tête, jamais dans une adresse.
+- Il n'apparaît dans aucun message, aucun journal et aucune page.
+- Quand il expire (après 60 jours), la page le dit : refais les étapes 4 et 5.
+
 ## Récupérer l'historique plus ancien (export Deezer)
 
 L'historique de Deezer ne renvoie **que les 100 dernières écoutes** : c'est une limite de Deezer, pas de l'app. L'app, elle, garde **tout** ce qu'elle a relevé, sans limite.
@@ -523,6 +570,7 @@ core/
   stats.py           toutes les statistiques (fonctions pures sur des DataFrames)
   recommend.py       les trois modes de découverte (API publique Deezer), audace, estimation
   soundmap.py        la carte du son : genres Every Noise, territoire, frontière
+  instamusic.py      Depuis Insta : posts (API officielle), titres dans le texte, son (AudD), mémoire
 scripts/             sync, dev_server, cloud_db, build_genre_map, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest
 .github/workflows/   synchro toutes les 30 min
@@ -540,3 +588,8 @@ tests/               pytest
   - Si le titre n'apparaît pas, c'est Deezer qui ne l'enregistre pas : aucun outil basé sur cet historique ne pourra le voir.
 - Les **extraits de 30 s** viennent de l'API publique Deezer. Certains titres n'en ont pas.
 - **Profil public** : sur Streamlit Cloud, tout le monde peut voir tes statistiques et ton historique horodaté. C'est voulu.
+- **Depuis Insta** :
+  - Seuls les comptes Instagram **professionnels** peuvent être lus, et les commentaires ne le sont pas (limites de l'API officielle).
+  - La vidéo d'un reel n'est pas fournie quand son auteur a désactivé les téléchargements.
+  - La reconnaissance du son passe par AudD, qui est payant au-delà des 300 premières reconnaissances.
+  - Sur Streamlit Cloud, la mémoire des comptes lus est effacée à chaque redémarrage : la page est d'abord pensée pour un usage en local.
