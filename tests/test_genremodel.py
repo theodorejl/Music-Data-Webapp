@@ -172,6 +172,24 @@ def test_run_writes_one_decision_per_artist_and_replaces_them(engine):
         assert s.get(ArtistGenre, 1).genre == "nu disco" and s.get(ArtistGenre, 2).genre == "deep house"
 
 
+def test_a_database_without_any_evidence_breaks_nothing(engine):
+    """A first sync knows no genre yet: no weights, no decisions, no failure."""
+    from sqlalchemy.orm import Session
+
+    from core.models import Artist, PlaylistTrack, Track
+    assert genremodel.reliability({}) == {} and genremodel.reliability({9: {}}) == {}
+    assert genremodel.run(engine)["artists"] == 0                    # an empty database
+    with Session(engine) as s:
+        s.add(Artist(id=1, name="Zqxw Nobody Knows 4821"))
+        s.add(Track(id=10, title="t", artist_id=1))
+        s.add(PlaylistTrack(playlist_id=1, position=0, track_id=10))
+        s.commit()
+    summary = genremodel.run(engine)
+    assert summary["artists"] == 0 and summary["missing"] == 1 and summary["weights"] == {}
+    ev = {9: genremodel.word_evidence([("nu disco", "mb_genre", 1.0)])}
+    assert genremodel.classify([9], ev, {}, [], {})[9].genre == "nu disco"   # no weights: the starting ones
+
+
 # --- Evaluation --------------------------------------------------------------------------------------
 
 def test_evaluation_reports_cold_and_single_source_accuracy():

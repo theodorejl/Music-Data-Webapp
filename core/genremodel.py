@@ -108,6 +108,8 @@ def reliability(ev: dict[int, dict[str, Evidence]], prior: dict[str, float] = W0
     """Weight of (source, main genre): how often the source's top main genre is also the top of the other
     sources, weighted by their own weights (one-coin Dawid-Skene log-odds), with a prior of 10 artists at 70 %."""
     sources = sorted({s for row in ev.values() for s in row})
+    if not sources:  # nothing known yet (a first sync): every source keeps its starting weight
+        return {}
     start = {s: prior.get(s, 1.0) for s in sources}
     index = {s: i for i, s in enumerate(sources)}
     base = np.array([start[s] for s in sources])[:, None]
