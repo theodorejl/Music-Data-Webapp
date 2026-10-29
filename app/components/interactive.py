@@ -465,6 +465,7 @@ function corners(k){if(geo.k===k)return;geo.k=k;geo.main.forEach((m,j)=>m.path=r
 function layout(){const d=DPR();W=cv.clientWidth;H=cv.clientHeight;cv.width=ov.width=W*d;cv.height=ov.height=H*d;
  cc.width=Math.ceil(W/4);cc.height=Math.ceil(H/4);buildGeo();dirty=true}
 const sx=x=>x*W*view.k+view.x,sy=y=>y*H*view.k+view.y;
+function inPoly(x,y,p){let h=false;for(let i=0,j=p.length-1;i<p.length;j=i++){const[a,b]=p[i],[c,d]=p[j];if((b>y)!==(d>y)&&x<(c-a)*(y-b)/(d-b)+a)h=!h}return h}
 const world=c=>{const d=DPR();c.setTransform(d*view.k,0,0,d*view.k,d*view.x,d*view.y)},screen=c=>{const d=DPR();c.setTransform(d,0,0,d,0,0)};
 function density(){const k=view.k,q=1/4,w=cc.width,h=cc.height;if(!G||G.length!==w*h)G=new Float32Array(w*h);else G.fill(0);
  const R0=Math.max(1.3,9*Math.pow(k,.5)*q),s2=2*(R0*.55)**2,rad=Math.ceil(R0*1.5),K=[];
@@ -506,7 +507,11 @@ function draw(){const k=view.k;corners(k);screen(ctx);ctx.fillStyle=rgba(CREAM,1
  const covers=k>=5,rc=7+Math.min(10,Math.max(0,k-5))*.55;
  R.forEach((p,i)=>{const x=sx(p.px),y=sy(p.py);if(x<-30||y<-30||x>W+30||y>H+30)return;nodes.push({kind:'r',i,x,y,r:covers?rc:3.4})});
  if(photos||covers){const big=nodes.filter(n=>n.kind==='r'||photos);if(big.length<420)for(let pass=0;pass<4;pass++)for(let a=0;a<big.length;a++)for(let b=a+1;b<big.length;b++){
-  const p=big[a],q=big[b];let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+2;if(d>=m)continue;const f=(m-d)/d/2;dx*=f;dy*=f;p.x-=dx;p.y-=dy;q.x+=dx;q.y+=dy}}
+  const p=big[a],q=big[b];let dx=q.x-p.x,dy=q.y-p.y;const d=Math.hypot(dx,dy)||.01,m=p.r+q.r+2;if(d>=m)continue;const f=(m-d)/d/2;dx*=f;dy*=f;p.x-=dx;p.y-=dy;q.x+=dx;q.y+=dy}
+  // what the anti-overlap moved stays in its territory (a discovery: in the map): back towards its own place
+  big.forEach(n=>{const own=n.kind==='a',ox=own?sx(A.x[n.i]):sx(R[n.i].px),oy=own?sy(A.y[n.i]):sy(R[n.i].py),
+   poly=own?(A.s[n.i]>=0?T.sub[A.s[n.i]].p:T.main[A.m[n.i]].p):T.o,k=view.k,at=t=>inPoly((ox+(n.x-ox)*t-view.x)/(W*k),(oy+(n.y-oy)*t-view.y)/(H*k),poly);
+   if(at(1))return;let lo=0,hi=1;for(let s=0;s<8;s++){const m=(lo+hi)/2;if(at(m))lo=m;else hi=m}n.x=ox+(n.x-ox)*lo;n.y=oy+(n.y-oy)*lo})}
  const shape=(x,y,r,c)=>{c.beginPath();if(ALB)c.roundRect(x-r,y-r,2*r,2*r,r*.28);else c.arc(x,y,r,0,6.283)};
  if(photos)nodes.filter(n=>n.kind==='a').forEach(n=>{const i=n.i,im=img(pic(i));ctx.save();shape(n.x,n.y,n.r,ctx);
   if(im&&im.complete&&im.naturalWidth){ctx.clip();ctx.drawImage(im,n.x-n.r,n.y-n.r,2*n.r,2*n.r)}else{ctx.fillStyle=rgba(INK,.86);ctx.fill();
