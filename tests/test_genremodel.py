@@ -125,7 +125,8 @@ def test_the_graph_is_symmetric_and_keeps_the_30_most_shared_playlist_neighbours
     w = {(a, b): x for a, b, x in edges}
     assert len(w) == len(edges) and all(a < b for a, b, _ in edges)                   # each pair once
     assert abs(w[(1, 2)] - (1.0 + 0.3)) < 1e-9                                        # best related link + 3 shared playlists
-    assert abs(w[(1, 3)] - 0.2) < 1e-9 and (1, 4) not in w
+    assert abs(w[(1, 3)] - 0.2) < 1e-9
+    assert abs(w[(1, 4)] - 0.1 / 3) < 1e-9                                         # 4 is only in the big one: a last resort
     assert (10, 100) in w and (10, 11) not in w                                       # beyond both hubs' 30 best
     assert set(external) == {5} and set(external[5].genre) == {"metal"}             # homonym and unknown: skipped
 
@@ -219,3 +220,19 @@ def test_evaluation_reports_cold_and_single_source_accuracy():
     assert got["cold_main"] == 1.0 and got["cold_sub"] == 1.0      # hidden, each one is found again by its neighbours
     assert got["cold_main_old"] == 1.0                                 # the playlist guess finds the main genre too
     assert 0 <= got["single_sub"] <= 1 and got["single_main"] == 1.0
+
+
+def test_an_artist_only_in_big_playlists_takes_their_genre_as_a_last_resort():
+    big = pd.DataFrame({"playlist_id": [7] * 400, "track_id": range(400),
+                        "artist_id": [9.0] + [float(j) for j in range(1, 6)] * 79 + [1.0, 2.0, 3.0, 4.0]})
+    small = pd.DataFrame({"playlist_id": [8] * 5, "track_id": range(500, 505), "artist_id": [1.0, 2.0, 3.0, 4.0, 5.0]})
+    edges, _ = genremodel.graph(pd.DataFrame(columns=["artist_id", "related_id", "rank", "related_name"]),
+                                pd.concat([big, small]), None)
+    linked = {a for a, b, _ in edges} | {b for a, b, _ in edges}
+    assert 9 in linked                                          # nothing else links it: the big playlist does
+    assert all(w <= 0.1 for a, b, w in edges if 9 in (a, b))    # weakly
+    assert all(abs(w - 0.1 / 3) < 1e-9 for a, b, w in edges if 9 in (a, b))   # one big playlist shared: weakly
+    assert all(abs(w - 0.3 / 3) < 1e-9 for a, b, w in edges if 9 not in (a, b))  # the others: their small playlist only
+    ev = {j: _house() for j in range(1, 6)}
+    d = _classify([9, 1, 2, 3, 4, 5], ev, edges)[9]
+    assert d.sub == HOUSE and d.confidence == "neighbours"

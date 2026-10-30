@@ -144,6 +144,7 @@ def reliability(ev: dict[int, dict[str, Evidence]], prior: dict[str, float] = W0
 
 RELATED_RANK = 5.0                                    # a related link weighs 1 / (1 + rank / 5)
 PLAYLIST_W, PLAYLIST_FULL, PLAYLIST_MAX, PLAYLIST_K = 0.3, 3, 300, 30
+LAST_RESORT_W = 0.1                                   # big playlists, only for artists nothing else links
 ROUNDS, TOL, PULL_MAX = 10, 1e-4, 3.0
 WEAK_MASS, NEIGHBOURS_SHARE = 1.0, 0.6
 CHUNK = 50_000                                        # edges gathered at once (memory bound)
@@ -179,6 +180,9 @@ def graph(related: pd.DataFrame, playlist_tracks: pd.DataFrame,
         parts.append(df[df["a"] != df["b"]].groupby(["a", "b"], as_index=False)["w"].max())
     parts.append(_playlist_edges(playlist_tracks))
     parts = [p for p in parts if not p.empty]
+    linked = set().union(*(set(p["a"]) | set(p["b"]) for p in parts)) if parts else set()
+    parts.append(_last_resort_edges(playlist_tracks, linked))
+    parts = [p for p in parts if not p.empty]
     edges = pd.concat(parts).groupby(["a", "b"], as_index=False)["w"].sum() if parts else None
     out = [] if edges is None else [(int(a), int(b), float(w)) for a, b, w in edges.itertuples(index=False)]
     external: dict[int, Evidence] = {}
@@ -206,6 +210,24 @@ def _playlist_edges(pt: pd.DataFrame) -> pd.DataFrame:
     lo, hi = np.minimum(picked["a"], picked["b"]), np.maximum(picked["a"], picked["b"])
     kept = pd.DataFrame({"a": lo, "b": hi, "n": picked["n"]}).drop_duplicates(["a", "b"])
     return pd.DataFrame({"a": kept["a"], "b": kept["b"], "w": PLAYLIST_W * np.minimum(1.0, kept["n"] / PLAYLIST_FULL)})
+
+
+def _last_resort_edges(pt: pd.DataFrame, linked: set) -> pd.DataFrame:
+    """For an artist of your playlists that nothing else links (no related artist, no playlist of at most
+    300 tracks shared), the artists of the bigger playlists it is in, weakly: 0.1 x min(1, shared / 3),
+    its 30 most shared. Better a likely genre than a cloud in the middle of nowhere."""
+    pa = pt[["playlist_id", "artist_id"]].dropna().drop_duplicates().astype({"artist_id": "int64"})
+    alone = pa[~pa["artist_id"].isin(linked)]
+    if alone.empty:
+        return pd.DataFrame(columns=["a", "b", "w"])
+    pairs = alone.merge(pa, on="playlist_id")
+    pairs = pairs[pairs["artist_id_x"] != pairs["artist_id_y"]]
+    shared = pairs.groupby(["artist_id_x", "artist_id_y"]).size().reset_index(name="n")
+    picked = shared.sort_values(["artist_id_x", "n", "artist_id_y"], ascending=[True, False, True]).groupby("artist_id_x").head(PLAYLIST_K)
+    lo = np.minimum(picked["artist_id_x"], picked["artist_id_y"])
+    hi = np.maximum(picked["artist_id_x"], picked["artist_id_y"])
+    w = LAST_RESORT_W * np.minimum(1.0, picked["n"].to_numpy() / PLAYLIST_FULL)
+    return pd.DataFrame({"a": lo, "b": hi, "w": w}).groupby(["a", "b"], as_index=False)["w"].max()
 
 
 @lru_cache(maxsize=1)
