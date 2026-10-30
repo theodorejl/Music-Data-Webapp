@@ -458,28 +458,46 @@ Le dessin reprend celui du site. Les territoires sont des polygones à bords dro
 - **Les découvertes** sont posées sur leur sous-genre. De près, elles deviennent leurs pochettes : clique pour écouter **30 s**.
 - **Pour te déplacer** : les **pastilles** volent vers chaque sous-genre exploré, la **recherche** trouve un genre ou un artiste, ◎ montre tes découvertes et ⟲ la carte entière.
 
-**Comment chaque artiste est placé** : un vote entre plusieurs bases musicales, toutes interrogées par leur API officielle (code : `core/artistinfo.py` et `core/atlas.py`).
+**Comment chaque artiste est placé** : un modèle qui croise plusieurs sources, mesure leur fiabilité sur ta propre musique et vérifie chaque artiste contre ses voisins (code : `core/genremodel.py` ; conception : `docs/superpowers/specs/2026-10-29-genre-classification-design.md`).
 
 | Source | Ce qu'elle donne | Clé | Comment l'artiste y est retrouvé |
 |---|---|---|---|
-| Wikidata | genres, labels | aucune | par son identifiant Deezer : aucun homonyme possible |
-| MusicBrainz | genres et tags de la communauté | aucune | par son lien Deezer, sinon par le code ISRC d'un de ses titres |
+| **Every Noise at Once** (everynoise.com, Glenn McDonald) | les genres précis de la carte elle-même | aucune | par son identifiant Spotify (donné par Wikidata ou MusicBrainz), sinon par son nom s'il est unique ; un homonyme n'est accepté que si ses genres collent à ce qu'on sait déjà de l'artiste |
+| Wikidata | genres, labels, identifiant Spotify | aucune | par son identifiant Deezer : aucun homonyme possible |
+| MusicBrainz | genres et tags de la communauté, identifiant Spotify | aucune | par son lien Deezer, sinon par le code ISRC d'un de ses titres |
 | Discogs | styles (Jazz-Funk, Nu-Disco…), labels | aucune ; `DISCOGS_TOKEN` (gratuit) pour aller 2,5 fois plus vite et chercher par nom | par l'identifiant Discogs que donnent Wikidata et MusicBrainz |
 | Last.fm | tags des auditeurs, la couverture la plus large | `LASTFM_API_KEY` (gratuite) | par l'identifiant MusicBrainz, sinon par le nom |
-| Deezer | genre et label de ses albums | aucune | ses albums |
+| Deezer | genre de ses albums, et ses **artistes liés** (jusqu'à 20) | aucune | ses albums, et la liste « artistes similaires » de Deezer |
 
-- Les sources votent, chacune selon sa fiabilité : genres soignés de MusicBrainz et Wikidata, styles Discogs, tags Last.fm selon leur fréquence. Les genres Deezer comptent moins, parce qu'ils sont larges (« Pop », « Electro »).
-- Chaque mot est lu sur l'arbre des genres : un genre exact de la carte (« nu-disco »), sinon un sous-genre (« jazz-funk » → fusion). Les pays, les décennies et « seen live » sont ignorés.
-- Le point se pose sur un **genre précis** quand il est clairement désigné. Sinon, il va dans un petit nuage autour du nom de son **sous-genre**, ou de son **genre principal** quand on ne sait rien de plus. Il n'est jamais posé sur un genre que rien n'indique.
-- Au survol, la carte montre le **label**, les mots qui ont placé l'artiste et leurs sources.
+Le modèle travaille en quatre temps :
 
-L'enrichissement avance un peu à chaque synchro horaire. Pour tout faire d'un coup sur ton ordinateur :
+1. **Les preuves** : chaque source dit, avec plus ou moins de force, dans quel genre précis, sous-genre ou grand genre est l'artiste. Les pays, les décennies et « seen live » sont ignorés.
+2. **La fiabilité, mesurée** : pour chaque source et chaque grand genre, le modèle regarde à quelle fréquence elle tombe d'accord avec les autres sources, sur toute ta discothèque (méthode de Dawid et Skene). Par exemple, les genres Deezer des albums (« Pop », « Electro ») pèsent beaucoup moins que les genres MusicBrainz ou Every Noise.
+3. **Les voisins** : chaque artiste écoute l'avis de ses artistes liés Deezer et, plus faiblement, des artistes qui partagent ses playlists. Plus il a de preuves à lui, moins ses voisins comptent. Un artiste sans aucune preuve prend le genre de ses voisins ; un « Pop » isolé contredit par tous ses voisins est corrigé. Les playlists de plus de 300 titres, trop mélangées, ne servent qu'en dernier recours, aux artistes que rien d'autre ne relie.
+4. **La décision** : le grand genre dominant de sa carrière, puis le sous-genre dominant dans ce grand genre, puis le genre précis dominant dans ce sous-genre. Un artiste multi-genre va donc dans son genre dominant, jamais entre deux.
+
+Chaque artiste est ainsi posé **sur un genre précis**, jamais en nuage : les artistes d'un même genre s'enroulent en spirale autour de son nom, comme les graines d'un tournesol, les plus écoutés au centre. Au survol, la carte montre le **label**, les mots qui ont placé l'artiste et leurs sources. Sur la carte Univers, un album sans genre à lui suit la décision de son artiste.
+
+**Mesuré sur ta discothèque (30/10/2026)** : 8 447 artistes sur un genre précis (avant : 2 473 ; 5 596 étaient en nuage au milieu d'un grand genre), 2 sans aucune information.
+
+- On prend les 2 474 artistes dont le genre est sûr (deux sources indépendantes d'accord, ou Every Noise par l'identifiant Spotify), et on cache tout ce qu'on sait d'eux.
+- Rien qu'avec leurs voisins, le modèle retrouve leur grand genre dans 67 % des cas (l'ancienne méthode, par les playlists : 49 %) et leur sous-genre dans 48 % des cas.
+- En ne gardant qu'une seule de leurs sources : 70 % pour le grand genre, 53 % pour le sous-genre.
+
+Pour refaire ces mesures : `python -m scripts.genre_eval` (avec 40 artistes tirés au hasard, pour juger à l'œil).
+
+L'enrichissement avance un peu à chaque synchro horaire, puis le classement est recalculé (une dizaine de secondes). Pour tout faire d'un coup sur ton ordinateur :
 
 ```
-python -m scripts.enrich_artists --minutes 240
+python -m scripts.enrich_artists --minutes 240      # genres et labels des bases musicales
+python -m scripts.enrich_artists --spotify-ids      # identifiants Spotify (Wikidata, MusicBrainz)
+python -m scripts.enrich_artists --related          # artistes liés Deezer (environ 15 min)
+python -m scripts.classify_genres                   # le classement de chaque artiste
 ```
 
-Sans clé, compte quelques heures pour 8 000 artistes. Avec une clé Last.fm (gratuite, 2 minutes sur [last.fm/api/account/create](https://www.last.fm/api/account/create)), compte environ 40 minutes. Ajoute-la dans `.env` (`LASTFM_API_KEY=…`) et, pour la synchro GitHub, en secret du dépôt. Le jeton Discogs se crée sur [discogs.com/settings/developers](https://www.discogs.com/settings/developers).
+L'index Every Noise (481 095 artistes dans 6 291 genres) est rangé dans `app/assets/everynoise_artists.json.gz`. Every Noise ne bouge plus depuis fin 2023 : il n'y a pas besoin de le refaire. Pour le reconstruire quand même : `python -m scripts.build_everynoise_index` (environ 2 h, une page par seconde ; il reprend où il s'est arrêté).
+
+Sans clé, compte quelques heures d'enrichissement pour 8 000 artistes. **Une clé Last.fm** (gratuite, 2 minutes sur [last.fm/api/account/create](https://www.last.fm/api/account/create)) ajoute la source la plus large : c'est elle qui connaît les artistes absents de toutes les autres, comme Wally Badarou. Ajoute-la dans `.env` (`LASTFM_API_KEY=…`) et, pour la synchro GitHub, en secret du dépôt. Le jeton Discogs se crée sur [discogs.com/settings/developers](https://www.discogs.com/settings/developers).
 
 À chaque synchro, l'app lit aussi le genre et le label Deezer d'un album par artiste de ta bibliothèque. L'atlas est rangé dans `app/assets/genre_tree.json` (code : `core/genretree.py`). Il se reconstruit avec `python -m scripts.build_genre_map --tree`.
 
@@ -626,9 +644,13 @@ core/
   recommend.py       les trois modes de découverte (API publique Deezer), audace, estimation
   soundmap.py        les genres Every Noise : correspondance des tags, territoire, frontière
   genretree.py       l'atlas des genres : genres principaux, sous-genres, placement
-  atlas.py           tes artistes sur l'atlas
+  artistinfo.py      genres, labels, identifiants Spotify et artistes liés de tes artistes (Wikidata, MusicBrainz, Discogs, Last.fm, Deezer)
+  everynoise.py      l'index des artistes d'Every Noise (app/assets/everynoise_artists.json.gz)
+  genremodel.py      le genre de chaque artiste : preuves, fiabilité mesurée, voisins, décision, évaluation
+  atlas.py           tes artistes et tes albums sur l'atlas, en spirale autour de leur genre
   instamusic.py      Depuis Insta : posts (API officielle), titres dans le texte, son (AudD), mémoire
-scripts/             sync, dev_server, cloud_db, build_genre_map, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
+scripts/             sync, dev_server, cloud_db, build_genre_map, build_everynoise_index, enrich_artists, classify_genres,
+                     genre_eval, diagnose_deezer, migrate_sqlite_to_postgres, seed_demo
 tests/               pytest
 .github/workflows/   synchro toutes les 30 min
 ```
